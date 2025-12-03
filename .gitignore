@@ -10,3 +10,5 @@ wheels/
 .venv
 
 sample/
+output/
+test.py

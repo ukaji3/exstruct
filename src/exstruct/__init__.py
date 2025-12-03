@@ -4,12 +4,13 @@ from pathlib import Path
 from typing import Optional
 
 from .core.integrate import extract_workbook
-from .io import save_as_json
+from .io import save_as_json, save_sheets_as_json
 from .models import CellRow, Chart, ChartSeries, Shape, SheetData, WorkbookData
 
 __all__ = [
     "extract",
     "export",
+    "export_sheets",
     "process_excel",
     "CellRow",
     "Shape",
@@ -33,6 +34,15 @@ def export(data: WorkbookData, path: str | Path, fmt: Optional[str] = None) -> N
         save_as_json(data, dest)
     else:
         raise ValueError(f"Unsupported export format: {format_hint}")
+
+
+def export_sheets(data: WorkbookData, dir_path: str | Path) -> dict[str, Path]:
+    """
+    Export each sheet as a JSON file.
+    Payload includes book_name and the SheetData for that sheet.
+    Returns a mapping of sheet name to written path.
+    """
+    return save_sheets_as_json(data, Path(dir_path))
 
 
 def process_excel(
