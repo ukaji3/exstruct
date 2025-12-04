@@ -17,6 +17,7 @@ from .charts import get_charts
 from .shapes import get_shapes_with_position
 
 logger = logging.getLogger(__name__)
+_ALLOWED_MODES: set[str] = {"light", "standard", "verbose"}
 
 
 def integrate_sheet_content(
@@ -46,6 +47,9 @@ def extract_workbook(
     file_path: Path, mode: Literal["light", "standard", "verbose"] = "standard"
 ) -> WorkbookData:
     """Extract workbook and return WorkbookData; fallback to cells+tables if Excel COM is unavailable."""
+    if mode not in _ALLOWED_MODES:
+        raise ValueError(f"Unsupported mode: {mode}")
+
     cell_data = extract_sheet_cells(file_path)
 
     def _cells_and_tables_only(reason: str) -> WorkbookData:

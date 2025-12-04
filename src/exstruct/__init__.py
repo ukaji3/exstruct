@@ -30,6 +30,8 @@ ExtractionMode = Literal["light", "standard", "verbose"]
 
 def extract(file_path: str | Path, mode: ExtractionMode = "standard") -> WorkbookData:
     """Extract workbook semantic structure and return WorkbookData."""
+    if mode not in ("light", "standard", "verbose"):
+        raise ValueError(f"Unsupported mode: {mode}")
     return extract_workbook(Path(file_path), mode=mode)
 
 
@@ -81,6 +83,8 @@ def process_excel(
     mode: ExtractionMode = "standard",
 ) -> None:
     """Convenience wrapper for CLI: export workbook and optionally PDF/PNG images (Excel required for rendering)."""
+    if mode not in ("light", "standard", "verbose"):
+        raise ValueError(f"Unsupported mode: {mode}")
     workbook_model = extract(file_path, mode=mode)
     match out_fmt:
         case "json":
