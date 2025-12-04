@@ -50,7 +50,7 @@ RAG 向けレンダリング
 ### cli/
 
 CLI エントリポイント  
-→ `exstruct extract file.xlsx --format json`
+→ `exstruct file.xlsx --format json`
 
 ---
 

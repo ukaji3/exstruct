@@ -31,7 +31,7 @@ exstruct extract file.xlsx --format json
 
 ---
 
-## JSON/YAML/TOML 出力
+## JSON/YAML/TOON 出力
 
 ```python
 xs.export(data, "output.json")

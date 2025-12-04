@@ -23,8 +23,6 @@
 抽出内容：
 
 - ChartType（整数 → XL_CHART_TYPE_MAP で文字列化）
-- Series.values（配列）
-- Series.xvalues（散布図のみ）
 - Axis Title / Range
 - Chart Title
 
