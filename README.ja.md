@@ -98,7 +98,7 @@ exstruct input.xlsx --pdf --image --dpi 144
 - 図形のみで作成したフローチャート
 
 （下画像が実際のサンプル Excel シート）
-![sample-excel](./docs/assets/demo_sheet.png)
+<img width="1842" height="1242" alt="スクリーンショット 2025-12-04 221252" src="https://github.com/user-attachments/assets/37ffcb3d-121e-47c1-a59f-0497337c85d9" />
 
 ### 1. Input: Excel Sheet Overview
 
