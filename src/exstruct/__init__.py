@@ -6,11 +6,14 @@ from typing import Literal, Optional
 from .core.integrate import extract_workbook
 from .io import save_as_json, save_as_toon, save_as_yaml, save_sheets
 from .models import CellRow, Chart, ChartSeries, Shape, SheetData, WorkbookData
+from .render import export_pdf, export_sheet_images
 
 __all__ = [
     "extract",
     "export",
     "export_sheets",
+    "export_pdf",
+    "export_sheet_images",
     "process_excel",
     "CellRow",
     "Shape",
@@ -78,4 +81,18 @@ def process_excel(
     workbook_model = extract(file_path)
     if out_fmt == "json":
         save_as_json(workbook_model, output_path)
-    print(f"{file_path.name} -> {output_path} 完了")
+    elif out_fmt in ("yaml", "yml"):
+        save_as_yaml(workbook_model, output_path)
+    elif out_fmt == "toon":
+        save_as_toon(workbook_model, output_path)
+    else:
+        raise ValueError(f"Unsupported export format: {out_fmt}")
+
+    if pdf or image:
+        pdf_path = output_path.with_suffix(".pdf")
+        export_pdf(file_path, pdf_path)
+        if image:
+            images_dir = output_path.parent / f"{output_path.stem}_images"
+            export_sheet_images(file_path, images_dir, dpi=dpi)
+
+    print(f"{file_path.name} -> {output_path} done.")
