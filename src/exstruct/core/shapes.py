@@ -76,6 +76,7 @@ def _should_include_shape(
     shape_type_num: Optional[int],
     shape_type_str: Optional[str],
     autoshape_type_str: Optional[str],
+    shape_name: Optional[str],
     output_mode: str = "standard",
 ) -> bool:
     """
@@ -87,20 +88,21 @@ def _should_include_shape(
     if output_mode == "light":
         return False
 
-    is_arrow = False
+    is_relationship = False
     if shape_type_num in (3, 9):  # line/connector
-        is_arrow = True
-    if autoshape_type_str and "Arrow" in autoshape_type_str:
-        is_arrow = True
-    if shape_type_str and "Connector" in shape_type_str:
-        is_arrow = True
-    if shape_type_str and shape_type_str == "Line":
-        is_arrow = True
-    if shape_type_str and shape_type_str == "ConnectLine":
-        is_arrow = True
+        is_relationship = True
+    if autoshape_type_str and ("Arrow" in autoshape_type_str or "Connector" in autoshape_type_str):
+        is_relationship = True
+    if shape_type_str and (
+        "Connector" in shape_type_str
+        or shape_type_str in ("Line", "ConnectLine")
+    ):
+        is_relationship = True
+    if shape_name and ("Connector" in shape_name or "Line" in shape_name):
+        is_relationship = True
 
     if output_mode == "standard":
-        return bool(text) or is_arrow
+        return bool(text) or is_relationship
     # verbose
     return True
 
@@ -113,6 +115,10 @@ def get_shapes_with_position(workbook: Book, mode: str = "standard") -> Dict[str
         for root in sheet.shapes:
             for shp in iter_shapes_recursive(root):
                 try:
+                    shape_name = getattr(shp, "name", None)
+                except Exception:
+                    shape_name = None
+                try:
                     type_num = shp.api.Type
                     shape_type_str = MSO_SHAPE_TYPE_MAP.get(
                         type_num, f"Unknown({type_num})"
@@ -120,11 +126,13 @@ def get_shapes_with_position(workbook: Book, mode: str = "standard") -> Dict[str
                     if shape_type_str in ["Chart", "Comment", "Picture", "FormControl"]:
                         continue
                     autoshape_type_str = None
-                    if type_num == 1:
+                    try:
                         astype_num = shp.api.AutoShapeType
                         autoshape_type_str = MSO_AUTO_SHAPE_TYPE_MAP.get(
                             astype_num, f"Unknown({astype_num})"
                         )
+                    except Exception:
+                        autoshape_type_str = None
                 except Exception:
                     type_num = None
                     shape_type_str = None
@@ -139,9 +147,19 @@ def get_shapes_with_position(workbook: Book, mode: str = "standard") -> Dict[str
                     shape_type_num=type_num,
                     shape_type_str=shape_type_str,
                     autoshape_type_str=autoshape_type_str,
+                    shape_name=shape_name,
                     output_mode=mode,
                 ):
                     continue
+
+                if autoshape_type_str and autoshape_type_str == "NotPrimitive" and shape_name:
+                    type_label = shape_name
+                else:
+                    type_label = (
+                        f"{shape_type_str}-{autoshape_type_str}"
+                        if autoshape_type_str
+                        else (shape_type_str or shape_name or "Unknown")
+                    )
 
                 shape_obj = Shape(
                     text=text,
@@ -149,10 +167,22 @@ def get_shapes_with_position(workbook: Book, mode: str = "standard") -> Dict[str
                     t=int(shp.top),
                     w=int(shp.width) if mode == "verbose" or shape_type_str == "Group" else None,
                     h=int(shp.height) if mode == "verbose" or shape_type_str == "Group" else None,
-                    type=f"{shape_type_str}{f'-{autoshape_type_str}' if autoshape_type_str else ''}",
+                    type=type_label,
                 )
                 try:
-                    if type_num in (9, 3):
+                    is_relationship_geom = False
+                    if type_num in (3, 9):
+                        is_relationship_geom = True
+                    if autoshape_type_str and ("Arrow" in autoshape_type_str or "Connector" in autoshape_type_str):
+                        is_relationship_geom = True
+                    if shape_type_str and (
+                        "Connector" in shape_type_str or shape_type_str in ("Line", "ConnectLine")
+                    ):
+                        is_relationship_geom = True
+                    if shape_name and ("Connector" in shape_name or "Line" in shape_name):
+                        is_relationship_geom = True
+
+                    if is_relationship_geom:
                         angle = compute_line_angle_deg(float(shp.width), float(shp.height))
                         shape_obj.angle_deg = angle
                         shape_obj.direction = angle_to_compass(angle)  # type: ignore
