@@ -89,3 +89,7 @@ Creates `<output>.pdf` and `<output>_images/` PNGs per sheet.
 
 - Default JSON is compact to reduce tokens; use `--pretty` or `pretty=True` when readability matters.
 - Field `table_candidates` replaces `tables`; adjust downstream consumers accordingly.
+
+## License
+
+BSD-3-Clause. See `LICENSE` for details.

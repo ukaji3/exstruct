@@ -89,3 +89,7 @@ exstruct input.xlsx --pdf --image --dpi 144
 
 - デフォルト JSON はコンパクト（トークン削減目的）。可読性が必要なら `--pretty` / `pretty=True` を利用してください。
 - フィールド名は `table_candidates` を使用します（以前の `tables` から変更）。下流のスキーマを調整してください。
+
+## License
+
+BSD-3-Clause. See `LICENSE` for details.
