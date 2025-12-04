@@ -37,3 +37,9 @@ render = ["pypdfium2>=5.1.0"]
 
 [project.scripts]
 exstruct = "exstruct.cli.main:main"
+
+[project.urls]
+Homepage = "https://harumiweb.github.io/exstruct/"
+Repository = "https://github.com/harumiWeb/exstruct"
+Issues = "https://github.com/harumiWeb/exstruct/issues"
+Documentation = "https://harumiweb.github.io/exstruct/"
