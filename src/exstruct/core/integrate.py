@@ -3,12 +3,20 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List
 
+import logging
+
 import xlwings as xw
 
 from ..models import CellRow, Shape, SheetData, WorkbookData
-from .cells import detect_tables, extract_sheet_cells
+from .cells import (
+    detect_tables,
+    detect_tables_openpyxl,
+    extract_sheet_cells,
+)
 from .charts import get_charts
 from .shapes import get_shapes_with_position
+
+logger = logging.getLogger(__name__)
 
 
 def integrate_sheet_content(
@@ -34,7 +42,28 @@ def integrate_sheet_content(
 
 def extract_workbook(file_path: Path) -> WorkbookData:
     cell_data = extract_sheet_cells(file_path)
-    wb = xw.Book(file_path)
+    try:
+        wb = xw.Book(file_path)
+    except Exception as e:
+        logger.warning(
+            "xlwings/Excel COM is unavailable. Falling back to cells+tables only. "
+            "Shapes and charts will be empty. (%r)",
+            e,
+        )
+        sheets: Dict[str, SheetData] = {}
+        for sheet_name, rows in cell_data.items():
+            try:
+                tables = detect_tables_openpyxl(file_path, sheet_name)
+            except Exception:
+                tables = []
+            sheets[sheet_name] = SheetData(
+                rows=rows,
+                shapes=[],
+                charts=[],
+                tables=tables,
+            )
+        return WorkbookData(book_name=file_path.name, sheets=sheets)
+
     try:
         shape_data = get_shapes_with_position(wb)
         merged = integrate_sheet_content(cell_data, shape_data, wb)
