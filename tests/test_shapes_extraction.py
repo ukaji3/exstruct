@@ -24,6 +24,8 @@ def _make_workbook_with_shapes(path: Path) -> None:
         rect = sht.api.Shapes.AddShape(1, 50, 50, 120, 60)  # msoShapeRectangle
         rect.TextFrame2.TextRange.Text = "rect"
 
+        silent_rect = sht.api.Shapes.AddShape(5, 300, 50, 80, 40)  # msoShapeOval (no text)
+
         line = sht.api.Shapes.AddLine(10, 10, 110, 10)
         line.Line.EndArrowheadStyle = 3  # msoArrowheadTriangle
 
@@ -56,6 +58,11 @@ def test_図形の種別とテキストが抽出される(tmp_path: Path) -> Non
     inner = next(s for s in shapes if s.text == "inner")
     assert "Group" not in (inner.type or "")  # flattened child
     assert not any((s.type or "") == "Group" for s in shapes)
+    assert not any(
+        (s.text == "" or s.text is None)
+        and (s.type or "").startswith("AutoShape")
+        for s in shapes
+    )
 
 
 def test_線図形の方向と矢印情報が抽出される(tmp_path: Path) -> None:

@@ -70,6 +70,34 @@ def iter_shapes_recursive(shp):
         pass
 
 
+def _should_include_shape(
+    *,
+    text: str,
+    shape_type_num: Optional[int],
+    shape_type_str: Optional[str],
+    autoshape_type_str: Optional[str],
+    output_mode: str = "standard",
+) -> bool:
+    """
+    Decide whether to emit a shape given output mode.
+    - standard: emit if text exists OR the shape is an arrow/line/connector.
+    """
+    # Future modes can branch here (light/verbose).
+    is_arrow = False
+    if shape_type_num in (3, 9):  # line/connector
+        is_arrow = True
+    if autoshape_type_str and "Arrow" in autoshape_type_str:
+        is_arrow = True
+    if shape_type_str and "Connector" in shape_type_str:
+        is_arrow = True
+    if shape_type_str and shape_type_str == "Line":
+        is_arrow = True
+
+    if output_mode == "standard":
+        return bool(text) or is_arrow
+    return True
+
+
 def get_shapes_with_position(workbook: Book) -> Dict[str, List[Shape]]:
     """Scan shapes in a workbook and return per-sheet Shape lists with position info."""
     shape_data: Dict[str, List[Shape]] = {}
@@ -109,8 +137,14 @@ def get_shapes_with_position(workbook: Book) -> Dict[str, List[Shape]]:
                 except Exception:
                     text = ""
 
-                if (autoshape_type_str in ["Mixed"] and text == "") or (
-                    shape_type_str == "Group" and text == ""
+                if shape_type_str == "Group" and text == "":
+                    continue
+
+                if not _should_include_shape(
+                    text=text,
+                    shape_type_num=type_num,
+                    shape_type_str=shape_type_str,
+                    autoshape_type_str=autoshape_type_str,
                 ):
                     continue
 
