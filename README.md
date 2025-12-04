@@ -1,5 +1,7 @@
 # ExStruct — Excel Structured Extraction Engine
 
+<img width="3168" height="1344" alt="Gemini_Generated_Image_nlwx0bnlwx0bnlwx" src="https://github.com/user-attachments/assets/90231682-fb42-428e-bf01-4389e8116b65" />
+
 ExStruct reads Excel workbooks and outputs structured data (tables, shapes, charts) as JSON by default, with optional YAML/TOON formats. It targets both COM/Excel environments (rich extraction) and non-COM environments (cells + table candidates), with tunable detection heuristics and multiple output modes to fit LLM/RAG pipelines.
 
 ## Features
