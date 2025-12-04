@@ -563,7 +563,11 @@ def detect_tables_xlwings(sheet: xw.Sheet) -> List[str]:
 
 
 def detect_tables_openpyxl(xlsx_path: Path, sheet_name: str) -> List[str]:
-    wb = load_workbook(xlsx_path, read_only=False, data_only=True)
+    wb = load_workbook(
+        xlsx_path,
+        data_only=True,
+        read_only=False,
+    )
     ws = wb[sheet_name]
     tables: List[str] = []
     try:
