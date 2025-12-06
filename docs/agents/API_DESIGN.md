@@ -19,7 +19,7 @@ data = xs.extract("file.xlsx")
 ## CLI
 
 ```bash
-exstruct extract file.xlsx --format json
+exstruct file.xlsx --format json > output.json
 ```
 
 オプション：
@@ -34,7 +34,10 @@ exstruct extract file.xlsx --format json
 ## JSON/YAML/TOON 出力
 
 ```python
-xs.export(data, "output.json")
+data = xs.extract("file.xlsx")
+data.to_json(pretty=True)
+data.to_yaml()
+data.to_toon()
 ```
 
 ---
