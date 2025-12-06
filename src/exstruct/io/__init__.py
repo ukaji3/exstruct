@@ -26,44 +26,17 @@ def dict_without_empty_values(obj: Any):
 
 
 def save_as_json(model: WorkbookData, path: Path, *, pretty: bool = False, indent: int | None = None) -> None:
-    filtered_dict = dict_without_empty_values(model)
-    indent_val = 2 if pretty and indent is None else indent
-    path.write_text(
-        json.dumps(filtered_dict, ensure_ascii=False, indent=indent_val),
-        encoding="utf-8",
-    )
+    text = serialize_workbook(model, fmt="json", pretty=pretty, indent=indent)
+    path.write_text(text, encoding="utf-8")
 
 
 def save_as_yaml(model: WorkbookData, path: Path) -> None:
-    try:
-        import yaml
-    except ImportError as e:
-        raise RuntimeError(
-            "YAML export requires pyyaml. Install it via `pip install pyyaml` "
-            "or add the 'yaml' extra."
-        ) from e
-
-    filtered_dict = dict_without_empty_values(model)
-    text = yaml.safe_dump(
-        filtered_dict,
-        allow_unicode=True,
-        sort_keys=False,
-        indent=2,
-    )
+    text = serialize_workbook(model, fmt="yaml")
     path.write_text(text, encoding="utf-8")
 
 
 def save_as_toon(model: WorkbookData, path: Path) -> None:
-    try:
-        import toon
-    except ImportError as e:
-        raise RuntimeError(
-            "TOON export requires python-toon. Install it via `pip install python-toon` "
-            "or add the 'toon' extra."
-        ) from e
-
-    filtered_dict = dict_without_empty_values(model)
-    text = toon.encode(filtered_dict)
+    text = serialize_workbook(model, fmt="toon")
     path.write_text(text, encoding="utf-8")
 
 
@@ -71,6 +44,40 @@ def _sanitize_sheet_filename(name: str) -> str:
     """Make a sheet name safe for filesystem usage."""
     safe = re.sub(r"[\\/:*?\"<>|]", "_", name)
     return safe or "sheet"
+
+
+def serialize_workbook(
+    model: WorkbookData,
+    fmt: Literal["json", "yaml", "yml", "toon"] = "json",
+    *,
+    pretty: bool = False,
+    indent: int | None = None,
+) -> str:
+    """
+    Convert WorkbookData to string in the requested format without writing to disk.
+    """
+    format_hint = fmt.lower()
+    if format_hint == "yml":
+        format_hint = "yaml"
+    filtered_dict = dict_without_empty_values(model)
+
+    match format_hint:
+        case "json":
+            indent_val = 2 if pretty and indent is None else indent
+            return json.dumps(filtered_dict, ensure_ascii=False, indent=indent_val)
+        case "yaml":
+            yaml = _require_yaml()
+            return yaml.safe_dump(
+                filtered_dict,
+                allow_unicode=True,
+                sort_keys=False,
+                indent=2,
+            )
+        case "toon":
+            toon = _require_toon()
+            return toon.encode(filtered_dict)
+        case _:
+            raise ValueError(f"Unsupported export format: {fmt}")
 
 
 def save_sheets_as_json(workbook: WorkbookData, output_dir: Path, *, pretty: bool = False, indent: int | None = None) -> Dict[str, Path]:
@@ -176,4 +183,5 @@ __all__ = [
     "save_as_toon",
     "save_sheets",
     "save_sheets_as_json",
+    "serialize_workbook",
 ]

@@ -28,12 +28,13 @@ pip install exstruct
 ## クイックスタート CLI
 
 ```bash
-exstruct input.xlsx                # デフォルトはコンパクト JSON
-exstruct input.xlsx --pretty       # 整形 JSON
-exstruct input.xlsx --format yaml  # YAML（pyyaml が必要）
-exstruct input.xlsx --format toon  # TOON（python-toon が必要）
-exstruct input.xlsx --mode light   # セル＋テーブル候補のみ
-exstruct input.xlsx --pdf --image  # PDF と PNG（Excel 必須）
+exstruct input.xlsx > output.json          # デフォルトは標準出力のコンパクト JSON
+exstruct input.xlsx -o out.json --pretty   # 整形 JSON をファイルへ
+exstruct input.xlsx --format yaml          # YAML（pyyaml が必要）
+exstruct input.xlsx --format toon          # TOON（python-toon が必要）
+exstruct input.xlsx --sheets-dir sheets/   # シートごとに分割出力
+exstruct input.xlsx --mode light           # セル＋テーブル候補のみ
+exstruct input.xlsx --pdf --image          # PDF と PNG（Excel 必須）
 ```
 
 ## クイックスタート Python

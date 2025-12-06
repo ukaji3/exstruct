@@ -123,3 +123,54 @@ def test_CLIのmode引数バリデーション(tmp_path: Path) -> None:
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     assert result.returncode != 0
+
+
+def _make_multi_sheet_book(path: Path) -> None:
+    wb = Workbook()
+    ws1 = wb.active
+    ws1.title = "Sheet1"
+    ws1["A1"] = "v1"
+    ws2 = wb.create_sheet("Data 02")
+    ws2["A1"] = "v2"
+    wb.save(path)
+
+
+def test_process_excel_defaults_to_stdout(tmp_path: Path, capsys) -> None:
+    path = tmp_path / "book.xlsx"
+    _make_basic_book(path)
+
+    process_excel(path, output_path=None, mode="light", pretty=True)
+    captured = capsys.readouterr().out
+    assert '"book_name": "book.xlsx"' in captured
+    assert "Sheet1" in captured
+
+
+def test_process_excel_sheets_dir_output(tmp_path: Path) -> None:
+    path = tmp_path / "book.xlsx"
+    _make_multi_sheet_book(path)
+    sheets_dir = tmp_path / "sheets"
+
+    process_excel(path, output_path=None, mode="light", sheets_dir=sheets_dir)
+
+    files = list(sheets_dir.glob("*.json"))
+    assert len(files) == 2
+    names = {f.stem for f in files}
+    assert "Sheet1" in names
+    assert "Data 02" in names
+
+
+def test_CLI_defaults_to_stdout(tmp_path: Path) -> None:
+    path = tmp_path / "book.xlsx"
+    _make_basic_book(path)
+    cmd = [
+        sys.executable,
+        "-m",
+        "exstruct.cli.main",
+        str(path),
+        "--mode",
+        "light",
+        "--pretty",
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    assert result.returncode == 0
+    assert '"book_name": "book.xlsx"' in result.stdout

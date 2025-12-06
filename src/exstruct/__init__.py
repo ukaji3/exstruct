@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal, Optional, TextIO
 
 from .core.integrate import extract_workbook
 from .core.cells import set_table_detection_params
-from .io import save_as_json, save_as_toon, save_as_yaml, save_sheets
+from .io import save_as_json, save_as_toon, save_as_yaml, save_sheets, serialize_workbook
 from .models import CellRow, Chart, ChartSeries, Shape, SheetData, WorkbookData
 from .render import export_pdf, export_sheet_images
 
@@ -83,7 +83,7 @@ def export_sheets_as(
 
 def process_excel(
     file_path: Path,
-    output_path: Path,
+    output_path: Path | None = None,
     out_fmt: str = "json",
     image: bool = False,
     pdf: bool = False,
@@ -91,26 +91,53 @@ def process_excel(
     mode: ExtractionMode = "standard",
     pretty: bool = False,
     indent: int | None = None,
+    sheets_dir: Path | None = None,
+    stream: TextIO | None = None,
 ) -> None:
-    """Convenience wrapper for CLI: export workbook and optionally PDF/PNG images (Excel required for rendering)."""
+    """
+    Convenience wrapper for CLI: export workbook and optionally PDF/PNG images (Excel required for rendering).
+    - If output_path is None, writes the serialized workbook to stdout (or provided stream).
+    - If sheets_dir is given, also writes per-sheet files into that directory.
+    """
     if mode not in ("light", "standard", "verbose"):
         raise ValueError(f"Unsupported mode: {mode}")
     workbook_model = extract(file_path, mode=mode)
-    match out_fmt:
-        case "json":
-            save_as_json(workbook_model, output_path, pretty=pretty, indent=indent)
-        case "yaml" | "yml":
-            save_as_yaml(workbook_model, output_path)
-        case "toon":
-            save_as_toon(workbook_model, output_path)
-        case _:
-            raise ValueError(f"Unsupported export format: {out_fmt}")
+    text = serialize_workbook(workbook_model, fmt=out_fmt, pretty=pretty, indent=indent)
+    target_stream = stream
+
+    def _suffix_for(fmt: str) -> str:
+        if fmt in ("yaml", "yml"):
+            return ".yaml"
+        if fmt == "toon":
+            return ".toon"
+        if fmt == "json":
+            return ".json"
+        raise ValueError(f"Unsupported export format: {fmt}")
+
+    if output_path is not None:
+        output_path.write_text(text, encoding="utf-8")
+    else:
+        if target_stream is None:
+            import sys
+
+            target_stream = sys.stdout
+        target_stream.write(text)
+        if not text.endswith("\n"):
+            target_stream.write("\n")
+
+    if sheets_dir is not None:
+        save_sheets(
+            workbook_model,
+            sheets_dir,
+            fmt=out_fmt,
+            pretty=pretty,
+            indent=indent,
+        )
 
     if pdf or image:
-        pdf_path = output_path.with_suffix(".pdf")
+        base_target = output_path or file_path.with_suffix(_suffix_for(out_fmt))
+        pdf_path = base_target.with_suffix(".pdf")
         export_pdf(file_path, pdf_path)
         if image:
-            images_dir = output_path.parent / f"{output_path.stem}_images"
+            images_dir = pdf_path.parent / f"{pdf_path.stem}_images"
             export_sheet_images(file_path, images_dir, dpi=dpi)
-
-    print(f"{file_path.name} -> {output_path} completed.")

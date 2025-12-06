@@ -46,6 +46,7 @@ root: .
 │       ├── __init__.py # ライブラリエントリポイント
 │       ├── cli/ # CLIエントリポイント
 │       └── py.typed
+├── tests/ # テスト
 ├── .python-version
 ├── pyproject.toml
 ├── README.md

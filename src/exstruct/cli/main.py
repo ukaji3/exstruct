@@ -15,7 +15,7 @@ def build_parser() -> argparse.ArgumentParser:
         "-o",
         "--output",
         type=Path,
-        help="Output path (defaults to <input>.json)",
+        help="Output path. If omitted, writes to stdout.",
     )
     parser.add_argument(
         "-f",
@@ -52,6 +52,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Pretty-print JSON output (indent=2). Default is compact JSON.",
     )
+    parser.add_argument(
+        "--sheets-dir",
+        type=Path,
+        help="Optional directory to write one file per sheet (format follows --format).",
+    )
     return parser
 
 
@@ -64,24 +69,17 @@ def main(argv: list[str] | None = None) -> int:
         print(f"File not found: {input_path}")
         return 0
 
-    suffix = ".json"
-    if args.format in ("yaml", "yml"):
-        suffix = ".yaml"
-    elif args.format == "toon":
-        suffix = ".toon"
-
-    output_path: Path = args.output or input_path.with_suffix(suffix)
-
     try:
         process_excel(
             file_path=input_path,
-            output_path=output_path,
+            output_path=args.output,
             out_fmt=args.format,
             image=args.image,
             pdf=args.pdf,
             dpi=args.dpi,
             mode=args.mode,
             pretty=args.pretty,
+            sheets_dir=args.sheets_dir,
         )
         return 0
     except Exception as e:

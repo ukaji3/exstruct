@@ -35,14 +35,15 @@ from exstruct import process_excel
 
 process_excel(
     file_path=Path("input.xlsx"),
-    output_path=Path("out.json"),
+    output_path=None,  # default: stdout (redirect if you want a file)
+    sheets_dir=Path("out_sheets"),  # optional per-sheet outputs
     out_fmt="json",
     image=True,
     pdf=True,
     mode="standard",
     pretty=True,
 )
-# Same as: exstruct input.xlsx --format json --pdf --image --mode standard --pretty
+# Same as: exstruct input.xlsx --format json --pdf --image --mode standard --pretty --sheets-dir out_sheets > out.json
 ```
 
 ## Dependencies
@@ -91,9 +92,9 @@ Same as `export_sheets` but supports `json`/`yaml`/`yml`/`toon`. Raises `ValueEr
 export_sheets_as(wb, "yaml_dir", fmt="yaml")  # requires pyyaml
 ```
 
-### process_excel(file_path, output_path, out_fmt="json", image=False, pdf=False, dpi=72, mode="standard", pretty=False, indent=None)
+### process_excel(file_path, output_path=None, out_fmt="json", image=False, pdf=False, dpi=72, mode="standard", pretty=False, indent=None, sheets_dir=None, stream=None)
 
-Convenience wrapper used by the CLI. Writes the chosen format and optionally PDF/PNG (Excel required). Invalid `mode` or `out_fmt` raises `ValueError`.
+Convenience wrapper used by the CLI. Writes to stdout when `output_path` is omitted, can optionally split per sheet (`sheets_dir`), and can render PDF/PNG (Excel required). Invalid `mode` or `out_fmt` raises `ValueError`.
 
 ### export_pdf(file_path, pdf_path)
 

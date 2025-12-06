@@ -27,6 +27,7 @@ exstruct file.xlsx --format json > output.json
 - `--image` → PNG 出力
 - `--pdf` → PDF 出力
 - `--dpi` → PNG 解像度
+- `--sheets-dir` → シートごとの分割出力
 - `--multiple` → 複数ファイル処理
 
 ---

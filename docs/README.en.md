@@ -26,12 +26,13 @@ Optional extras:
 ## Quick Start (CLI)
 
 ```bash
-exstruct input.xlsx                # compact JSON (default)
-exstruct input.xlsx --pretty       # pretty-printed JSON
-exstruct input.xlsx --format yaml  # YAML (needs pyyaml)
-exstruct input.xlsx --format toon  # TOON (needs python-toon)
-exstruct input.xlsx --mode light   # cells + table candidates only
-exstruct input.xlsx --pdf --image  # PDF and PNGs (Excel required)
+exstruct input.xlsx > output.json          # compact JSON to stdout (default)
+exstruct input.xlsx -o out.json --pretty   # pretty JSON to a file
+exstruct input.xlsx --format yaml          # YAML (needs pyyaml)
+exstruct input.xlsx --format toon          # TOON (needs python-toon)
+exstruct input.xlsx --sheets-dir sheets/   # split per sheet in chosen format
+exstruct input.xlsx --mode light           # cells + table candidates only
+exstruct input.xlsx --pdf --image          # PDF and PNGs (Excel required)
 ```
 
 ## Quick Start (Python)
