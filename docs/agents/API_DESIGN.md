@@ -36,9 +36,12 @@ exstruct file.xlsx --format json > output.json
 
 ```python
 data = xs.extract("file.xlsx")
+
+xs.export("file.xlsx")
 data.to_json(pretty=True)
 data.to_yaml()
 data.to_toon()
+data.save("file.json")
 ```
 
 ---

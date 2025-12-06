@@ -1,6 +1,6 @@
 # ExStruct Data Model Specification
 
-**Version**: 0.2  
+**Version**: 0.3  
 **Status**: Authoritative — このファイルは ExStruct 内の全てのモデル定義の唯一の正準ソースです。  
 core・io・integrate モジュールは、必ずこの仕様に一致するように実装してください。
 
@@ -157,9 +157,34 @@ WorkbookData {
 
 ---
 
-# 9. Changelog
+# 9. Export Helpers (SheetData / WorkbookData)
 
-なし
+## 共通
+
+- 両モデルにシリアライズヘルパーを実装済み。空値は `dict_without_empty_values` で除去される。
+- `to_json(pretty=False, indent=None)`  
+  - `pretty=True` かつ `indent` 未指定時は indent=2。デフォルトはコンパクト JSON。
+- `to_yaml()`（pyyaml 未導入時は RuntimeError）
+- `to_toon()`（python-toon 未導入時は RuntimeError）
+- `save(path, pretty=False, indent=None)`  
+  - 拡張子で自動判別: `.json` / `.yaml` / `.yml` / `.toon`  
+  - 未対応拡張子は `ValueError`
+
+## SheetData
+
+- ペイロードは `model_dump(exclude_none=True)` 後に空値除去した dict。
+- Save/serialize しても book_name は含まれない（SheetData 単体の内容のみ）。
+
+## WorkbookData
+
+- ペイロードは `book_name` + `sheets` を含む。シリアライズは `serialize_workbook` と同一ロジック。
+- Save は `export` と同じ挙動（フォーマット判定・pretty オプションなど）を持つ。
+
+---
+
+# 10. Changelog
+
+- 0.3: モデルに出力ヘルパー (`to_json`/`to_yaml`/`to_toon`/`save`) を追加し、フォーマット判定・依存チェック・pretty 仕様を明文化。
 
 ---
 

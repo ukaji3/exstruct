@@ -145,6 +145,9 @@ pydantic 構造が必ず仕様どおりであることを検証する。
 - [EXP-04] TOON 出力がバイナリ書き込みで正しく生成される
 - [EXP-05] WorkbookData → JSON → WorkbookData の round-trip が破壊的変更なし
 - [EXP-06] export_sheets でシートごとにファイルが出力される
+- [EXP-07] WorkbookData/SheetData の `to_json` が pretty オプションでインデントされる
+- [EXP-08] WorkbookData/SheetData の `save(path)` が拡張子でフォーマットを自動判別し、未対応拡張子は ValueError となる
+- [EXP-09] WorkbookData/SheetData の `to_yaml` / `to_toon` は依存未導入時に明示的な RuntimeError を返し、導入済みなら正常に文字列を返す
 
 ---
 
