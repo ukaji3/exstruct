@@ -6,6 +6,7 @@ import pytest
 
 import xlwings as xw
 from openpyxl import Workbook
+from importlib import util
 
 
 def _excel_available() -> bool:
@@ -75,8 +76,13 @@ def test_CLIでyamlやtoon指定は未サポート(tmp_path: Path) -> None:
     out_yaml = tmp_path / "out.yaml"
     cmd = [sys.executable, "-m", "exstruct.cli.main", str(xlsx), "-o", str(out_yaml), "-f", "yaml"]
     result = subprocess.run(cmd, capture_output=True, text=True)
-    assert result.returncode == 0
-    assert out_yaml.exists()
+    if util.find_spec("yaml") is not None:
+        assert result.returncode == 0
+        assert out_yaml.exists()
+    else:
+        assert result.returncode != 0
+        assert "pyyaml" in result.stdout or "pyyaml" in result.stderr
+
     out_toon = tmp_path / "out.toon"
     cmd = [sys.executable, "-m", "exstruct.cli.main", str(xlsx), "-o", str(out_toon), "-f", "toon"]
     result = subprocess.run(cmd, capture_output=True, text=True)
