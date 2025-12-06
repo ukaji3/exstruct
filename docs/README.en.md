@@ -26,6 +26,10 @@ Optional extras:
 - YAML: `pip install pyyaml`
 - TOON: `pip install python-toon`
 - Rendering (PDF/PNG): Excel + `pip install pypdfium2 pillow`
+- All extras at once: `pip install exstruct[yaml,toon,render]`
+
+Platform note:
+- Full extraction (shapes/charts) targets Windows + Excel (COM via xlwings). On other platforms, use `mode=light` to get cells + `table_candidates`.
 
 ## Quick Start (CLI)
 
@@ -70,6 +74,8 @@ engine = ExStructEngine(
 wb2 = engine.extract("input.xlsx")
 engine.export(wb2, Path("out_filtered.json"))  # drops shapes via OutputOptions
 ```
+
+**Note (non-COM environments):** If Excel COM is unavailable, extraction still runs and returns cells + `table_candidates`; `shapes`/`charts` will be empty.
 
 ## Table Detection Tuning
 
@@ -117,7 +123,9 @@ To show how well exstruct can structure Excel, we parse a workbook that combines
 - Flowchart built only with shapes
 
 (Screenshot below is the actual sample Excel sheet)
-<img width="1842" height="1242" alt="スクリーンショット 2025-12-04 221252" src="https://github.com/user-attachments/assets/37ffcb3d-121e-47c1-a59f-0497337c85d9" />
+![Sample Excel](/docs/assets/demo_sheet.png)
+Sample workbook: `sample/sample.xlsx`
+Sample workbook: `sample/sample.xlsx`
 
 ### 1. Input: Excel Sheet Overview
 

@@ -1,0 +1,276 @@
+{
+  "book_name": "sample.xlsx",
+  "sheets": {
+    "Sheet1": {
+      "rows": [
+        {
+          "r": 3,
+          "c": {
+            "1": "月",
+            "2": "製品A",
+            "3": "製品B",
+            "4": "製品C"
+          }
+        },
+        {
+          "r": 4,
+          "c": {
+            "1": "2025-01-01 00:00:00",
+            "2": 120,
+            "3": 80,
+            "4": 60
+          }
+        },
+        {
+          "r": 5,
+          "c": {
+            "1": "2025-02-01 00:00:00",
+            "2": 135,
+            "3": 90,
+            "4": 64
+          }
+        },
+        {
+          "r": 6,
+          "c": {
+            "1": "2025-03-01 00:00:00",
+            "2": 150,
+            "3": 100,
+            "4": 70
+          }
+        },
+        {
+          "r": 7,
+          "c": {
+            "1": "2025-04-01 00:00:00",
+            "2": 170,
+            "3": 110,
+            "4": 72
+          }
+        },
+        {
+          "r": 8,
+          "c": {
+            "1": "2025-05-01 00:00:00",
+            "2": 160,
+            "3": 120,
+            "4": 75
+          }
+        },
+        {
+          "r": 9,
+          "c": {
+            "1": "2025-06-01 00:00:00",
+            "2": 180,
+            "3": 130,
+            "4": 80
+          }
+        }
+      ],
+      "shapes": [
+        {
+          "text": "開始",
+          "l": 148,
+          "t": 220,
+          "type": "AutoShape-FlowchartProcess"
+        },
+        {
+          "text": "入力データ読み込み",
+          "l": 132,
+          "t": 282,
+          "type": "AutoShape-FlowchartProcess"
+        },
+        {
+          "l": 193,
+          "t": 246,
+          "type": "AutoShape-Mixed",
+          "begin_arrow_style": 1,
+          "end_arrow_style": 2,
+          "direction": "N"
+        },
+        {
+          "text": "形式は正しい？",
+          "l": 90,
+          "t": 342,
+          "type": "AutoShape-FlowchartDecision"
+        },
+        {
+          "text": "1件処理",
+          "l": 424,
+          "t": 361,
+          "type": "AutoShape-FlowchartProcess"
+        },
+        {
+          "text": "残件あり？",
+          "l": 365,
+          "t": 414,
+          "type": "AutoShape-FlowchartDecision"
+        },
+        {
+          "l": 192,
+          "t": 312,
+          "type": "AutoShape-Mixed",
+          "begin_arrow_style": 1,
+          "end_arrow_style": 2,
+          "direction": "N"
+        },
+        {
+          "l": 295,
+          "t": 374,
+          "type": "AutoShape-Mixed",
+          "begin_arrow_style": 1,
+          "end_arrow_style": 2,
+          "direction": "E"
+        },
+        {
+          "text": "はい",
+          "l": 340,
+          "t": 362,
+          "type": "TextBox-Rectangle"
+        },
+        {
+          "l": 468,
+          "t": 387,
+          "type": "AutoShape-Mixed",
+          "begin_arrow_style": 1,
+          "end_arrow_style": 2,
+          "direction": "N"
+        },
+        {
+          "text": "出力を生成",
+          "l": 426,
+          "t": 494,
+          "type": "AutoShape-FlowchartProcess"
+        },
+        {
+          "text": "メール送信？",
+          "l": 366,
+          "t": 549,
+          "type": "AutoShape-FlowchartDecision"
+        },
+        {
+          "text": "エラー表示",
+          "l": 132,
+          "t": 463,
+          "type": "AutoShape-FlowchartProcess"
+        },
+        {
+          "l": 192,
+          "t": 406,
+          "type": "AutoShape-Mixed",
+          "begin_arrow_style": 1,
+          "end_arrow_style": 2,
+          "direction": "N"
+        },
+        {
+          "text": "メール送信",
+          "l": 426,
+          "t": 638,
+          "type": "AutoShape-FlowchartProcess"
+        },
+        {
+          "l": 468,
+          "t": 466,
+          "type": "AutoShape-Mixed",
+          "begin_arrow_style": 1,
+          "end_arrow_style": 2,
+          "direction": "N"
+        },
+        {
+          "l": 468,
+          "t": 520,
+          "type": "AutoShape-Mixed",
+          "begin_arrow_style": 1,
+          "end_arrow_style": 2,
+          "direction": "N"
+        },
+        {
+          "text": "終了",
+          "l": 273,
+          "t": 684,
+          "type": "AutoShape-FlowchartProcess"
+        },
+        {
+          "l": 194,
+          "t": 493,
+          "type": "AutoShape-Mixed",
+          "begin_arrow_style": 1,
+          "end_arrow_style": 2,
+          "direction": "NE"
+        },
+        {
+          "l": 363,
+          "t": 664,
+          "type": "AutoShape-Mixed",
+          "begin_arrow_style": 1,
+          "end_arrow_style": 2,
+          "direction": "E"
+        },
+        {
+          "l": 468,
+          "t": 598,
+          "type": "AutoShape-Mixed",
+          "begin_arrow_style": 1,
+          "end_arrow_style": 2,
+          "direction": "N"
+        },
+        {
+          "text": "はい",
+          "l": 448,
+          "t": 604,
+          "type": "TextBox-Rectangle"
+        },
+        {
+          "l": 323,
+          "t": 573,
+          "type": "AutoShape-Mixed",
+          "begin_arrow_style": 1,
+          "end_arrow_style": 2,
+          "direction": "N"
+        },
+        {
+          "text": "いいえ",
+          "l": 319,
+          "t": 600,
+          "type": "TextBox-Rectangle"
+        }
+      ],
+      "charts": [
+        {
+          "name": "Chart 1",
+          "chart_type": "Line",
+          "title": "売上データ",
+          "y_axis_range": [
+            0.0,
+            200.0
+          ],
+          "series": [
+            {
+              "name": "製品A",
+              "name_range": "Sheet1!$C$3",
+              "x_range": "Sheet1!$B$4:$B$9",
+              "y_range": "Sheet1!$C$4:$C$9"
+            },
+            {
+              "name": "製品B",
+              "name_range": "Sheet1!$D$3",
+              "x_range": "Sheet1!$B$4:$B$9",
+              "y_range": "Sheet1!$D$4:$D$9"
+            },
+            {
+              "name": "製品C",
+              "name_range": "Sheet1!$E$3",
+              "x_range": "Sheet1!$B$4:$B$9",
+              "y_range": "Sheet1!$E$4:$E$9"
+            }
+          ],
+          "l": 377,
+          "t": 25
+        }
+      ],
+      "table_candidates": [
+        "B3:E9"
+      ]
+    }
+  }
+}

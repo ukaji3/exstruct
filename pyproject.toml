@@ -31,10 +31,9 @@ dev = [
 ]
 
 [project.optional-dependencies]
-pillow = ["pillow>=12.0.0"]
 yaml = ["pyyaml>=6.0.3"]
 toon = ["python-toon>=0.1.3"]
-render = ["pypdfium2>=5.1.0"]
+render = ["pypdfium2>=5.1.0", "Pillow>=12.0.0"]
 
 [project.scripts]
 exstruct = "exstruct.cli.main:main"

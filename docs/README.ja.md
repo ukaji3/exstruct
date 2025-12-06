@@ -26,6 +26,10 @@ pip install exstruct
 - YAML: `pip install pyyaml`
 - TOON: `pip install python-toon`
 - レンダリング（PDF/PNG）: Excel + `pip install pypdfium2 pillow`
+- まとめて導入: `pip install exstruct[yaml,toon,render]`
+
+プラットフォーム注意:
+- 図形・チャートを含むフル抽出は Windows + Excel (xlwings/COM) 前提。その他プラットフォームでは `mode=light` でセル＋`table_candidates` のみ安全に取得できます。
 
 ## クイックスタート CLI
 
@@ -119,7 +123,8 @@ exstruct input.xlsx --pdf --image --dpi 144
 - 図形のみで作成したフローチャート
 
 （下画像が実際のサンプル Excel シート）
-<img width="1842" height="1242" alt="スクリーンショット 2025-12-04 221252" src="https://github.com/user-attachments/assets/37ffcb3d-121e-47c1-a59f-0497337c85d9" />
+![Sample Excel](/docs/assets/demo_sheet.png)
+サンプル Excel: `sample/sample.xlsx`
 
 ### 1. Input: Excel Sheet Overview
 
