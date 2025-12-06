@@ -49,6 +49,14 @@ set_table_detection_params(table_score_threshold=0.3, density_min=0.04)
 # モード: "light" / "standard" / "verbose"
 wb = extract("input.xlsx", mode="standard")
 export(wb, Path("out.json"), pretty=False)  # コンパクト JSON
+
+# モデルの便利メソッド: 反復・インデックス・直列化
+first_sheet = wb["Sheet1"]           # __getitem__ でシート取得
+for name, sheet in wb:               # __iter__ で (name, SheetData) を列挙
+    print(name, len(sheet.rows))
+wb.save("out.json", pretty=True)     # WorkbookData を拡張子に応じて保存
+first_sheet.save("sheet.json")       # SheetData も同様に保存
+print(first_sheet.to_yaml())         # YAML 文字列（pyyaml 必須）
 ```
 
 ## テーブル検出パラメータ

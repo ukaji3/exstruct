@@ -77,3 +77,15 @@ def test_sheet_to_toon_dependency() -> None:
     else:
         with pytest.raises(RuntimeError):
             sheet.to_toon()
+
+
+def test_workbook_iter_and_getitem() -> None:
+    wb = _workbook()
+    first = wb["Sheet1"]
+    assert isinstance(first, SheetData)
+    pairs = list(wb)
+    assert len(pairs) == 1
+    assert pairs[0][0] == "Sheet1"
+    assert pairs[0][1] is first
+    with pytest.raises(KeyError):
+        _ = wb["Nope"]

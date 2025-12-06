@@ -42,6 +42,9 @@ data.to_json(pretty=True)
 data.to_yaml()
 data.to_toon()
 data.save("file.json")
+data["Sheet1"]          # WorkbookData.__getitem__
+for name, sheet in data:  # WorkbookData.__iter__
+    print(name, len(sheet.rows))
 ```
 
 ---

@@ -179,14 +179,14 @@ WorkbookData {
 
 - ペイロードは `book_name` + `sheets` を含む。シリアライズは `serialize_workbook` と同一ロジック。
 - Save は `export` と同じ挙動（フォーマット判定・pretty オプションなど）を持つ。
-- __iter__メソッドでsheetsの中身をイテレーション
-- __getitem__メソッドでSheetDataを直接シート名から取り出せる
+- `__getitem__(sheet_name)` で SheetData を直接取得（KeyError は従来どおり）
+- `__iter__()` で `(sheet_name, SheetData)` のペアを順に返す（sheets の順序を維持）
 
 ---
 
 # 10. Changelog
 
-- 0.3: モデルに出力ヘルパー (`to_json`/`to_yaml`/`to_toon`/`save`) を追加し、フォーマット判定・依存チェック・pretty 仕様を明文化。
+- 0.3: モデルに出力ヘルパー (`to_json`/`to_yaml`/`to_toon`/`save`) を追加し、フォーマット判定・依存チェック・pretty 仕様を明文化。`WorkbookData` の `__iter__` / `__getitem__` を定義。
 
 ---
 

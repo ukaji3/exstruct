@@ -129,6 +129,26 @@ set_table_detection_params(table_score_threshold=0.25, coverage_min=0.15)
 | `Chart`       | `name`, `chart_type`, `title`, `series`, `y_axis_range`, `l/t`, `error: str|None`          |
 | `ChartSeries` | `name`, `name_range`, `x_range`, `y_range`                                                 |
 
+### Model helpers (SheetData / WorkbookData)
+
+- `to_json(pretty=False, indent=None)` → JSON string (pretty when requested)
+- `to_yaml()` → YAML string (requires `pyyaml`)
+- `to_toon()` → TOON string (requires `python-toon`)
+- `save(path, pretty=False, indent=None)` → infers format from suffix (`.json/.yaml/.yml/.toon`)
+- `WorkbookData.__getitem__(name)` → get a SheetData by name
+- `WorkbookData.__iter__()` → yields `(sheet_name, SheetData)` in order
+
+Example:
+
+```python
+wb = extract("input.xlsx")
+first = wb["Sheet1"]
+for name, sheet in wb:
+    print(name, len(sheet.rows))
+wb.save("out.json", pretty=True)
+first.save("sheet.yaml")  # requires pyyaml
+```
+
 ## Error Handling
 
 - Excel COM unavailable: extraction falls back to cells + `table_candidates`; `shapes`/`charts` are empty, warning is logged.

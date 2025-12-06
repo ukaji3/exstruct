@@ -134,6 +134,7 @@ pydantic 構造が必ず仕様どおりであることを検証する。
 - [MOD-04] 数値項目は int/float として正規化される
 - [MOD-05] direction の Literal が仕様外の場合 ValidationError を投げる
 - [MOD-06] rows/shapes/charts/tables がデフォルトで空 list になる
+- [MOD-07] WorkbookData は `__getitem__` でシート名指定の取得ができ、`__iter__` で (sheet_name, SheetData) を順序維持で走査できる
 
 ---
 
