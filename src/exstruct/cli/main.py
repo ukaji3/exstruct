@@ -57,6 +57,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Optional directory to write one file per sheet (format follows --format).",
     )
+    parser.add_argument(
+        "--print-areas-dir",
+        type=Path,
+        help="Optional directory to write one file per print area (format follows --format).",
+    )
     return parser
 
 
@@ -80,6 +85,7 @@ def main(argv: list[str] | None = None) -> int:
             mode=args.mode,
             pretty=args.pretty,
             sheets_dir=args.sheets_dir,
+            print_areas_dir=args.print_areas_dir,
         )
         return 0
     except Exception as e:

@@ -3,17 +3,35 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal, Optional, TextIO
 
-from .core.integrate import extract_workbook
 from .core.cells import set_table_detection_params
+from .core.integrate import extract_workbook
 from .engine import ExStructEngine, OutputOptions, StructOptions
-from .io import save_as_json, save_as_toon, save_as_yaml, save_sheets, serialize_workbook
-from .models import CellRow, Chart, ChartSeries, Shape, SheetData, WorkbookData
+from .io import (
+    save_as_json,
+    save_as_toon,
+    save_as_yaml,
+    save_print_area_views,
+    save_sheets,
+    serialize_workbook,
+)
+from .models import (
+    CellRow,
+    Chart,
+    ChartSeries,
+    PrintArea,
+    PrintAreaView,
+    Shape,
+    SheetData,
+    WorkbookData,
+)
 from .render import export_pdf, export_sheet_images
 
 __all__ = [
     "extract",
     "export",
     "export_sheets",
+    "export_sheets_as",
+    "export_print_areas_as",
     "export_pdf",
     "export_sheet_images",
     "process_excel",
@@ -24,6 +42,8 @@ __all__ = [
     "Chart",
     "SheetData",
     "WorkbookData",
+    "PrintArea",
+    "PrintAreaView",
     "set_table_detection_params",
     "ExStructEngine",
     "StructOptions",
@@ -37,7 +57,9 @@ ExtractionMode = Literal["light", "standard", "verbose"]
 def extract(file_path: str | Path, mode: ExtractionMode = "standard") -> WorkbookData:
     """Extract workbook semantic structure and return WorkbookData."""
     include_links = True if mode == "verbose" else False
-    engine = ExStructEngine(options=StructOptions(mode=mode, include_cell_links=include_links))
+    engine = ExStructEngine(
+        options=StructOptions(mode=mode, include_cell_links=include_links)
+    )
     return engine.extract(file_path, mode=mode)
 
 
@@ -79,10 +101,28 @@ def export_sheets_as(
     pretty: bool = False,
     indent: int | None = None,
 ) -> dict[str, Path]:
-    """
-    Export each sheet in the given format (json/yaml/toon), including book_name and SheetData; returns sheet name → path map.
-    """
+    """Export each sheet in the given format (json/yaml/toon); returns sheet name to path map."""
     return save_sheets(data, Path(dir_path), fmt=fmt, pretty=pretty, indent=indent)
+
+
+def export_print_areas_as(
+    data: WorkbookData,
+    dir_path: str | Path,
+    fmt: Literal["json", "yaml", "yml", "toon"] = "json",
+    *,
+    pretty: bool = False,
+    indent: int | None = None,
+    normalize: bool = False,
+) -> dict[str, Path]:
+    """Export each print area as a PrintAreaView; returns area key to path map."""
+    return save_print_area_views(
+        data,
+        Path(dir_path),
+        fmt=fmt,
+        pretty=pretty,
+        indent=indent,
+        normalize=normalize,
+    )
 
 
 def process_excel(
@@ -96,16 +136,25 @@ def process_excel(
     pretty: bool = False,
     indent: int | None = None,
     sheets_dir: Path | None = None,
+    print_areas_dir: Path | None = None,
     stream: TextIO | None = None,
 ) -> None:
     """
     Convenience wrapper for CLI: export workbook and optionally PDF/PNG images (Excel required for rendering).
     - If output_path is None, writes the serialized workbook to stdout (or provided stream).
     - If sheets_dir is given, also writes per-sheet files into that directory.
+    - If print_areas_dir is given, writes one file per print area using the configured format.
     """
     engine = ExStructEngine(
         options=StructOptions(mode=mode),
-        output=OutputOptions(fmt=out_fmt, pretty=pretty, indent=indent, sheets_dir=sheets_dir, stream=stream),
+        output=OutputOptions(
+            fmt=out_fmt,
+            pretty=pretty,
+            indent=indent,
+            sheets_dir=sheets_dir,
+            print_areas_dir=print_areas_dir,
+            stream=stream,
+        ),
     )
     engine.process(
         file_path=file_path,
@@ -118,5 +167,6 @@ def process_excel(
         pretty=pretty,
         indent=indent,
         sheets_dir=sheets_dir,
+        print_areas_dir=print_areas_dir,
         stream=stream,
     )

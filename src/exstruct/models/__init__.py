@@ -182,7 +182,7 @@ class WorkbookData(BaseModel):
         return iter(self.sheets.items())
 
 
-class PrintAreaViews(BaseModel):
+class PrintAreaView(BaseModel):
     book_name: str
     sheet_name: str
     area: PrintArea

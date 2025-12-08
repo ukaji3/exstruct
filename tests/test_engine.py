@@ -3,14 +3,20 @@ from pathlib import Path
 import pytest
 
 from exstruct.engine import ExStructEngine, OutputOptions, StructOptions
-from exstruct.models import Chart, ChartSeries, SheetData, Shape, WorkbookData, CellRow
+from exstruct.models import Chart, ChartSeries, CellRow, PrintArea, SheetData, Shape, WorkbookData
 
 
 def test_engine_extract_uses_mode(monkeypatch, tmp_path: Path) -> None:
     called = {}
 
-    def fake_extract(path: Path, mode: str, include_cell_links: bool = False):
+    def fake_extract(
+        path: Path,
+        mode: str,
+        include_cell_links: bool = False,
+        include_print_areas: bool = True,
+    ):
         called["mode"] = mode
+        called["include_print_areas"] = include_print_areas
         return WorkbookData(book_name=path.name, sheets={})
 
     monkeypatch.setattr("exstruct.engine.extract_workbook", fake_extract)
@@ -37,6 +43,7 @@ def _sample_workbook() -> WorkbookData:
         shapes=[shape],
         charts=[chart],
         table_candidates=["A1:B2"],
+        print_areas=[PrintArea(r1=0, c1=0, r2=2, c2=2)],
     )
     return WorkbookData(book_name="book.xlsx", sheets={"Sheet1": sheet})
 
@@ -80,3 +87,30 @@ def test_engine_export_respects_sheets_dir(tmp_path: Path) -> None:
     assert sheets_dir.exists()
     files = list(sheets_dir.glob("*.json"))
     assert len(files) == 1
+
+
+def test_engine_export_print_areas_dir(tmp_path: Path) -> None:
+    wb = _sample_workbook()
+    areas_dir = tmp_path / "areas"
+    engine = ExStructEngine(output=OutputOptions(print_areas_dir=areas_dir))
+    out = tmp_path / "out.json"
+    engine.export(wb, output_path=out)
+    files = list(areas_dir.glob("*.json"))
+    assert out.exists()
+    assert files
+    content = files[0].read_text(encoding="utf-8")
+    assert '"area"' in content
+    assert '"sheet_name": "Sheet1"' in content
+
+
+def test_engine_export_print_areas_respects_include_flag(tmp_path: Path) -> None:
+    wb = _sample_workbook()
+    areas_dir = tmp_path / "areas"
+    engine = ExStructEngine(
+        output=OutputOptions(print_areas_dir=areas_dir, include_print_areas=False)
+    )
+    out = tmp_path / "out.json"
+    engine.export(wb, output_path=out)
+    assert out.exists()
+    # When print areas are excluded, no per-area files should be written.
+    assert not areas_dir.exists() or not list(areas_dir.glob("*"))

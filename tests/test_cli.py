@@ -60,6 +60,22 @@ def _prepare_sample_excel(tmp_path: Path) -> Path:
     return dest
 
 
+def _prepare_print_area_excel(tmp_path: Path) -> Path:
+    """
+    Prepare a workbook with a defined print area for CLI print-area tests.
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+    ws.append(["A", "B"])
+    ws.append([1, 2])
+    ws.print_area = "A1:B2"
+    dest = tmp_path / "print_area.xlsx"
+    wb.save(dest)
+    wb.close()
+    return dest
+
+
 def test_CLIでjson出力が成功する(tmp_path: Path) -> None:
     xlsx = _prepare_sample_excel(tmp_path)
     out_json = tmp_path / "out.json"
@@ -127,3 +143,22 @@ def test_CLIで無効ファイルは安全終了する(tmp_path: Path) -> None:
     result = subprocess.run(cmd, capture_output=True, text=True)
     assert result.returncode == 0
     assert "not found" in (result.stdout + result.stderr).lower()
+
+
+def test_CLI_print_areas_dir_outputs_files(tmp_path: Path) -> None:
+    xlsx = _prepare_print_area_excel(tmp_path)
+    areas_dir = tmp_path / "areas"
+    cmd = [
+        sys.executable,
+        "-m",
+        "exstruct.cli.main",
+        str(xlsx),
+        "--print-areas-dir",
+        str(areas_dir),
+        "--mode",
+        "standard",
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    assert result.returncode == 0
+    files = list(areas_dir.glob("*.json"))
+    assert files, f"No print area files created. stdout={result.stdout} stderr={result.stderr}"

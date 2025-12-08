@@ -153,6 +153,11 @@ pydantic 構造が必ず仕様どおりであることを検証する。
 - [EXP-08] WorkbookData/SheetData の `save(path)` が拡張子でフォーマットを自動判別し、未対応拡張子は ValueError となる
 - [EXP-09] WorkbookData/SheetData の `to_yaml` / `to_toon` は依存未導入時に明示的な RuntimeError を返し、導入済みなら正常に文字列を返す
 - [EXP-10] ExStructEngine の OutputOptions で include_shapes/charts/tables/rows を False にすると対応フィールドが出力から除外される（空リストも消える）
+- [EXP-11] print_areas_dir / save_print_area_views で PrintArea ごとのファイルを出力できる（無印刷範囲の場合は何も書き出さない）
+- [EXP-12] PrintAreaView は area に完全に含まれる行のみを保持し、列外のセル・リンクを落とす
+- [EXP-13] PrintAreaView の table_candidates は印刷範囲に完全に収まる候補のみを保持する
+- [EXP-14] normalize オプション指定時、PrintAreaView の行・列インデックスは印刷範囲起点に再基準化される
+- [EXP-15] OutputOptions.include_print_areas=False のときは print_areas_dir が指定されても印刷範囲ファイルを出力しない
 
 ---
 
@@ -164,6 +169,7 @@ pydantic 構造が必ず仕様どおりであることを検証する。
 - [CLI-04] `--pdf` で PDF が出力される
 - [CLI-05] 無効ファイル選択時は安全に終了する
 - [CLI-06] エラーメッセージが stdout に出力される
+- [CLI-07] `--print-areas-dir` 指定時に印刷範囲ごとのファイルが出力される（include_print_areas=False の場合はスキップ）
 
 ---
 

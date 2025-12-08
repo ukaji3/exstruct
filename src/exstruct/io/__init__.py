@@ -5,7 +5,9 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Literal
 
-from ..models import WorkbookData
+from openpyxl.utils import range_boundaries
+
+from ..models import CellRow, PrintArea, PrintAreaView, WorkbookData
 
 
 def dict_without_empty_values(obj: Any):
@@ -44,6 +46,154 @@ def _sanitize_sheet_filename(name: str) -> str:
     """Make a sheet name safe for filesystem usage."""
     safe = re.sub(r"[\\/:*?\"<>|]", "_", name)
     return safe or "sheet"
+
+
+def _parse_range_zero_based(range_str: str) -> tuple[int, int, int, int] | None:
+    """
+    Parse an Excel range string into zero-based (r1, c1, r2, c2) bounds.
+    Returns None on failure.
+    """
+    cleaned = range_str.strip()
+    if not cleaned:
+        return None
+    if "!" in cleaned:
+        cleaned = cleaned.split("!", 1)[1]
+    try:
+        min_col, min_row, max_col, max_row = range_boundaries(cleaned)
+    except Exception:
+        return None
+    return (min_row - 1, min_col - 1, max_row - 1, max_col - 1)
+
+
+def _row_in_area(row: CellRow, area: PrintArea) -> bool:
+    return area.r1 <= row.r <= area.r2
+
+
+def _filter_row_to_area(row: CellRow, area: PrintArea, *, normalize: bool = False) -> CellRow | None:
+    if not _row_in_area(row, area):
+        return None
+
+    filtered_cells: Dict[str, int | float | str] = {}
+    filtered_links: Dict[str, str] = {}
+
+    for col_idx_str, value in row.c.items():
+        try:
+            col_idx = int(col_idx_str)
+        except Exception:
+            continue
+        if area.c1 <= col_idx <= area.c2:
+            key = str(col_idx - area.c1) if normalize else col_idx_str
+            filtered_cells[key] = value
+
+    if row.links:
+        for col_idx_str, url in row.links.items():
+            try:
+                col_idx = int(col_idx_str)
+            except Exception:
+                continue
+            if area.c1 <= col_idx <= area.c2:
+                key = str(col_idx - area.c1) if normalize else col_idx_str
+                filtered_links[key] = url
+
+    if not filtered_cells and not filtered_links:
+        return None
+
+    new_row_idx = row.r - area.r1 if normalize else row.r
+    return CellRow(r=new_row_idx, c=filtered_cells, links=filtered_links or None)
+
+
+def _filter_table_candidates_to_area(table_candidates: list[str], area: PrintArea) -> list[str]:
+    filtered: list[str] = []
+    for candidate in table_candidates:
+        bounds = _parse_range_zero_based(candidate)
+        if not bounds:
+            continue
+        r1, c1, r2, c2 = bounds
+        if r1 >= area.r1 and r2 <= area.r2 and c1 >= area.c1 and c2 <= area.c2:
+            filtered.append(candidate)
+    return filtered
+
+
+def build_print_area_views(workbook: WorkbookData, *, normalize: bool = False) -> Dict[str, list[PrintAreaView]]:
+    """
+    Construct PrintAreaView instances for all print areas in the workbook.
+    Returns a mapping of sheet name to ordered list of PrintAreaView.
+    """
+    views: Dict[str, list[PrintAreaView]] = {}
+    for sheet_name, sheet in workbook.sheets.items():
+        if not sheet.print_areas:
+            continue
+        sheet_views: list[PrintAreaView] = []
+        for area in sheet.print_areas:
+            rows_in_area: list[CellRow] = []
+            for row in sheet.rows:
+                filtered_row = _filter_row_to_area(row, area, normalize=normalize)
+                if filtered_row:
+                    rows_in_area.append(filtered_row)
+            area_tables = _filter_table_candidates_to_area(sheet.table_candidates, area)
+            sheet_views.append(
+                PrintAreaView(
+                    book_name=workbook.book_name,
+                    sheet_name=sheet_name,
+                    area=area,
+                    rows=rows_in_area,
+                    table_candidates=area_tables,
+                )
+            )
+        if sheet_views:
+            views[sheet_name] = sheet_views
+    return views
+
+
+def save_print_area_views(
+    workbook: WorkbookData,
+    output_dir: Path,
+    fmt: Literal["json", "yaml", "yml", "toon"] = "json",
+    *,
+    pretty: bool = False,
+    indent: int | None = None,
+    normalize: bool = False,
+) -> Dict[str, Path]:
+    """
+    Save each print area as an individual file in the specified format.
+    Returns a map of area key (e.g., 'Sheet1#1') to written path.
+    """
+    format_hint = fmt.lower()
+    if format_hint == "yml":
+        format_hint = "yaml"
+    if format_hint not in ("json", "yaml", "toon"):
+        raise ValueError(f"Unsupported print-area export format: {fmt}")
+
+    views = build_print_area_views(workbook, normalize=normalize)
+    if not views:
+        return {}
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    written: Dict[str, Path] = {}
+    suffix = {"json": ".json", "yaml": ".yaml", "toon": ".toon"}[format_hint]
+
+    for sheet_name, sheet_views in views.items():
+        for idx, view in enumerate(sheet_views):
+            key = f"{sheet_name}#{idx + 1}"
+            area = view.area
+            file_name = (
+                f"{_sanitize_sheet_filename(sheet_name)}"
+                f"_area{idx + 1}_r{area.r1}-{area.r2}_c{area.c1}-{area.c2}{suffix}"
+            )
+            path = output_dir / file_name
+            match format_hint:
+                case "json":
+                    indent_val = 2 if pretty and indent is None else indent
+                    text = view.to_json(pretty=pretty, indent=indent_val)
+                case "yaml":
+                    text = view.to_yaml()
+                case "toon":
+                    text = view.to_toon()
+                case _:
+                    raise ValueError(f"Unsupported print-area export format: {fmt}")
+            path.write_text(text, encoding="utf-8")
+            written[key] = path
+    return written
 
 
 def serialize_workbook(
@@ -183,5 +333,7 @@ __all__ = [
     "save_as_toon",
     "save_sheets",
     "save_sheets_as_json",
+    "build_print_area_views",
+    "save_print_area_views",
     "serialize_workbook",
 ]

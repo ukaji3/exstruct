@@ -8,7 +8,14 @@ from contextlib import contextmanager
 from .core.integrate import extract_workbook
 from .core import cells as _cells
 from .core.cells import set_table_detection_params
-from .io import save_as_json, save_as_toon, save_as_yaml, save_sheets, serialize_workbook
+from .io import (
+    save_as_json,
+    save_as_toon,
+    save_as_yaml,
+    save_print_area_views,
+    save_sheets,
+    serialize_workbook,
+)
 from .models import SheetData, WorkbookData
 from .render import export_pdf, export_sheet_images
 
@@ -50,6 +57,7 @@ class OutputOptions:
         include_tables: Include SheetData.table_candidates in output.
         include_print_areas: Include SheetData.print_areas in output.
         sheets_dir: Optional directory to write per-sheet files (in the chosen fmt).
+        print_areas_dir: Optional directory to write one file per print area (in the chosen fmt).
         stream: Optional default stream for stdout output when output_path is None.
     """
 
@@ -62,6 +70,7 @@ class OutputOptions:
     include_tables: bool = True
     include_print_areas: bool = True
     sheets_dir: Path | None = None
+    print_areas_dir: Path | None = None
     stream: TextIO | None = None
 
 
@@ -177,6 +186,7 @@ class ExStructEngine:
         pretty: Optional[bool] = None,
         indent: int | None = None,
         sheets_dir: Path | None = None,
+        print_areas_dir: Path | None = None,
         stream: TextIO | None = None,
     ) -> None:
         """
@@ -187,15 +197,11 @@ class ExStructEngine:
         target_stream = stream or self.output.stream
         chosen_fmt = (fmt or self.output.fmt)
         chosen_sheets_dir = sheets_dir if sheets_dir is not None else self.output.sheets_dir
-
-        def _suffix_for(fmt_val: str) -> str:
-            if fmt_val in ("yaml", "yml"):
-                return ".yaml"
-            if fmt_val == "toon":
-                return ".toon"
-            if fmt_val == "json":
-                return ".json"
-            raise ValueError(f"Unsupported export format: {fmt_val}")
+        chosen_print_areas_dir = (
+            print_areas_dir
+            if print_areas_dir is not None
+            else self.output.print_areas_dir
+        )
 
         if output_path is not None:
             output_path.write_text(text, encoding="utf-8")
@@ -217,6 +223,16 @@ class ExStructEngine:
                 indent=self.output.indent if indent is None else indent,
             )
 
+        if chosen_print_areas_dir is not None:
+            filtered = self._filter_workbook(data)
+            save_print_area_views(
+                filtered,
+                chosen_print_areas_dir,
+                fmt=chosen_fmt,
+                pretty=self.output.pretty if pretty is None else pretty,
+                indent=self.output.indent if indent is None else indent,
+            )
+
         return None
 
     def process(
@@ -232,6 +248,7 @@ class ExStructEngine:
         pretty: bool | None = None,
         indent: int | None = None,
         sheets_dir: Path | None = None,
+        print_areas_dir: Path | None = None,
         stream: TextIO | None = None,
     ) -> None:
         """
@@ -246,6 +263,7 @@ class ExStructEngine:
             pretty=pretty,
             indent=indent,
             sheets_dir=sheets_dir,
+            print_areas_dir=print_areas_dir,
             stream=stream,
         )
 
