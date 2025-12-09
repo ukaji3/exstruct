@@ -10,12 +10,13 @@ This page shows the primary APIs, minimal runnable examples, expected outputs, a
   - [TOC](#toc)
   - [Quick Examples](#quick-examples)
   - [Dependencies](#dependencies)
-  - [Functions](#functions)
+- [Functions](#functions)
     - [extractfile_path, mode="standard"](#extractfile_path-modestandard)
     - [exportdata, path, fmt=None, \*, pretty=False, indent=None](#exportdata-path-fmtnone--prettyfalse-indentnone)
     - [export_sheetsdata, dir_path](#export_sheetsdata-dir_path)
     - [export_sheets_asdata, dir_path, fmt="json", \*, pretty=False, indent=None](#export_sheets_asdata-dir_path-fmtjson--prettyfalse-indentnone)
-    - [process_excelfile_path, output_path=None, out_fmt="json", image=False, pdf=False, dpi=72, mode="standard", pretty=False, indent=None, sheets_dir=None, stream=None](#process_excelfile_path-output_pathnone-out_fmtjson-imagefalse-pdffalse-dpi72-modestandard-prettyfalse-indentnone-sheets_dirnone-streamnone)
+    - [export_print_areas_asdata, dir_path, fmt="json", \*, pretty=False, indent=None, normalize=False](#export_print_areas_asdata-dir_path-fmtjson--prettyfalse-indentnone-normalizefalse)
+    - [process_excelfile_path, output_path=None, out_fmt="json", image=False, pdf=False, dpi=72, mode="standard", pretty=False, indent=None, sheets_dir=None, print_areas_dir=None, stream=None](#process_excelfile_path-output_pathnone-out_fmtjson-imagefalse-pdffalse-dpi72-modestandard-prettyfalse-indentnone-sheets_dirnone-print_areas_dirnone-streamnone)
     - [export_pdffile_path, pdf_path](#export_pdffile_path-pdf_path)
     - [export_sheet_imagesfile_path, images_dir, dpi=72](#export_sheet_imagesfile_path-images_dir-dpi72)
     - [set_table_detection_params...](#set_table_detection_params)
@@ -126,7 +127,25 @@ Same as `export_sheets` but supports `json`/`yaml`/`yml`/`toon`. Raises `ValueEr
 export_sheets_as(wb, "yaml_dir", fmt="yaml")  # requires pyyaml
 ```
 
-### process_excel(file_path, output_path=None, out_fmt="json", image=False, pdf=False, dpi=72, mode="standard", pretty=False, indent=None, sheets_dir=None, stream=None)
+### export_print_areas_as(data, dir_path, fmt="json", \*, pretty=False, indent=None, normalize=False)
+
+Writes one file per print area as `PrintAreaView`. If no print areas exist, returns an empty dict and writes nothing.
+
+```python
+from exstruct import export_print_areas_as
+paths = export_print_areas_as(wb, "areas", fmt="json", pretty=True)  # only when print areas exist
+```
+
+Args:
+- data: WorkbookData containing print areas
+- dir_path: output directory
+- fmt: json/yaml/yml/toon
+- pretty/indent: JSON formatting options
+- normalize: rebase row/col indices to the area origin
+
+Returns: dict of area key -> Path (e.g., `"Sheet1#1": areas/Sheet1_area1_...json`)
+
+### process_excel(file_path, output_path=None, out_fmt="json", image=False, pdf=False, dpi=72, mode="standard", pretty=False, indent=None, sheets_dir=None, print_areas_dir=None, stream=None)
 
 Convenience wrapper used by the CLI. Writes to stdout when `output_path` is omitted, can optionally split per sheet (`sheets_dir`), and can render PDF/PNG (Excel required). Invalid `mode` or `out_fmt` raises `ValueError`.
 
@@ -183,10 +202,12 @@ engine.process("input.xlsx", pdf=False)    # end-to-end extract + export
 | Model          | Key fields                                                                                         |
 | -------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------- |
 | `WorkbookData` | `book_name: str`, `sheets: dict[str, SheetData]`                                                   |
-| `SheetData`    | `rows: list[CellRow]`, `shapes: list[Shape]`, `charts: list[Chart]`, `table_candidates: list[str]` |
+| `SheetData`    | `rows: list[CellRow]`, `shapes: list[Shape]`, `charts: list[Chart]`, `table_candidates: list[str]`, `print_areas: list[PrintArea]` |
 | `CellRow`      | `r: int`, `c: dict[str, int                                                                        | float                                                | str]`, `links: dict[str, str] \| None` |
-| `Shape`        | `text: str`, `l/t/w/h: int                                                                         | None`, `type`, `rotation`, arrow styles, `direction` |
-| `Chart`        | `name`, `chart_type`, `title`, `series`, `y_axis_range`, `l/t`, `error: str                        | None`                                                |
+| `Shape`        | `text: str`, `l/t/w/h: int \| None`, `type`, `rotation`, arrow styles, `direction`                 |
+| `Chart`        | `name`, `chart_type`, `title`, `series`, `y_axis_range`, `w/h: int \| None`, `l/t`, `error: str \| None` |
+| `PrintArea`    | `r1/c1/r2/c2: int`                                                                                |
+| `PrintAreaView`| `book_name`, `sheet_name`, `area: PrintArea`, `rows`, `shapes`, `charts`, `table_candidates`       |
 | `ChartSeries`  | `name`, `name_range`, `x_range`, `y_range`                                                         |
 
 ### Model helpers (SheetData / WorkbookData)
@@ -216,6 +237,7 @@ first.save("sheet.yaml")  # requires pyyaml
 - Missing optional dependency (`pyyaml`, `python-toon`, `pypdfium2`): `RuntimeError` with install hint.
 - Rendering without Excel/COM: `RuntimeError`.
 - CLI mirrors these: exits non-zero on failures, prints messages in English.
+- No print areas: `export_print_areas_as` writes nothing and returns `{}`; this is not an error.
 
 ## Tuning Examples
 
