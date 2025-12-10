@@ -18,3 +18,4 @@ output.json
 .pytest_cache/
 .ruff-cache/
 .ruff-check.yml
+ruff_report.txt
