@@ -65,6 +65,35 @@ for name, sheet in wb:               # __iter__ で (name, SheetData) を列挙
 wb.save("out.json", pretty=True)     # WorkbookData を拡張子に応じて保存
 first_sheet.save("sheet.json")       # SheetData も同様に保存
 print(first_sheet.to_yaml())         # YAML 文字列（pyyaml 必須）
+
+# ExStructEngine: インスタンスごとの設定（ネスト構造）
+from exstruct import (
+    ExStructEngine,
+    StructOptions,
+    OutputOptions,
+    FormatOptions,
+    FilterOptions,
+    DestinationOptions,
+)
+
+engine = ExStructEngine(
+    options=StructOptions(mode="verbose"),  # verbose ではハイパーリンクがデフォルトで含まれる
+    output=OutputOptions(
+        format=FormatOptions(pretty=True),
+        filters=FilterOptions(include_shapes=False),  # 図形を出力から除外
+        destinations=DestinationOptions(sheets_dir=Path("out_sheets")),  # シートごとに保存
+    ),
+)
+wb2 = engine.extract("input.xlsx")
+engine.export(wb2, Path("out_filtered.json"))  # フィルタ適用後の出力
+
+# standard でハイパーリンクを有効化
+engine_links = ExStructEngine(options=StructOptions(mode="standard", include_cell_links=True))
+with_links = engine_links.extract("input.xlsx")
+
+# 印刷範囲ごとに書き出す
+from exstruct import export_print_areas_as
+export_print_areas_as(wb, "areas", fmt="json", pretty=True)  # 印刷範囲がある場合のみファイル生成
 ```
 
 **備考 (COM 非対応環境):** Excel COM が使えない場合でもセル＋`table_candidates` は返りますが、`shapes` / `charts` は空になります。

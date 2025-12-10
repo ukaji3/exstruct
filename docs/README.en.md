@@ -65,17 +65,21 @@ wb.save("out.json", pretty=True)     # WorkbookData → file (by extension)
 first_sheet.save("sheet.json")       # SheetData → file (by extension)
 print(first_sheet.to_yaml())         # YAML text (requires pyyaml)
 
-# ExStructEngine: per-instance options for extraction/output
-from exstruct import ExStructEngine, StructOptions, OutputOptions
+# ExStructEngine: per-instance options (nested configs)
+from exstruct import ExStructEngine, StructOptions, OutputOptions, FormatOptions, FilterOptions, DestinationOptions
 
 engine = ExStructEngine(
     options=StructOptions(mode="verbose"),  # verbose includes hyperlinks by default
-    output=OutputOptions(include_shapes=False, pretty=True),
+    output=OutputOptions(
+        format=FormatOptions(pretty=True),
+        filters=FilterOptions(include_shapes=False),  # drop shapes in output
+        destinations=DestinationOptions(sheets_dir=Path("out_sheets")),  # also write per-sheet files
+    ),
 )
 wb2 = engine.extract("input.xlsx")
-engine.export(wb2, Path("out_filtered.json"))  # drops shapes via OutputOptions
+engine.export(wb2, Path("out_filtered.json"))
 
-# Enable hyperlinks in other modes
+# Enable hyperlinks in standard mode
 engine_links = ExStructEngine(options=StructOptions(mode="standard", include_cell_links=True))
 with_links = engine_links.extract("input.xlsx")
 

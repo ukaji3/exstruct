@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, TextIO
 
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
 from .core import cells as _cells
 from .core.cells import set_table_detection_params
 from .core.integrate import extract_workbook
@@ -41,40 +43,144 @@ class StructOptions:
     include_cell_links: bool | None = None  # None -> auto: verbose=True, others=False
 
 
-@dataclass(frozen=True)
-class OutputOptions:
-    """
-    Output-time options for ExStructEngine.
+class FormatOptions(BaseModel):
+    """Formatting options for serialization."""
 
-    Attributes:
-        fmt: Default export format. One of "json", "yaml", "yml", "toon".
-        pretty: Whether to pretty-print JSON; default False (compact).
-        indent: Explicit indent size. If None and pretty=True, indent=2 for JSON.
-        include_rows: Include SheetData.rows in output (set False to drop).
-        include_shapes: Include SheetData.shapes in output.
-        include_charts: Include SheetData.charts in output.
-        include_tables: Include SheetData.table_candidates in output.
-        include_print_areas: Include SheetData.print_areas in output.
-        include_shape_size: Include Shape.w/h in output (auto: verbose=True, others False).
-        include_chart_size: Include Chart.w/h in output (auto: verbose=True, others False).
-        sheets_dir: Optional directory to write per-sheet files (in the chosen fmt).
-        print_areas_dir: Optional directory to write one file per print area (in the chosen fmt).
-        stream: Optional default stream for stdout output when output_path is None.
-    """
-
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     fmt: Literal["json", "yaml", "yml", "toon"] = "json"
     pretty: bool = False
     indent: int | None = None
+
+
+class FilterOptions(BaseModel):
+    """Include/exclude filters for output."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     include_rows: bool = True
     include_shapes: bool = True
+    include_shape_size: bool | None = None  # None -> auto: verbose=True, others=False
     include_charts: bool = True
+    include_chart_size: bool | None = None  # None -> auto: verbose=True, others=False
     include_tables: bool = True
-    include_print_areas: bool | None = None  # None -> auto (light=False, others=True)
-    include_shape_size: bool | None = None
-    include_chart_size: bool | None = None
+    include_print_areas: bool | None = None  # None -> auto: light=False, others=True
+
+
+class DestinationOptions(BaseModel):
+    """Destinations for optional side outputs."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     sheets_dir: Path | None = None
     print_areas_dir: Path | None = None
     stream: TextIO | None = None
+
+
+class OutputOptions(BaseModel):
+    """
+    Output-time options for ExStructEngine.
+
+    - format: serialization format/indent.
+    - filters: include/exclude flags (rows/shapes/charts/tables/print_areas, size flags).
+    - destinations: side outputs (per-sheet, per-print-area, stream override).
+
+    Legacy flat fields (fmt, pretty, indent, include_*, sheets_dir, print_areas_dir, stream)
+    are still accepted and normalized into the nested structures.
+    """
+
+    format: FormatOptions = Field(default_factory=FormatOptions)
+    filters: FilterOptions = Field(default_factory=FilterOptions)
+    destinations: DestinationOptions = Field(default_factory=DestinationOptions)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy(cls, values: dict) -> dict:
+        if not isinstance(values, dict):
+            return values
+        # Normalize legacy flat fields into nested configs
+        fmt_cfg = {
+            "fmt": values.pop("fmt", None),
+            "pretty": values.pop("pretty", None),
+            "indent": values.pop("indent", None),
+        }
+        filt_cfg = {
+            "include_rows": values.pop("include_rows", None),
+            "include_shapes": values.pop("include_shapes", None),
+            "include_shape_size": values.pop("include_shape_size", None),
+            "include_charts": values.pop("include_charts", None),
+            "include_chart_size": values.pop("include_chart_size", None),
+            "include_tables": values.pop("include_tables", None),
+            "include_print_areas": values.pop("include_print_areas", None),
+        }
+        dest_cfg = {
+            "sheets_dir": values.pop("sheets_dir", None),
+            "print_areas_dir": values.pop("print_areas_dir", None),
+            "stream": values.pop("stream", None),
+        }
+        # Drop None to let defaults apply
+        fmt_cfg = {k: v for k, v in fmt_cfg.items() if v is not None}
+        filt_cfg = {k: v for k, v in filt_cfg.items() if v is not None}
+        dest_cfg = {k: v for k, v in dest_cfg.items() if v is not None}
+
+        merged = dict(values)
+        if "format" not in merged and fmt_cfg:
+            merged["format"] = fmt_cfg
+        if "filters" not in merged and filt_cfg:
+            merged["filters"] = filt_cfg
+        if "destinations" not in merged and dest_cfg:
+            merged["destinations"] = dest_cfg
+        return merged
+
+    # Legacy compatibility properties
+    @property
+    def fmt(self) -> Literal["json", "yaml", "yml", "toon"]:
+        return self.format.fmt
+
+    @property
+    def pretty(self) -> bool:
+        return self.format.pretty
+
+    @property
+    def indent(self) -> int | None:
+        return self.format.indent
+
+    @property
+    def include_rows(self) -> bool:
+        return self.filters.include_rows
+
+    @property
+    def include_shapes(self) -> bool:
+        return self.filters.include_shapes
+
+    @property
+    def include_shape_size(self) -> bool | None:
+        return self.filters.include_shape_size
+
+    @property
+    def include_charts(self) -> bool:
+        return self.filters.include_charts
+
+    @property
+    def include_chart_size(self) -> bool | None:
+        return self.filters.include_chart_size
+
+    @property
+    def include_tables(self) -> bool:
+        return self.filters.include_tables
+
+    @property
+    def include_print_areas(self) -> bool | None:
+        return self.filters.include_print_areas
+
+    @property
+    def sheets_dir(self) -> Path | None:
+        return self.destinations.sheets_dir
+
+    @property
+    def print_areas_dir(self) -> Path | None:
+        return self.destinations.print_areas_dir
+
+    @property
+    def stream(self) -> TextIO | None:
+        return self.destinations.stream
 
 
 class ExStructEngine:
@@ -136,13 +242,13 @@ class ExStructEngine:
         Auto: verbose -> include, others -> exclude.
         """
         include_shape_size = (
-            self.output.include_shape_size
-            if self.output.include_shape_size is not None
+            self.output.filters.include_shape_size
+            if self.output.filters.include_shape_size is not None
             else self.options.mode == "verbose"
         )
         include_chart_size = (
-            self.output.include_chart_size
-            if self.output.include_chart_size is not None
+            self.output.filters.include_chart_size
+            if self.output.filters.include_chart_size is not None
             else self.options.mode == "verbose"
         )
         return include_shape_size, include_chart_size
@@ -152,29 +258,29 @@ class ExStructEngine:
         Decide whether to include print areas in output.
         Auto: light -> False, others -> True.
         """
-        if self.output.include_print_areas is None:
+        if self.output.filters.include_print_areas is None:
             return self.options.mode != "light"
-        return self.output.include_print_areas
+        return self.output.filters.include_print_areas
 
     def _filter_sheet(self, sheet: SheetData) -> SheetData:
         include_shape_size, include_chart_size = self._resolve_size_flags()
         include_print_areas = self._include_print_areas()
         return SheetData(
-            rows=sheet.rows if self.output.include_rows else [],
+            rows=sheet.rows if self.output.filters.include_rows else [],
             shapes=[
                 s if include_shape_size else s.model_copy(update={"w": None, "h": None})
                 for s in sheet.shapes
             ]
-            if self.output.include_shapes
+            if self.output.filters.include_shapes
             else [],
             charts=[
                 c if include_chart_size else c.model_copy(update={"w": None, "h": None})
                 for c in sheet.charts
             ]
-            if self.output.include_charts
+            if self.output.filters.include_charts
             else [],
             table_candidates=sheet.table_candidates
-            if self.output.include_tables
+            if self.output.filters.include_tables
             else [],
             print_areas=sheet.print_areas if include_print_areas else [],
         )
@@ -231,9 +337,9 @@ class ExStructEngine:
             pretty/indent: JSON 整形オプション
         """
         filtered = self._filter_workbook(data)
-        use_fmt = fmt or self.output.fmt
-        use_pretty = self.output.pretty if pretty is None else pretty
-        use_indent = self.output.indent if indent is None else indent
+        use_fmt = fmt or self.output.format.fmt
+        use_pretty = self.output.format.pretty if pretty is None else pretty
+        use_indent = self.output.format.indent if indent is None else indent
         return serialize_workbook(
             filtered, fmt=use_fmt, pretty=use_pretty, indent=use_indent
         )
@@ -265,15 +371,17 @@ class ExStructEngine:
             stream: output_path が None のときに上書きしたい IO
         """
         text = self.serialize(data, fmt=fmt, pretty=pretty, indent=indent)
-        target_stream = stream or self.output.stream
-        chosen_fmt = fmt or self.output.fmt
+        target_stream = stream or self.output.destinations.stream
+        chosen_fmt = fmt or self.output.format.fmt
         chosen_sheets_dir = (
-            sheets_dir if sheets_dir is not None else self.output.sheets_dir
+            sheets_dir
+            if sheets_dir is not None
+            else self.output.destinations.sheets_dir
         )
         chosen_print_areas_dir = (
             print_areas_dir
             if print_areas_dir is not None
-            else self.output.print_areas_dir
+            else self.output.destinations.print_areas_dir
         )
 
         if output_path is not None:
@@ -292,8 +400,8 @@ class ExStructEngine:
                 filtered,
                 chosen_sheets_dir,
                 fmt=chosen_fmt,
-                pretty=self.output.pretty if pretty is None else pretty,
-                indent=self.output.indent if indent is None else indent,
+                pretty=self.output.format.pretty if pretty is None else pretty,
+                indent=self.output.format.indent if indent is None else indent,
             )
 
         if chosen_print_areas_dir is not None:
@@ -304,10 +412,10 @@ class ExStructEngine:
                     filtered,
                     chosen_print_areas_dir,
                     fmt=chosen_fmt,
-                    pretty=self.output.pretty if pretty is None else pretty,
-                    indent=self.output.indent if indent is None else indent,
-                    include_shapes=self.output.include_shapes,
-                    include_charts=self.output.include_charts,
+                    pretty=self.output.format.pretty if pretty is None else pretty,
+                    indent=self.output.format.indent if indent is None else indent,
+                    include_shapes=self.output.filters.include_shapes,
+                    include_charts=self.output.filters.include_charts,
                     include_shape_size=include_shape_size,
                     include_chart_size=include_chart_size,
                 )
@@ -346,7 +454,7 @@ class ExStructEngine:
             stream: 標準出力時の IO を上書きしたい場合
         """
         wb = self.extract(file_path, mode=mode)
-        chosen_fmt = out_fmt or self.output.fmt
+        chosen_fmt = out_fmt or self.output.format.fmt
         self.export(
             wb,
             output_path=output_path,
