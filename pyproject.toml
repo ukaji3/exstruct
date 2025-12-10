@@ -53,40 +53,41 @@ omit = [
 ]
 
 [tool.ruff]
-# 対象ディレクトリ
+target-version = "py311"
 src = ["exstruct"]
 
-# 対象 Python バージョン
-target-version = "py311"
-
-# チェックするルール
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
     "F",   # pyflakes
-    "I",   # import sorting (isort 相当)
-    "C90", # mccabe: 複雑度
-    "UP",  # pyupgrade: Python の最新構文へ
-    "N",   # pep8-naming
+    "I",   # import sorting
+    "UP",  # pyupgrade
     "B",   # flake8-bugbear
+    "N",   # naming
+    "C90", # complexity
     "A",   # flake8-builtins
+    "ANN", # type annotations
 ]
 
-# 除外したいルール（必要に応じて）
 ignore = [
-    "E501",  # 1行が長い許容（ExStruct は JSON 出力・COM 対応で長くなりやすい）
-    "B008",  # 関数のデフォルト引数に関数を使う禁止 → Pydantic でよく使うので無効
+    "E501",   # 行長は許容（Excel JSON は長くなりがち）
+    "B008",   # Pydantic の default_factory を誤検知するため
+    "ANN101", # self に型を要求されてしまうため
+    "ANN102", # cls も同様
 ]
 
-# 自動修正を許可
 fix = true
 
-# import 並び替えの設定（isort の代替）
+# 型ヒントのスタイル
+[tool.ruff.lint]
+extend-select = ["ANN"]
+
+# import の並び替え設定
 [tool.ruff.isort]
 combine-as-imports = true
 known-first-party = ["exstruct"]
+force-sort-within-sections = true
 
-# docstring チェック
-[tool.ruff.pydocstyle]
-convention = "google"
-
+# 複雑度チェック（関数の最大複雑度）
+[tool.ruff.mccabe]
+max-complexity = 12

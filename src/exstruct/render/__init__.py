@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 import shutil
 import tempfile
-from pathlib import Path
 from typing import List
 
 import xlwings as xw

@@ -1,9 +1,9 @@
 import os
 from pathlib import Path
 
+from openpyxl import Workbook
 import pytest
 import xlwings as xw
-from openpyxl import Workbook
 
 from exstruct import process_excel
 

@@ -1,11 +1,11 @@
-import subprocess
-import sys
 from importlib import util
 from pathlib import Path
+import subprocess
+import sys
 
+from openpyxl import Workbook
 import pytest
 import xlwings as xw
-from openpyxl import Workbook
 
 
 def _excel_available() -> bool:

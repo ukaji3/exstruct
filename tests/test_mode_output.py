@@ -1,10 +1,10 @@
+from pathlib import Path
 import subprocess
 import sys
-from pathlib import Path
 
+from openpyxl import Workbook
 import pytest
 import xlwings as xw
-from openpyxl import Workbook
 
 from exstruct import extract, process_excel
 

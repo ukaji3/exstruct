@@ -14,3 +14,7 @@ test.py
 .coverage
 site/
 output.json
+
+.pytest_cache/
+.ruff-cache/
+.ruff-check.yml

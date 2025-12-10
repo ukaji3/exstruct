@@ -5,9 +5,9 @@ import os
 from pathlib import Path
 from typing import Literal
 
-import xlwings as xw
 from openpyxl import load_workbook
 from openpyxl.utils import range_boundaries
+import xlwings as xw
 
 from ..models import CellRow, PrintArea, Shape, SheetData, WorkbookData
 from .cells import (
