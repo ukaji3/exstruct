@@ -25,6 +25,7 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "mkdocs-material>=9.7.0",
+    "mypy>=1.19.0",
     "pytest>=9.0.1",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
@@ -91,3 +92,17 @@ force-sort-within-sections = true
 # 複雑度チェック（関数の最大複雑度）
 [tool.ruff.mccabe]
 max-complexity = 12
+
+
+[tool.mypy]
+packages = ["exstruct"]
+python_version = "3.11"
+
+# 外部ライブラリは一切チェックしない
+ignore_missing_imports = true
+
+# 自作コードは厳密にチェックする
+strict = true
+
+# Pydantic v2 向け
+plugins = ["pydantic.mypy"]
