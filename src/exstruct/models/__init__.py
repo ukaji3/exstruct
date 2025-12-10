@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 import json
 from pathlib import Path
-from typing import Dict, List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 
 class Shape(BaseModel):
     text: str
-    l: int
+    l: int  # noqa: E741
     t: int
     w: int | None
     h: int | None
@@ -42,7 +43,7 @@ class Chart(BaseModel):
     w: int | None = None
     h: int | None = None
     series: list[ChartSeries]
-    l: int
+    l: int  # noqa: E741
     t: int
     error: str | None = None
 
@@ -179,7 +180,7 @@ class WorkbookData(BaseModel):
         """Return the SheetData for the given sheet name."""
         return self.sheets[sheet_name]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[tuple[str, SheetData]]:
         """Iterate over (sheet_name, SheetData) pairs in order."""
         return iter(self.sheets.items())
 

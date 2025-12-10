@@ -1,3 +1,4 @@
+from pydantic import ValidationError
 import pytest
 
 from exstruct.models import (
@@ -46,7 +47,7 @@ def test_モデルのデフォルトとオプション値() -> None:
 
 
 def test_directionのリテラル検証() -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         Shape(text="bad", l=0, t=0, w=None, h=None, direction="X")  # type: ignore
 
 

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from _pytest.monkeypatch import MonkeyPatch
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
@@ -33,7 +34,7 @@ def test_detect_tables_openpyxl_detects_tables(tmp_path: Path) -> None:
 
 
 def test_detect_tables_openpyxl_respects_table_params(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     # Ensure detection still runs after modifying global thresholds
     path = tmp_path / "sample.xlsx"

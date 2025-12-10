@@ -196,7 +196,7 @@ MSO_AUTO_SHAPE_TYPE_MAP = {
     30: "RightBracket",  # Right Bracket
     8: "RightTriangle",  # Right Triangle
     151: "Round1Rectangle",  # Round 1 Rectangle
-    157: "Round2DiagRectangle",  # Round 2 Diagonal Rectangle
+    153: "Round2DiagRectangle",  # Round 2 Diagonal Rectangle
     152: "Round2SameRectangle",  # Round 2 Same Rectangle
     5: "RoundedRectangle",  # Rounded Rectangle
     106: "RoundedRectangularCallout",  # Rounded Rectangular Callout

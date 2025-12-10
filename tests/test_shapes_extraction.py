@@ -31,7 +31,7 @@ def _make_workbook_with_shapes(path: Path) -> None:
         rect = sht.api.Shapes.AddShape(1, 50, 50, 120, 60)  # msoShapeRectangle
         rect.TextFrame2.TextRange.Text = "rect"
 
-        silent_rect = sht.api.Shapes.AddShape(
+        _ = sht.api.Shapes.AddShape(
             5, 300, 50, 80, 40
         )  # msoShapeOval (no text)
 

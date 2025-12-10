@@ -3,14 +3,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
-from typing import Any, Dict, Literal
+from types import ModuleType
+from typing import Literal
 
 from openpyxl.utils import range_boundaries
 
 from ..models import CellRow, Chart, PrintArea, PrintAreaView, Shape, WorkbookData
+from ..models.types import JsonStructure
 
 
-def dict_without_empty_values(obj: Any):
+def dict_without_empty_values(obj: JsonStructure | WorkbookData | CellRow | Chart | PrintArea | PrintAreaView | Shape) -> JsonStructure:
     """Recursively drop empty values from nested structures."""
     if isinstance(obj, dict):
         return {
@@ -402,7 +404,7 @@ def save_sheets(
     return written
 
 
-def _require_yaml():
+def _require_yaml() -> ModuleType:
     try:
         import yaml
     except ImportError as e:
@@ -413,7 +415,7 @@ def _require_yaml():
     return yaml
 
 
-def _require_toon():
+def _require_toon() -> ModuleType:
     try:
         import toon
     except ImportError as e:

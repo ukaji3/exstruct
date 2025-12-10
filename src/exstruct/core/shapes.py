@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 import math
 
 import xlwings as xw
@@ -26,7 +27,7 @@ def coord_to_cell_by_edges(
 ) -> str | None:
     """Estimate cell address from coordinates and cumulative edges; return None if out of range."""
 
-    def find_index(edges, pos):
+    def find_index(edges: list[float], pos: float) -> int | None:
         for i in range(1, len(edges)):
             if edges[i - 1] <= pos < edges[i]:
                 return i
@@ -39,7 +40,7 @@ def coord_to_cell_by_edges(
     return f"{xw.utils.col_name(c)}{r}"
 
 
-def has_arrow(style_val) -> bool:
+def has_arrow(style_val: object) -> bool:
     """Return True if Excel arrow style value indicates an arrowhead."""
     try:
         v = int(style_val)
@@ -48,7 +49,7 @@ def has_arrow(style_val) -> bool:
         return False
 
 
-def iter_shapes_recursive(shp):
+def iter_shapes_recursive(shp: xw.Shape) -> Iterator[xw.Shape]:
     """Yield shapes recursively, including group children."""
     yield shp
     try:
@@ -63,8 +64,7 @@ def iter_shapes_recursive(shp):
                     xl_shape = None
 
                 if xl_shape is not None:
-                    for s in iter_shapes_recursive(xl_shape):
-                        yield s
+                    yield from iter_shapes_recursive(xl_shape)
     except Exception:
         pass
 
@@ -107,7 +107,7 @@ def _should_include_shape(
     return True
 
 
-def get_shapes_with_position(
+def get_shapes_with_position(  # noqa: C901
     workbook: Book, mode: str = "standard"
 ) -> dict[str, list[Shape]]:
     """Scan shapes in a workbook and return per-sheet Shape lists with position info."""

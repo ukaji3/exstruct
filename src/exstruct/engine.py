@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -222,7 +223,7 @@ class ExStructEngine:
             set_table_detection_params(**self.options.table_params)
 
     @contextmanager
-    def _table_params_scope(self):
+    def _table_params_scope(self) -> Iterator[None]:
         """
         Temporarily apply table_params and restore previous global config afterward.
         """

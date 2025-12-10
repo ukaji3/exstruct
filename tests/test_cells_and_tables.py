@@ -1,5 +1,7 @@
 from pathlib import Path
+from typing import Never
 
+from _pytest.monkeypatch import MonkeyPatch
 from openpyxl import Workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
 import pytest
@@ -53,11 +55,13 @@ def test_openpyxlで正式テーブルを検出できる(tmp_path: Path) -> None
     assert "A1:B3" in tables
 
 
-def test_excelなし環境ではセルとテーブルのみ返す(monkeypatch, tmp_path: Path) -> None:
+def test_excelなし環境ではセルとテーブルのみ返す(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
     path = tmp_path / "fallback.xlsx"
     _make_workbook_with_table(path)
 
-    def _raise(*_args, **_kwargs):
+    def _raise(*_args: object, **_kwargs: object) -> Never:
         raise RuntimeError("no COM")
 
     monkeypatch.setattr("exstruct.core.integrate._open_workbook", _raise, raising=False)

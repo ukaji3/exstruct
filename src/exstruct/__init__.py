@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal, Optional, TextIO
+from typing import Literal, TextIO
 
 from .core.cells import set_table_detection_params
 from .core.integrate import extract_workbook
@@ -45,9 +45,11 @@ __all__ = [
     "PrintArea",
     "PrintAreaView",
     "set_table_detection_params",
+    "extract_workbook",
     "ExStructEngine",
     "StructOptions",
     "OutputOptions",
+    "serialize_workbook",
 ]
 
 

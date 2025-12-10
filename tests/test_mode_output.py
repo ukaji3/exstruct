@@ -1,7 +1,10 @@
 from pathlib import Path
 import subprocess
 import sys
+from typing import Never
 
+from _pytest.capture import CaptureFixture
+from _pytest.monkeypatch import MonkeyPatch
 from openpyxl import Workbook
 import pytest
 import xlwings as xw
@@ -34,7 +37,7 @@ def _make_shapes_book(path: Path) -> None:
         sht.name = "Sheet1"
         rect = sht.api.Shapes.AddShape(1, 50, 50, 120, 60)
         rect.TextFrame2.TextRange.Text = "rect"
-        oval = sht.api.Shapes.AddShape(5, 200, 50, 80, 40)  # no text
+        _ = sht.api.Shapes.AddShape(5, 200, 50, 80, 40)  # no text
         line = sht.api.Shapes.AddLine(10, 10, 110, 10)
         line.Line.EndArrowheadStyle = 3
         wb.save(str(path))
@@ -47,12 +50,12 @@ def _make_shapes_book(path: Path) -> None:
 
 
 def test_lightモードではCOMに触れずセルとテーブルのみ(
-    monkeypatch, tmp_path: Path
+    monkeypatch: MonkeyPatch, tmp_path: Path
 ) -> None:
     path = tmp_path / "book.xlsx"
     _make_basic_book(path)
 
-    def _boom(*_a, **_k):
+    def _boom(*_a: object, **_k: object) -> Never:
         raise AssertionError("COM should not be accessed in light mode")
 
     monkeypatch.setattr("exstruct.core.integrate.xw.Book", _boom, raising=False)
@@ -137,7 +140,9 @@ def _make_multi_sheet_book(path: Path) -> None:
     wb.save(path)
 
 
-def test_process_excel_defaults_to_stdout(tmp_path: Path, capsys) -> None:
+def test_process_excel_defaults_to_stdout(
+    tmp_path: Path, capsys: CaptureFixture[str]
+) -> None:
     path = tmp_path / "book.xlsx"
     _make_basic_book(path)
 

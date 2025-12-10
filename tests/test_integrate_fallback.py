@@ -1,12 +1,16 @@
 from pathlib import Path
+from typing import Never
 
+from _pytest.monkeypatch import MonkeyPatch
 from openpyxl import Workbook
 
 from exstruct.core import integrate
 from exstruct.models import CellRow
 
 
-def test_extract_workbook_fallback_on_com_failure(monkeypatch, tmp_path: Path) -> None:
+def test_extract_workbook_fallback_on_com_failure(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
     # create a tiny workbook
     xlsx = tmp_path / "sample.xlsx"
     wb = Workbook()
@@ -20,7 +24,7 @@ def test_extract_workbook_fallback_on_com_failure(monkeypatch, tmp_path: Path) -
     wb.save(xlsx)
     wb.close()
 
-    def boom(_path):
+    def boom(_path: Path) -> Never:
         raise RuntimeError("COM unavailable")
 
     monkeypatch.setattr(integrate, "_open_workbook", boom)
@@ -31,7 +35,9 @@ def test_extract_workbook_fallback_on_com_failure(monkeypatch, tmp_path: Path) -
     assert result.sheets["Sheet1"].table_candidates
 
 
-def test_extract_workbook_with_links(monkeypatch, tmp_path: Path) -> None:
+def test_extract_workbook_with_links(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
     # create workbook with hyperlink
     path = tmp_path / "links.xlsx"
     wb = Workbook()
@@ -43,7 +49,7 @@ def test_extract_workbook_with_links(monkeypatch, tmp_path: Path) -> None:
     wb.save(path)
     wb.close()
 
-    def _raise(*_args, **_kwargs):
+    def _raise(*_args: object, **_kwargs: object) -> Never:
         raise RuntimeError("no COM")
 
     monkeypatch.setattr("exstruct.core.integrate._open_workbook", _raise, raising=False)

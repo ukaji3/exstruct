@@ -9,6 +9,7 @@ import re
 import numpy as np
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter, range_boundaries
+from openpyxl.worksheet.worksheet import Worksheet
 import pandas as pd
 import xlwings as xw
 
@@ -16,6 +17,13 @@ from ..models import CellRow
 
 logger = logging.getLogger(__name__)
 _warned_keys: set[str] = set()
+XL_LINESTYLE_NONE = -4142
+XL_INSIDE_VERTICAL = 11
+XL_INSIDE_HORIZONTAL = 12
+XL_EDGE_LEFT = 7
+XL_EDGE_TOP = 8
+XL_EDGE_BOTTOM = 9
+XL_EDGE_RIGHT = 10
 
 # Detection tuning parameters (can be overridden via set_table_detection_params)
 _DETECTION_CONFIG = {
@@ -94,7 +102,7 @@ def extract_sheet_cells_with_links(file_path: Path) -> dict[str, list[CellRow]]:
     return merged
 
 
-def shrink_to_content(
+def shrink_to_content(  # noqa: C901
     sheet: xw.Sheet,
     top: int,
     left: int,
@@ -115,10 +123,10 @@ def shrink_to_content(
     rows_n = len(vals)
     cols_n = len(vals[0]) if rows_n else 0
 
-    def to_str(x):
+    def to_str(x: object) -> str:
         return "" if x is None else str(x)
 
-    def is_empty_value(x):
+    def is_empty_value(x: object) -> bool:
         return to_str(x).strip() == ""
 
     def row_empty(i: int) -> bool:
@@ -138,10 +146,6 @@ def shrink_to_content(
             return 0.0
         cnt = sum(1 for i in range(rows_n) if not is_empty_value(vals[i][j]))
         return cnt / rows_n
-
-    XL_LINESTYLE_NONE = -4142
-    XL_INSIDE_VERTICAL = 11
-    XL_INSIDE_HORIZONTAL = 12
 
     def column_has_inside_border(col_idx: int) -> bool:
         if not require_inside_border:
@@ -228,7 +232,9 @@ def shrink_to_content(
     return top, left, bottom, right
 
 
-def load_border_maps_xlsx(xlsx_path: Path, sheet_name: str):
+def load_border_maps_xlsx(  # noqa: C901
+    xlsx_path: Path, sheet_name: str
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int]:
     wb = load_workbook(xlsx_path, data_only=True, read_only=False)
     if sheet_name not in wb.sheetnames:
         wb.close()
@@ -247,7 +253,7 @@ def load_border_maps_xlsx(xlsx_path: Path, sheet_name: str):
     left_edge = np.zeros(shape, dtype=bool)
     right_edge = np.zeros(shape, dtype=bool)
 
-    def edge_has_style(edge) -> bool:
+    def edge_has_style(edge: object) -> bool:
         if edge is None:
             return False
         style = getattr(edge, "style", None)
@@ -262,16 +268,16 @@ def load_border_maps_xlsx(xlsx_path: Path, sheet_name: str):
 
             t = edge_has_style(b.top)
             btm = edge_has_style(b.bottom)
-            l = edge_has_style(b.left)
+            left_border = edge_has_style(b.left)
             rgt = edge_has_style(b.right)
 
-            if t or btm or l or rgt:
+            if t or btm or left_border or rgt:
                 has_border[r, c] = True
                 if t:
                     top_edge[r, c] = True
                 if btm:
                     bottom_edge[r, c] = True
-                if l:
+                if left_border:
                     left_edge[r, c] = True
                 if rgt:
                     right_edge[r, c] = True
@@ -280,7 +286,9 @@ def load_border_maps_xlsx(xlsx_path: Path, sheet_name: str):
     return has_border, top_edge, bottom_edge, left_edge, right_edge, max_row, max_col
 
 
-def detect_border_clusters(has_border: np.ndarray, min_size: int = 4):
+def detect_border_clusters(
+    has_border: np.ndarray, min_size: int = 4
+) -> list[tuple[int, int, int, int]]:
     try:
         from scipy.ndimage import label
 
@@ -328,8 +336,10 @@ def detect_border_clusters(has_border: np.ndarray, min_size: int = 4):
         return rects
 
 
-def _get_values_block(ws, top, left, bottom, right):
-    vals = []
+def _get_values_block(
+    ws: Worksheet, top: int, left: int, bottom: int, right: int
+) -> list[list[object]]:
+    vals: list[list[object]] = []
     for row in ws.iter_rows(
         min_row=top, max_row=bottom, min_col=left, max_col=right, values_only=True
     ):
@@ -337,7 +347,7 @@ def _get_values_block(ws, top, left, bottom, right):
     return vals
 
 
-def _table_density_metrics(matrix) -> tuple[float, float]:
+def _table_density_metrics(matrix: list[list[object]] | list[object]) -> tuple[float, float]:
     """
     Given a 2D matrix (list of rows), return (density, coverage).
     density: nonempty / total cells.
@@ -373,7 +383,7 @@ def _table_density_metrics(matrix) -> tuple[float, float]:
     return density, coverage
 
 
-def _is_plausible_table(matrix) -> bool:
+def _is_plausible_table(matrix: list[list[object]] | list[object]) -> bool:
     """
     Heuristic: require at least 2 rows and 2 cols with meaningful data.
     - At least 2 rows have 2 以上の非空セル
@@ -423,7 +433,7 @@ def _nonempty_clusters(matrix: list[list]) -> list[tuple[int, int, int, int]]:
     visited = [[False] * cols for _ in range(rows)]
     boxes: list[tuple[int, int, int, int]] = []
 
-    def bfs(sr: int, sc: int):
+    def bfs(sr: int, sc: int) -> tuple[int, int, int, int]:
         q = deque([(sr, sc)])
         visited[sr][sc] = True
         ys = [sr]
@@ -451,7 +461,7 @@ def _nonempty_clusters(matrix: list[list]) -> list[tuple[int, int, int, int]]:
     return boxes
 
 
-def _normalize_matrix(matrix) -> list[list]:
+def _normalize_matrix(matrix: object) -> list[list[object]]:
     if matrix is None:
         return []
     if not isinstance(matrix, list):
@@ -529,27 +539,27 @@ def set_table_detection_params(
         _DETECTION_CONFIG["min_nonempty_cells"] = min_nonempty_cells
 
 
-def shrink_to_content_openpyxl(
-    ws,
+def shrink_to_content_openpyxl(  # noqa: C901
+    ws: Worksheet,
     top: int,
     left: int,
     bottom: int,
     right: int,
     require_inside_border: bool,
-    top_edge,
-    bottom_edge,
-    left_edge,
-    right_edge,
+    top_edge: np.ndarray,
+    bottom_edge: np.ndarray,
+    left_edge: np.ndarray,
+    right_edge: np.ndarray,
     min_nonempty_ratio: float = 0.0,
 ) -> tuple[int, int, int, int]:
     vals = _get_values_block(ws, top, left, bottom, right)
     rows_n = bottom - top + 1
     cols_n = right - left + 1
 
-    def to_str(x):
+    def to_str(x: object) -> str:
         return "" if x is None else str(x)
 
-    def is_empty_value(x):
+    def is_empty_value(x: object) -> bool:
         return to_str(x).strip() == ""
 
     def row_nonempty_ratio_local(i: int) -> float:
@@ -689,7 +699,7 @@ def shrink_to_content_openpyxl(
     return top, left, bottom, right
 
 
-def detect_tables_xlwings(sheet: xw.Sheet) -> list[str]:
+def detect_tables_xlwings(sheet: xw.Sheet) -> list[str]:  # noqa: C901
     """Detect table-like ranges via COM: ListObjects first, then border clusters."""
     tables: list[str] = []
     try:
@@ -707,13 +717,6 @@ def detect_tables_xlwings(sheet: xw.Sheet) -> list[str]:
     used = sheet.used_range
     max_row = used.last_cell.row
     max_col = used.last_cell.column
-    XL_EDGE_LEFT = 7
-    XL_EDGE_TOP = 8
-    XL_EDGE_BOTTOM = 9
-    XL_EDGE_RIGHT = 10
-    XL_INSIDE_VERTICAL = 11
-    XL_INSIDE_HORIZONTAL = 12
-    XL_LINESTYLE_NONE = -4142
 
     def cell_has_any_border(r: int, c: int) -> bool:
         try:
@@ -745,7 +748,7 @@ def detect_tables_xlwings(sheet: xw.Sheet) -> list[str]:
                 grid[r][c] = True
     visited = [[False] * (max_col + 1) for _ in range(max_row + 1)]
 
-    def dfs(sr: int, sc: int, acc: list[tuple[int, int]]):
+    def dfs(sr: int, sc: int, acc: list[tuple[int, int]]) -> None:
         stack = [(sr, sc)]
         while stack:
             rr, cc = stack.pop()
@@ -774,7 +777,9 @@ def detect_tables_xlwings(sheet: xw.Sheet) -> list[str]:
                 right_col = max(cols)
                 clusters.append((top_row, left_col, bottom_row, right_col))
 
-    def overlaps_for_merge(a, b):
+    def overlaps_for_merge(
+        a: tuple[int, int, int, int], b: tuple[int, int, int, int]
+    ) -> bool:
         # Do not merge if one rect fully contains the other (separate clusters like big frame vs small table)
         contains = (
             a[0] <= b[0] and a[1] <= b[1] and a[2] >= b[2] and a[3] >= b[3]
@@ -838,7 +843,9 @@ def detect_tables_xlwings(sheet: xw.Sheet) -> list[str]:
     return tables
 
 
-def detect_tables_openpyxl(xlsx_path: Path, sheet_name: str) -> list[str]:
+def detect_tables_openpyxl(  # noqa: C901
+    xlsx_path: Path, sheet_name: str
+) -> list[str]:
     wb = load_workbook(
         xlsx_path,
         data_only=True,
@@ -866,7 +873,9 @@ def detect_tables_openpyxl(xlsx_path: Path, sheet_name: str) -> list[str]:
     )
     rects = detect_border_clusters(has_border, min_size=4)
 
-    def overlaps_for_merge(a, b):
+    def overlaps_for_merge(
+        a: tuple[int, int, int, int], b: tuple[int, int, int, int]
+    ) -> bool:
         contains = (
             a[0] <= b[0] and a[1] <= b[1] and a[2] >= b[2] and a[3] >= b[3]
         ) or (b[0] <= a[0] and b[1] <= a[1] and b[2] >= a[2] and b[3] >= a[3])

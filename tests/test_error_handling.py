@@ -1,7 +1,9 @@
 from pathlib import Path
 import subprocess
 import sys
+from typing import Never
 
+from _pytest.monkeypatch import MonkeyPatch
 from openpyxl import Workbook
 
 from exstruct import extract
@@ -20,12 +22,12 @@ def _make_simple_workbook(path: Path) -> None:
 
 
 def test_COMエラーでもフォールバックしてプロセスが落ちない(
-    monkeypatch, tmp_path: Path
+    monkeypatch: MonkeyPatch, tmp_path: Path
 ) -> None:
     path = tmp_path / "book.xlsx"
     _make_simple_workbook(path)
 
-    def _raise(*_a, **_k):
+    def _raise(*_a: object, **_k: object) -> Never:
         raise RuntimeError("COM not available")
 
     monkeypatch.setattr("exstruct.core.integrate.xw.Book", _raise, raising=False)
@@ -36,11 +38,13 @@ def test_COMエラーでもフォールバックしてプロセスが落ちな�
     assert sheet.charts == []
 
 
-def test_図形抽出失敗でも他要素が取得される(monkeypatch, tmp_path: Path) -> None:
+def test_図形抽出失敗でも他要素が取得される(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
     path = tmp_path / "book.xlsx"
     _make_simple_workbook(path)
 
-    def _raise_shapes(*_a, **_k):
+    def _raise_shapes(*_a: object, **_k: object) -> Never:
         raise RuntimeError("shapes fail")
 
     monkeypatch.setattr(
@@ -48,10 +52,10 @@ def test_図形抽出失敗でも他要素が取得される(monkeypatch, tmp_pa
     )
 
     class DummyBook:
-        def __init__(self, *_a, **_k):
-            self.sheets = []
+        def __init__(self, *_a: object, **_k: object) -> None:
+            self.sheets: list[object] = []
 
-        def close(self):
+        def close(self) -> None:
             pass
 
     monkeypatch.setattr("exstruct.core.integrate.xw.Book", DummyBook, raising=False)
@@ -63,8 +67,8 @@ def test_図形抽出失敗でも他要素が取得される(monkeypatch, tmp_pa
         assert sheet.shapes == []
 
 
-def test_chart_errorに必ず文字列が入る(monkeypatch) -> None:
-    def _broken_parse(*_a, **_k):
+def test_chart_errorに必ず文字列が入る(monkeypatch: MonkeyPatch) -> None:
+    def _broken_parse(*_a: object, **_k: object) -> Never:
         raise RuntimeError("broken chart")
 
     monkeypatch.setattr("exstruct.core.charts.parse_series_formula", _broken_parse)

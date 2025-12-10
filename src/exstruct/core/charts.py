@@ -11,7 +11,7 @@ from ..models.maps import XL_CHART_TYPE_MAP
 logger = logging.getLogger(__name__)
 
 
-def _extract_series_args_text(formula: str) -> str | None:
+def _extract_series_args_text(formula: str) -> str | None:  # noqa: C901
     """Extract the outer argument text from '=SERIES(...)'; return None if unmatched."""
     if not formula:
         return None
@@ -61,7 +61,7 @@ def _extract_series_args_text(formula: str) -> str | None:
     return None
 
 
-def _split_top_level_args(args_text: str) -> list[str]:
+def _split_top_level_args(args_text: str) -> list[str]:  # noqa: C901
     """Split SERIES arguments at top-level separators (',' or ';')."""
     if args_text is None:
         return []

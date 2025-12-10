@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 import shutil
 import tempfile
-from typing import List
+from types import ModuleType
 
 import xlwings as xw
 
@@ -48,7 +48,7 @@ def export_pdf(excel_path: Path, output_pdf: Path) -> list[str]:
     return sheet_names
 
 
-def _require_pdfium():
+def _require_pdfium() -> ModuleType:
     """Ensure pypdfium2 is installed; otherwise raise with guidance."""
     try:
         import pypdfium2 as pdfium  # type: ignore

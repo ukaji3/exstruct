@@ -73,7 +73,9 @@ def _parse_print_area_range(
     return (min_row, min_col, max_row, max_col)
 
 
-def _extract_print_areas_openpyxl(file_path: Path) -> dict[str, list[PrintArea]]:
+def _extract_print_areas_openpyxl(  # noqa: C901
+    file_path: Path,
+) -> dict[str, list[PrintArea]]:
     """
     Extract print areas per sheet using openpyxl defined names.
 
@@ -173,7 +175,7 @@ def integrate_sheet_content(
     return result
 
 
-def extract_workbook(
+def extract_workbook(  # noqa: C901
     file_path: Path,
     mode: Literal["light", "standard", "verbose"] = "standard",
     *,
