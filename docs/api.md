@@ -10,12 +10,12 @@ This page shows the primary APIs, minimal runnable examples, expected outputs, a
   - [TOC](#toc)
   - [Quick Examples](#quick-examples)
   - [Dependencies](#dependencies)
-- [Functions](#functions)
+  - [Functions](#functions)
     - [extractfile_path, mode="standard"](#extractfile_path-modestandard)
-    - [exportdata, path, fmt=None, \*, pretty=False, indent=None](#exportdata-path-fmtnone--prettyfalse-indentnone)
+    - [exportdata, path, fmt=None, *, pretty=False, indent=None](#exportdata-path-fmtnone--prettyfalse-indentnone)
     - [export_sheetsdata, dir_path](#export_sheetsdata-dir_path)
-    - [export_sheets_asdata, dir_path, fmt="json", \*, pretty=False, indent=None](#export_sheets_asdata-dir_path-fmtjson--prettyfalse-indentnone)
-    - [export_print_areas_asdata, dir_path, fmt="json", \*, pretty=False, indent=None, normalize=False](#export_print_areas_asdata-dir_path-fmtjson--prettyfalse-indentnone-normalizefalse)
+    - [export_sheets_asdata, dir_path, fmt="json", *, pretty=False, indent=None](#export_sheets_asdata-dir_path-fmtjson--prettyfalse-indentnone)
+    - [export_print_areas_asdata, dir_path, fmt="json", *, pretty=False, indent=None, normalize=False](#export_print_areas_asdata-dir_path-fmtjson--prettyfalse-indentnone-normalizefalse)
     - [process_excelfile_path, output_path=None, out_fmt="json", image=False, pdf=False, dpi=72, mode="standard", pretty=False, indent=None, sheets_dir=None, print_areas_dir=None, stream=None](#process_excelfile_path-output_pathnone-out_fmtjson-imagefalse-pdffalse-dpi72-modestandard-prettyfalse-indentnone-sheets_dirnone-print_areas_dirnone-streamnone)
     - [export_pdffile_path, pdf_path](#export_pdffile_path-pdf_path)
     - [export_sheet_imagesfile_path, images_dir, dpi=72](#export_sheet_imagesfile_path-images_dir-dpi72)
@@ -173,15 +173,21 @@ set_table_detection_params(table_score_threshold=0.25, coverage_min=0.15)
 
 ### ExStructEngine(options=StructOptions(), output=OutputOptions())
 
-Configurable engine for per-instance extraction/output settings.
+Configurable engine with per-instance extraction/output settings and automatic include/exclude flags.
 
-- `StructOptions`: `mode`, optional `table_params` (forwarded to `set_table_detection_params`), `include_cell_links` (None -> auto: verbose=True, others=False).
-- `OutputOptions`: defaults for `fmt`, `pretty`, `indent`, include/exclude flags for rows/shapes/charts/tables, `sheets_dir`, `stream`.
+- `StructOptions`
+  - `mode`: `"light" | "standard" | "verbose"`.
+  - `table_params`: forwarded to `set_table_detection_params` inside a temporary scope.
+  - `include_cell_links`: `None` -> auto (`verbose` only), otherwise respect the boolean.
+- `OutputOptions` (nested: `format`, `filters`, `destinations`)
+  - Format: `fmt` (`json`/`yaml`/`yml`/`toon`), `pretty`, `indent`.
+  - Filters: `include_rows`, `include_shapes`, `include_shape_size` (None -> auto: verbose only), `include_charts`, `include_chart_size` (None -> auto: verbose only), `include_tables`, `include_print_areas` (None -> auto: light=False, others=True).
+  - Destinations: `sheets_dir`, `print_areas_dir`, `stream`.
 - Methods:
-  - `extract(path, mode=None)` → WorkbookData
-  - `serialize(workbook, fmt=None, pretty=None, indent=None)` → str (filters applied)
-  - `export(workbook, output_path=None, fmt=None, pretty=None, indent=None, sheets_dir=None, stream=None)`
-  - `process(file_path, output_path=None, out_fmt=None, image=False, pdf=False, dpi=72, mode=None, pretty=None, indent=None, sheets_dir=None, stream=None)`
+  - `extract(path, mode=None)` -> WorkbookData (hyperlinks toggled via `StructOptions.include_cell_links`)
+  - `serialize(workbook, fmt=None, pretty=None, indent=None)` -> str (applies filters/size flags/print-area include rules)
+  - `export(workbook, output_path=None, fmt=None, pretty=None, indent=None, sheets_dir=None, print_areas_dir=None, stream=None)`
+  - `process(file_path, output_path=None, out_fmt=None, image=False, pdf=False, dpi=72, mode=None, pretty=None, indent=None, sheets_dir=None, print_areas_dir=None, stream=None)` (PDF/PNG require Excel + pypdfium2)
 
 Example:
 
@@ -190,7 +196,13 @@ from exstruct import ExStructEngine, StructOptions, OutputOptions
 
 engine = ExStructEngine(
     options=StructOptions(mode="standard", include_cell_links=True),  # enable hyperlinks in standard mode
-    output=OutputOptions(include_shapes=False, pretty=True),
+    output=OutputOptions(
+        include_shapes=False,
+        include_print_areas=None,  # auto: light=False, others=True
+        include_shape_size=None,   # auto: verbose only
+        include_chart_size=None,   # auto: verbose only
+        pretty=True,
+    ),
 )
 wb = engine.extract("input.xlsx")
 engine.export(wb, "out.json")              # writes filtered JSON (no shapes)
@@ -199,16 +211,16 @@ engine.process("input.xlsx", pdf=False)    # end-to-end extract + export
 
 ## Models
 
-| Model          | Key fields                                                                                         |
-| -------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------- |
-| `WorkbookData` | `book_name: str`, `sheets: dict[str, SheetData]`                                                   |
-| `SheetData`    | `rows: list[CellRow]`, `shapes: list[Shape]`, `charts: list[Chart]`, `table_candidates: list[str]`, `print_areas: list[PrintArea]` |
-| `CellRow`      | `r: int`, `c: dict[str, int                                                                        | float                                                | str]`, `links: dict[str, str] \| None` |
-| `Shape`        | `text: str`, `l/t/w/h: int \| None`, `type`, `rotation`, arrow styles, `direction`                 |
-| `Chart`        | `name`, `chart_type`, `title`, `series`, `y_axis_range`, `w/h: int \| None`, `l/t`, `error: str \| None` |
-| `PrintArea`    | `r1/c1/r2/c2: int`                                                                                |
-| `PrintAreaView`| `book_name`, `sheet_name`, `area: PrintArea`, `rows`, `shapes`, `charts`, `table_candidates`       |
-| `ChartSeries`  | `name`, `name_range`, `x_range`, `y_range`                                                         |
+| Model           | Key fields                                                                                                                                                                                           |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WorkbookData`  | `book_name: str`, `sheets: dict[str, SheetData]`                                                                                                                                                     |
+| `SheetData`     | `rows: list[CellRow]`, `shapes: list[Shape]`, `charts: list[Chart]`, `table_candidates: list[str]`, `print_areas: list[PrintArea]`                                                                   |
+| `CellRow`       | `r: int`, `c: dict[str, int                                                                        or float                                                or str]`, `links: dict[str, str] \| None` |
+| `Shape`         | `text: str`, `l/t/w/h: int \| None`, `type`, `rotation`, arrow styles, `direction`                                                                                                                   |
+| `Chart`         | `name`, `chart_type`, `title`, `series`, `y_axis_range`, `w/h: int \| None`, `l/t`, `error: str \| None`                                                                                             |
+| `PrintArea`     | `r1/c1/r2/c2: int`                                                                                                                                                                                   |
+| `PrintAreaView` | `book_name`, `sheet_name`, `area: PrintArea`, `rows`, `shapes`, `charts`, `table_candidates`                                                                                                         |
+| `ChartSeries`   | `name`, `name_range`, `x_range`, `y_range`                                                                                                                                                           |
 
 ### Model helpers (SheetData / WorkbookData)
 
