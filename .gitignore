@@ -11,6 +11,7 @@ wheels/
 
 output/
 test.py
+sample.py
 .coverage
 site/
 output.json
