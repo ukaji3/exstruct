@@ -5,7 +5,13 @@ from typing import Literal, TextIO
 
 from .core.cells import set_table_detection_params
 from .core.integrate import extract_workbook
-from .engine import ExStructEngine, OutputOptions, StructOptions
+from .engine import (
+    DestinationOptions,
+    ExStructEngine,
+    FilterOptions,
+    OutputOptions,
+    StructOptions,
+)
 from .io import (
     save_as_json,
     save_as_toon,
@@ -49,6 +55,8 @@ __all__ = [
     "ExStructEngine",
     "StructOptions",
     "OutputOptions",
+    "FilterOptions",
+    "DestinationOptions",
     "serialize_workbook",
 ]
 
