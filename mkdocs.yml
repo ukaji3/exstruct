@@ -6,6 +6,8 @@ nav:
   - Home: index.md
   - API Reference: api.md
   - Concept / Why ExStruct?: concept.md
+  - Release Notes:
+      - v2.6.0: release-notes/v2.6.0.md
   - Read Me (EN): README.en.md
   - Read Me (JA): README.ja.md
   - License Guide: license-guide.md
