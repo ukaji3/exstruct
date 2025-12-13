@@ -1,6 +1,6 @@
 # 📄 **Corporate Usage License Guide: exstruct**
 
-_Version 0.2 / Last update: {{ auto-date }}_
+_Version 0.2 / Last update: 2025-12-13
 
 ---
 
