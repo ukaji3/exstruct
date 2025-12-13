@@ -56,33 +56,59 @@ class FormatOptions(BaseModel):
     """Formatting options for serialization."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    fmt: Literal["json", "yaml", "yml", "toon"] = "json"
-    pretty: bool = False
-    indent: int | None = None
+    fmt: Literal["json", "yaml", "yml", "toon"] = Field(
+        default="json", description="Serialization format."
+    )
+    pretty: bool = Field(default=False, description="Pretty-print JSON output.")
+    indent: int | None = Field(
+        default=None,
+        description="Indent width for JSON (defaults to 2 when pretty is True).",
+    )
 
 
 class FilterOptions(BaseModel):
     """Include/exclude filters for output."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    include_rows: bool = True
-    include_shapes: bool = True
-    include_shape_size: bool | None = None  # None -> auto: verbose=True, others=False
-    include_charts: bool = True
-    include_chart_size: bool | None = None  # None -> auto: verbose=True, others=False
-    include_tables: bool = True
-    include_print_areas: bool | None = None  # None -> auto: light=False, others=True
-    include_auto_print_areas: bool = False
+    include_rows: bool = Field(default=True, description="Include cell rows.")
+    include_shapes: bool = Field(default=True, description="Include shapes.")
+    include_shape_size: bool | None = Field(
+        default=None,
+        description="Include shape size; None -> auto (verbose=True, others=False).",
+    )
+    include_charts: bool = Field(default=True, description="Include charts.")
+    include_chart_size: bool | None = Field(
+        default=None,
+        description="Include chart size; None -> auto (verbose=True, others=False).",
+    )
+    include_tables: bool = Field(
+        default=True, description="Include table candidate ranges."
+    )
+    include_print_areas: bool | None = Field(
+        default=None,
+        description="Include print areas; None -> auto (light=False, others=True).",
+    )
+    include_auto_print_areas: bool = Field(
+        default=False, description="Include COM-computed auto page-break areas."
+    )
 
 
 class DestinationOptions(BaseModel):
     """Destinations for optional side outputs."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    sheets_dir: Path | None = None
-    print_areas_dir: Path | None = None
-    auto_page_breaks_dir: Path | None = None
-    stream: TextIO | None = None
+    sheets_dir: Path | None = Field(
+        default=None, description="Directory to write per-sheet files."
+    )
+    print_areas_dir: Path | None = Field(
+        default=None, description="Directory to write per-print-area files."
+    )
+    auto_page_breaks_dir: Path | None = Field(
+        default=None, description="Directory to write auto page-break files."
+    )
+    stream: TextIO | None = Field(
+        default=None, description="Stream override for primary output (stdout/file)."
+    )
 
 
 class OutputOptions(BaseModel):
@@ -97,9 +123,15 @@ class OutputOptions(BaseModel):
     are still accepted and normalized into the nested structures.
     """
 
-    format: FormatOptions = Field(default_factory=FormatOptions)
-    filters: FilterOptions = Field(default_factory=FilterOptions)
-    destinations: DestinationOptions = Field(default_factory=DestinationOptions)
+    format: FormatOptions = Field(
+        default_factory=FormatOptions, description="Formatting options."
+    )
+    filters: FilterOptions = Field(
+        default_factory=FilterOptions, description="Include/exclude flags."
+    )
+    destinations: DestinationOptions = Field(
+        default_factory=DestinationOptions, description="Side output destinations."
+    )
 
     @model_validator(mode="before")
     @classmethod

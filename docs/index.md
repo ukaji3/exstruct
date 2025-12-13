@@ -1,5 +1,7 @@
 # ExStruct Documentation
 
+![ExStruct Image](assets/icon.webp)
+
 Welcome to the ExStruct docs. This site covers usage, CLI, and API reference for extracting structured data from Excel workbooks.
 
 - [**README (EN)**](README.en.md)
