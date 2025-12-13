@@ -110,3 +110,9 @@ strict = true
 
 # Pydantic v2 向け
 plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+markers = [
+    "com: requires Excel COM (Windows + Excel)",
+    "render: requires Excel COM and pypdfium2; set RUN_RENDER_SMOKE=1 to enable",
+]
