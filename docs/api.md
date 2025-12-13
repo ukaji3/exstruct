@@ -90,6 +90,91 @@ process_excel(
 - Auto page-break extraction/export: **Excel + COM** required (feature is skipped when COM is unavailable).
 - Rendering (PDF/PNG): **Excel + COM + `pypdfium2`** are mandatory. Missing Excel/COM or `pypdfium2` surfaces as `RenderError`/`MissingDependencyError`.
 
+## Auto-generated API (mkdocstrings)
+
+Python APIの最新情報は以下の自動生成セクションを参照してください（docstringベースで同期）。
+
+### Core functions
+
+::: exstruct.extract
+    handler: python
+    options:
+      show_signature_annotations: true
+
+::: exstruct.export
+    handler: python
+    options:
+      show_signature_annotations: true
+
+::: exstruct.export_sheets
+    handler: python
+    options:
+      show_signature_annotations: true
+
+::: exstruct.export_sheets_as
+    handler: python
+    options:
+      show_signature_annotations: true
+
+::: exstruct.export_print_areas_as
+    handler: python
+    options:
+      show_signature_annotations: true
+
+::: exstruct.export_auto_page_breaks
+    handler: python
+    options:
+      show_signature_annotations: true
+
+::: exstruct.export_pdf
+    handler: python
+    options:
+      show_signature_annotations: true
+
+::: exstruct.export_sheet_images
+    handler: python
+    options:
+      show_signature_annotations: true
+
+::: exstruct.process_excel
+    handler: python
+    options:
+      show_signature_annotations: true
+
+### Engine and options
+
+::: exstruct.engine.ExStructEngine
+    handler: python
+    options:
+      show_signature_annotations: true
+      members_order: source
+
+::: exstruct.engine.StructOptions
+    handler: python
+    options:
+      show_signature_annotations: true
+
+::: exstruct.engine.OutputOptions
+    handler: python
+    options:
+      show_signature_annotations: true
+      members_order: source
+
+::: exstruct.engine.FormatOptions
+    handler: python
+    options:
+      show_signature_annotations: true
+
+::: exstruct.engine.FilterOptions
+    handler: python
+    options:
+      show_signature_annotations: true
+
+::: exstruct.engine.DestinationOptions
+    handler: python
+    options:
+      show_signature_annotations: true
+
 ## Functions
 
 ### extract(file_path, mode="standard")
@@ -241,16 +326,7 @@ engine.process("input.xlsx", pdf=False)    # end-to-end extract + export
 
 ## Models
 
-| Model           | Key fields                                                                                                                                                                                           |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `WorkbookData`  | `book_name: str`, `sheets: dict[str, SheetData]`                                                                                                                                                     |
-| `SheetData`     | `rows: list[CellRow]`, `shapes: list[Shape]`, `charts: list[Chart]`, `table_candidates: list[str]`, `print_areas: list[PrintArea]`, `auto_print_areas: list[PrintArea]`                               |
-| `CellRow`       | `r: int`, `c: dict[str, int                                                                        or float                                                or str]`, `links: dict[str, str] \| None` |
-| `Shape`         | `text: str`, `l/t/w/h: int \| None`, `type`, `rotation`, arrow styles, `direction`                                                                                                                   |
-| `Chart`         | `name`, `chart_type`, `title`, `series`, `y_axis_range`, `w/h: int \| None`, `l/t`, `error: str \| None`                                                                                             |
-| `PrintArea`     | `r1/c1/r2/c2: int`                                                                                                                                                                                   |
-| `PrintAreaView` | `book_name`, `sheet_name`, `area: PrintArea`, `rows`, `shapes`, `charts`, `table_candidates`                                                                                                         |
-| `ChartSeries`   | `name`, `name_range`, `x_range`, `y_range`                                                                                                                                                           |
+モデルの詳細なフィールド一覧は自動生成された `generated/models.md` を参照してください（`python scripts/gen_model_docs.py` で更新）。
 
 ### Model helpers (SheetData / WorkbookData)
 

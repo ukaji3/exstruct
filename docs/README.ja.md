@@ -357,6 +357,11 @@ flowchart TD
 - `DestinationOptions.auto_page_breaks_dir`（推奨）または `export_auto_page_breaks(...)` で自動改ページ範囲ごとにファイルを出力できます。自動改ページが存在しない場合、`export_auto_page_breaks(...)` は `ValueError` を送出します。
 - `PrintAreaView` には範囲内の行・テーブル候補に加え、範囲と交差する図形/チャートを含みます（サイズ不明の図形は座標のみで判定）。`normalize=True` で行/列を範囲起点に再基準化できます。
 
+## ドキュメントビルド
+
+- サイトビルド前にモデル断片を再生成してください: `python scripts/gen_model_docs.py`
+- mkdocs + mkdocstrings でローカルビルド（開発用依存が必要）: `uv run mkdocs serve` または `uv run mkdocs build`
+
 ## License
 
 BSD-3-Clause. See `LICENSE` for details.

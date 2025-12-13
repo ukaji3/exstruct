@@ -354,6 +354,11 @@ In short, **exstruct = “an engine that converts Excel into a format AI can und
 - Use `DestinationOptions.auto_page_breaks_dir` (preferred) or `export_auto_page_breaks(...)` to write per-auto-page-break files; the API raises `ValueError` if no auto page breaks exist.
 - `PrintAreaView` includes rows and table candidates inside the area, plus shapes/charts that overlap the area (size-less shapes are treated as points). `normalize=True` rebases row/col indices to the area origin.
 
+## Documentation build
+
+- Update generated model docs before building the site: `python scripts/gen_model_docs.py`.
+- Build locally with mkdocs + mkdocstrings (dev deps required): `uv run mkdocs serve` or `uv run mkdocs build`.
+
 ## License
 
 BSD-3-Clause. See `LICENSE` for details.
