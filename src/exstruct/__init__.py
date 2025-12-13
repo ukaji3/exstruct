@@ -232,7 +232,8 @@ def export_print_areas_as(
         data: WorkbookData that contains print areas
         dir_path: output directory
         fmt: json/yaml/yml/toon
-        pretty/indent: JSON formatting options
+        pretty: Pretty-print JSON output.
+        indent: JSON indent width (defaults to 2 when pretty is True and indent is None).
         normalize: rebase row/col indices to the print-area origin when True
 
     Returns:
@@ -273,7 +274,8 @@ def export_auto_page_breaks(
         data: WorkbookData containing auto_print_areas (COM extraction with auto breaks enabled)
         dir_path: output directory
         fmt: json/yaml/yml/toon
-        pretty/indent: JSON formatting options
+        pretty: Pretty-print JSON output.
+        indent: JSON indent width (defaults to 2 when pretty is True and indent is None).
         normalize: rebase row/col indices to the area origin when True
 
     Returns:
