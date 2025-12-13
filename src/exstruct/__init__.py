@@ -94,6 +94,20 @@ def extract(file_path: str | Path, mode: ExtractionMode = "standard") -> Workboo
             - light: cells + table detection only (no COM, shapes/charts empty). Print areas via openpyxl.
             - standard: texted shapes + arrows + charts (COM if available), print areas included. Shape/chart size is kept but hidden by default in output.
             - verbose: all shapes (including textless) with size, charts with size.
+
+    Returns:
+        WorkbookData containing sheets, rows, shapes, charts, and print areas.
+
+    Raises:
+        ValueError: If an invalid mode is provided.
+
+    Examples:
+        Extract with hyperlinks (verbose) and inspect table candidates:
+
+        >>> from exstruct import extract
+        >>> wb = extract("input.xlsx", mode="verbose")
+        >>> wb.sheets["Sheet1"].table_candidates
+        ['A1:B5']
     """
     include_links = True if mode == "verbose" else False
     engine = ExStructEngine(
@@ -119,6 +133,17 @@ def export(
         fmt: explicitly set format if desired (json/yaml/yml/toon)
         pretty: pretty-print JSON
         indent: JSON indent width (defaults to 2 when pretty=True and indent is None)
+
+    Raises:
+        ValueError: If the format is unsupported.
+
+    Examples:
+        Write pretty JSON and YAML (requires pyyaml):
+
+        >>> from exstruct import export, extract
+        >>> wb = extract("input.xlsx")
+        >>> export(wb, "out.json", pretty=True)
+        >>> export(wb, "out.yaml", fmt="yaml")  # doctest: +SKIP
     """
     dest = Path(path)
     format_hint = (fmt or dest.suffix.lstrip(".") or "json").lower()
@@ -139,6 +164,20 @@ def export_sheets(data: WorkbookData, dir_path: str | Path) -> dict[str, Path]:
 
     - Payload: {book_name, sheet_name, sheet: SheetData}
     - Returns: {sheet_name: Path}
+
+    Args:
+        data: WorkbookData to split by sheet.
+        dir_path: Output directory.
+
+    Returns:
+        Mapping from sheet name to written JSON path.
+
+    Examples:
+        >>> from exstruct import export_sheets, extract
+        >>> wb = extract("input.xlsx")
+        >>> paths = export_sheets(wb, "out_sheets")
+        >>> "Sheet1" in paths
+        True
     """
     return save_sheets(data, Path(dir_path), fmt="json")
 
@@ -151,7 +190,29 @@ def export_sheets_as(
     pretty: bool = False,
     indent: int | None = None,
 ) -> dict[str, Path]:
-    """Export each sheet in the given format (json/yaml/toon); returns sheet name to path map."""
+    """
+    Export each sheet in the given format (json/yaml/toon); returns sheet name to path map.
+
+    Args:
+        data: WorkbookData to split by sheet.
+        dir_path: Output directory.
+        fmt: Output format; inferred defaults to json.
+        pretty: Pretty-print JSON.
+        indent: JSON indent width (defaults to 2 when pretty=True and indent is None).
+
+    Returns:
+        Mapping from sheet name to written file path.
+
+    Raises:
+        ValueError: If an unsupported format is passed.
+
+    Examples:
+        Export per sheet as YAML (requires pyyaml):
+
+        >>> from exstruct import export_sheets_as, extract
+        >>> wb = extract("input.xlsx")
+        >>> _ = export_sheets_as(wb, "out_yaml", fmt="yaml")  # doctest: +SKIP
+    """
     return save_sheets(data, Path(dir_path), fmt=fmt, pretty=pretty, indent=indent)
 
 
@@ -173,8 +234,18 @@ def export_print_areas_as(
         fmt: json/yaml/yml/toon
         pretty/indent: JSON formatting options
         normalize: rebase row/col indices to the print-area origin when True
+
     Returns:
         dict mapping area key to path (e.g., "Sheet1#1": /.../Sheet1_area1_...json)
+
+    Examples:
+        Export print areas when present:
+
+        >>> from exstruct import export_print_areas_as, extract
+        >>> wb = extract("input.xlsx", mode="standard")
+        >>> paths = export_print_areas_as(wb, "areas")
+        >>> isinstance(paths, dict)
+        True
     """
     return save_print_area_views(
         data,
@@ -204,6 +275,20 @@ def export_auto_page_breaks(
         fmt: json/yaml/yml/toon
         pretty/indent: JSON formatting options
         normalize: rebase row/col indices to the area origin when True
+
+    Returns:
+        dict mapping area key to path (e.g., "Sheet1#1": /.../Sheet1_auto_page1_...json)
+
+    Raises:
+        PrintAreaError: If no auto page-break areas are present.
+
+    Examples:
+        >>> from exstruct import export_auto_page_breaks, extract
+        >>> wb = extract("input.xlsx", mode="standard")
+        >>> try:
+        ...     export_auto_page_breaks(wb, "auto_areas")
+        ... except PrintAreaError:
+        ...     pass
     """
     if not any(sheet.auto_print_areas for sheet in data.sheets.values()):
         message = "No auto page-break areas found. Enable COM-based auto page breaks before exporting."
@@ -235,20 +320,38 @@ def process_excel(
     stream: TextIO | None = None,
 ) -> None:
     """
-    Convenience wrapper: extract → serialize (file or stdout) → optional PDF/PNG.
+    Convenience wrapper: extract -> serialize (file or stdout) -> optional PDF/PNG.
 
     Args:
-        file_path: input Excel
-        output_path: None for stdout; otherwise, write to file
-        out_fmt: json/yaml/yml/toon
-        image/pdf: True to also output PNG/PDF (requires Excel + pypdfium2)
-        dpi: DPI for image output
-        mode: light/standard/verbose (same meaning as `extract`)
-        pretty/indent: JSON formatting
-        sheets_dir: directory to write per-sheet files
-        print_areas_dir: directory to write per-print-area files
-        auto_page_breaks_dir: directory to write per-auto-page-break files (COM only)
-        stream: IO override when output_path is None
+        file_path: Input Excel workbook.
+        output_path: None for stdout; otherwise, write to file.
+        out_fmt: json/yaml/yml/toon.
+        image: True to also output PNGs (requires Excel + COM + pypdfium2).
+        pdf: True to also output PDF (requires Excel + COM + pypdfium2).
+        dpi: DPI for image output.
+        mode: light/standard/verbose (same meaning as `extract`).
+        pretty: Pretty-print JSON.
+        indent: JSON indent width.
+        sheets_dir: Directory to write per-sheet files.
+        print_areas_dir: Directory to write per-print-area files.
+        auto_page_breaks_dir: Directory to write per-auto-page-break files (COM only).
+        stream: IO override when output_path is None.
+
+    Raises:
+        ValueError: If an unsupported format or mode is given.
+        PrintAreaError: When exporting auto page breaks without available data.
+        RenderError: When rendering fails (Excel/COM/pypdfium2 issues).
+
+    Examples:
+        Extract and write JSON to stdout, plus per-sheet files:
+
+        >>> from pathlib import Path
+        >>> from exstruct import process_excel
+        >>> process_excel(Path("input.xlsx"), output_path=None, sheets_dir=Path("sheets"))
+
+        Render PDF only (COM + Excel required):
+
+        >>> process_excel(Path("input.xlsx"), output_path=Path("out.json"), pdf=True)  # doctest: +SKIP
     """
     engine = ExStructEngine(
         options=StructOptions(mode=mode),
