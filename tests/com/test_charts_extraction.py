@@ -1,16 +1,11 @@
-import os
 from pathlib import Path
-import sys
 
 import pytest
 import xlwings as xw
 
 from exstruct.core.integrate import extract_workbook
 
-pytestmark = pytest.mark.skipif(
-    sys.platform != "win32" or os.environ.get("SKIP_COM_TESTS") == "1",
-    reason="Excel COM tests are disabled (non-Windows or SKIP_COM_TESTS=1).",
-)
+pytestmark = pytest.mark.com
 
 
 def _ensure_excel() -> None:

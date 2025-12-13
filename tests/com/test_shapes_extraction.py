@@ -1,16 +1,11 @@
-import os
 from pathlib import Path
-import sys
 
 import pytest
 import xlwings as xw
 
 from exstruct.core.integrate import extract_workbook
 
-pytestmark = pytest.mark.skipif(
-    sys.platform != "win32" or os.environ.get("SKIP_COM_TESTS") == "1",
-    reason="Excel COM tests are disabled (non-Windows or SKIP_COM_TESTS=1).",
-)
+pytestmark = pytest.mark.com
 
 
 def _ensure_excel() -> None:
@@ -31,9 +26,7 @@ def _make_workbook_with_shapes(path: Path) -> None:
         rect = sht.api.Shapes.AddShape(1, 50, 50, 120, 60)  # msoShapeRectangle
         rect.TextFrame2.TextRange.Text = "rect"
 
-        _ = sht.api.Shapes.AddShape(
-            5, 300, 50, 80, 40
-        )  # msoShapeOval (no text)
+        _ = sht.api.Shapes.AddShape(5, 300, 50, 80, 40)  # msoShapeOval (no text)
 
         line = sht.api.Shapes.AddLine(10, 10, 110, 10)
         line.Line.EndArrowheadStyle = 3  # msoArrowheadTriangle

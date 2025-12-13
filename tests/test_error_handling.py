@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 import subprocess
 import sys
@@ -21,9 +23,8 @@ def _make_simple_workbook(path: Path) -> None:
     wb.save(path)
 
 
-def test_COMエラーでもフォールバックしてプロセスが落ちない(
-    monkeypatch: MonkeyPatch, tmp_path: Path
-) -> None:
+def test_com_error_fallback(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
+    """COM failure should fall back without crashing."""
     path = tmp_path / "book.xlsx"
     _make_simple_workbook(path)
 
@@ -38,9 +39,10 @@ def test_COMエラーでもフォールバックしてプロセスが落ちな�
     assert sheet.charts == []
 
 
-def test_図形抽出失敗でも他要素が取得される(
+def test_shapes_extraction_failure_isolated(
     monkeypatch: MonkeyPatch, tmp_path: Path
 ) -> None:
+    """Shape extraction failure should not break rows/charts."""
     path = tmp_path / "book.xlsx"
     _make_simple_workbook(path)
 
@@ -67,7 +69,9 @@ def test_図形抽出失敗でも他要素が取得される(
         assert sheet.shapes == []
 
 
-def test_chart_errorに必ず文字列が入る(monkeypatch: MonkeyPatch) -> None:
+def test_chart_error_field_is_string(monkeypatch: MonkeyPatch) -> None:
+    """Chart.error should be a string even when parsing fails."""
+
     def _broken_parse(*_a: object, **_k: object) -> Never:
         raise RuntimeError("broken chart")
 
@@ -86,14 +90,15 @@ def test_chart_errorに必ず文字列が入る(monkeypatch: MonkeyPatch) -> Non
     assert isinstance(ch.error, str)
 
 
-def test_broken_range解析は例外化せずNone() -> None:
+def test_broken_range_returns_none() -> None:
     assert parse_series_formula("=SERIES(") is None
 
 
-def test_excelファイルが開けない場合はメッセージを出して終了(tmp_path: Path) -> None:
+def test_cli_missing_file_exits_cleanly(tmp_path: Path) -> None:
     bad_path = tmp_path / "missing.xlsx"
     out = tmp_path / "out.json"
     cmd = [sys.executable, "-m", "exstruct.cli.main", str(bad_path), "-o", str(out)]
     result = subprocess.run(cmd, capture_output=True, text=True)
     assert result.returncode == 0
-    assert "file not found" in result.stdout.lower()
+    combined = (result.stdout or "") + (result.stderr or "")
+    assert "file not found" in combined.lower()

@@ -85,10 +85,10 @@ process_excel(
 ## Dependencies
 
 - Core extraction: pandas, openpyxl (installed with the package).
-- YAML export: `pyyaml` (imported lazily; missing module raises `RuntimeError`).
-- TOON export: `python-toon` (lazy import; missing module raises `RuntimeError`).
+- YAML export: `pyyaml` (lazy import; missing module raises `MissingDependencyError`).
+- TOON export: `python-toon` (lazy import; missing module raises `MissingDependencyError`).
 - Auto page-break extraction/export: **Excel + COM** required (feature is skipped when COM is unavailable).
-- Rendering (PDF/PNG): **Excel + COM + `pypdfium2`** are mandatory. Without Excel/COM, rendering APIs raise `RuntimeError`.
+- Rendering (PDF/PNG): **Excel + COM + `pypdfium2`** are mandatory. Missing Excel/COM or `pypdfium2` surfaces as `RenderError`/`MissingDependencyError`.
 
 ## Functions
 
@@ -274,13 +274,17 @@ first.save("sheet.yaml")  # requires pyyaml
 
 ## Error Handling
 
+- Exception types:
+  - `SerializationError`: Unsupported format requested (`serialize_workbook`, export APIs).
+  - `MissingDependencyError`: Optional dependency (`pyyaml` / `python-toon` / `pypdfium2`) is missing; message includes install instructions.
+  - `RenderError`: Excel/COM is unavailable or PDF/PNG rendering fails.
+  - `PrintAreaError` (ValueError-compatible): `export_auto_page_breaks` invoked when no `auto_print_areas` are available.
+  - `OutputError`: Writing output to disk/stream failed (original exception kept in `__cause__`).
+  - `ValueError`: Invalid inputs such as an unsupported `mode`.
 - Excel COM unavailable: extraction falls back to cells + `table_candidates`; `shapes`/`charts` are empty, warning is logged.
-- Invalid `fmt` or `mode`: `ValueError`.
-- Missing optional dependency (`pyyaml`, `python-toon`, `pypdfium2`): `RuntimeError` with install hint.
-- Rendering without Excel/COM: `RuntimeError`.
-- CLI mirrors these: exits non-zero on failures, prints messages in English.
 - No print areas: `export_print_areas_as` writes nothing and returns `{}`; this is not an error.
-- Auto page-break export: `export_auto_page_breaks` raises `ValueError` if no auto page-break areas are present (enable them via `DestinationOptions.auto_page_breaks_dir`).
+- Auto page-break export: `export_auto_page_breaks` raises `PrintAreaError` if no auto page-break areas are present (enable them via `DestinationOptions.auto_page_breaks_dir`).
+- CLI mirrors these behaviors: exits non-zero on failures, prints messages in English.
 
 ## Tuning Examples
 

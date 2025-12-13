@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Literal, TextIO
 
@@ -11,6 +12,14 @@ from .engine import (
     FilterOptions,
     OutputOptions,
     StructOptions,
+)
+from .errors import (
+    ConfigError,
+    ExstructError,
+    MissingDependencyError,
+    PrintAreaError,
+    RenderError,
+    SerializationError,
 )
 from .io import (
     save_as_json,
@@ -33,6 +42,8 @@ from .models import (
 )
 from .render import export_pdf, export_sheet_images
 
+logger = logging.getLogger(__name__)
+
 __all__ = [
     "extract",
     "export",
@@ -42,6 +53,12 @@ __all__ = [
     "export_auto_page_breaks",
     "export_pdf",
     "export_sheet_images",
+    "ExstructError",
+    "ConfigError",
+    "MissingDependencyError",
+    "RenderError",
+    "SerializationError",
+    "PrintAreaError",
     "process_excel",
     "ExtractionMode",
     "CellRow",
@@ -189,9 +206,9 @@ def export_auto_page_breaks(
         normalize: rebase row/col indices to the area origin when True
     """
     if not any(sheet.auto_print_areas for sheet in data.sheets.values()):
-        raise ValueError(
-            "No auto page-break areas found. Enable COM-based auto page breaks before exporting."
-        )
+        message = "No auto page-break areas found. Enable COM-based auto page breaks before exporting."
+        logger.warning(message)
+        raise PrintAreaError(message)
     return save_auto_page_break_views(
         data,
         Path(dir_path),

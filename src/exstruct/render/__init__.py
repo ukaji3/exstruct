@@ -9,6 +9,8 @@ from typing import Any, cast
 
 import xlwings as xw
 
+from ..errors import MissingDependencyError, RenderError
+
 logger = logging.getLogger(__name__)
 
 
@@ -18,7 +20,7 @@ def _require_excel_app() -> xw.App:
         app = xw.App(add_book=False, visible=False)
         return app
     except Exception as e:
-        raise RuntimeError(
+        raise RenderError(
             "Excel (COM) is not available. Rendering (PDF/image) requires a desktop Excel installation."
         ) from e
 
@@ -33,19 +35,27 @@ def export_pdf(excel_path: Path, output_pdf: Path) -> list[str]:
         temp_pdf = temp_dir / "book.pdf"
         shutil.copy(excel_path, temp_xlsx)
 
-        app = _require_excel_app()
+        app: xw.App | None = None
+        wb: xw.Book | None = None
         try:
+            app = _require_excel_app()
             wb = app.books.open(str(temp_xlsx))
-        except Exception:
-            app.quit()
-            raise
-        try:
             sheet_names = [s.name for s in wb.sheets]
             wb.api.ExportAsFixedFormat(0, str(temp_pdf))
             shutil.copy(temp_pdf, output_pdf)
+        except RenderError:
+            raise
+        except Exception as exc:
+            raise RenderError(
+                f"Failed to export PDF for '{excel_path}' to '{output_pdf}'."
+            ) from exc
         finally:
-            wb.close()
-            app.quit()
+            if wb is not None:
+                wb.close()
+            if app is not None:
+                app.quit()
+        if not output_pdf.exists():
+            raise RenderError(f"Failed to export PDF to '{output_pdf}'.")
     return sheet_names
 
 
@@ -54,7 +64,7 @@ def _require_pdfium() -> ModuleType:
     try:
         import pypdfium2 as pdfium
     except ImportError as e:
-        raise RuntimeError(
+        raise MissingDependencyError(
             "Image rendering requires pypdfium2. Install it via `pip install pypdfium2 pillow` or add the 'render' extra."
         ) from e
     return cast(ModuleType, pdfium)
@@ -67,22 +77,27 @@ def export_sheet_images(
     pdfium = cast(Any, _require_pdfium())
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory() as td:
-        tmp_pdf = Path(td) / "book.pdf"
-        sheet_names = export_pdf(excel_path, tmp_pdf)
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            tmp_pdf = Path(td) / "book.pdf"
+            sheet_names = export_pdf(excel_path, tmp_pdf)
 
-        scale = dpi / 72.0
-        written: list[Path] = []
-        with pdfium.PdfDocument(str(tmp_pdf)) as pdf:
-            for i, sheet_name in enumerate(sheet_names):
-                page = pdf[i]
-                bitmap = page.render(scale=scale)
-                pil_image = bitmap.to_pil()
-                safe_name = _sanitize_sheet_filename(sheet_name)
-                img_path = output_dir / f"{i + 1:02d}_{safe_name}.png"
-                pil_image.save(img_path, format="PNG", dpi=(dpi, dpi))
-                written.append(img_path)
-        return written
+            scale = dpi / 72.0
+            written: list[Path] = []
+            with pdfium.PdfDocument(str(tmp_pdf)) as pdf:
+                for i, sheet_name in enumerate(sheet_names):
+                    page = pdf[i]
+                    bitmap = page.render(scale=scale)
+                    pil_image = bitmap.to_pil()
+                    safe_name = _sanitize_sheet_filename(sheet_name)
+                    img_path = output_dir / f"{i + 1:02d}_{safe_name}.png"
+                    pil_image.save(img_path, format="PNG", dpi=(dpi, dpi))
+                    written.append(img_path)
+            return written
+    except RenderError:
+        raise
+    except Exception as exc:
+        raise RenderError(f"Failed to export sheet images to '{output_dir}'.") from exc
 
 
 def _sanitize_sheet_filename(name: str) -> str:

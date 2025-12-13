@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import logging
 from pathlib import Path
 import re
 from types import ModuleType
@@ -9,8 +10,11 @@ from typing import Literal, cast
 
 from openpyxl.utils import range_boundaries
 
+from ..errors import MissingDependencyError, OutputError, SerializationError
 from ..models import CellRow, Chart, PrintArea, PrintAreaView, Shape, WorkbookData
 from ..models.types import JsonStructure
+
+logger = logging.getLogger(__name__)
 
 
 def dict_without_empty_values(obj: object) -> JsonStructure:
@@ -25,26 +29,37 @@ def dict_without_empty_values(obj: object) -> JsonStructure:
         return [
             dict_without_empty_values(v) for v in obj if v not in [None, "", [], {}]
         ]
-    if isinstance(obj, (WorkbookData, CellRow, Chart, PrintArea, PrintAreaView, Shape)):
+    if isinstance(
+        obj,
+        WorkbookData | CellRow | Chart | PrintArea | PrintAreaView | Shape,
+    ):
         return dict_without_empty_values(obj.model_dump(exclude_none=True))
     return cast(JsonStructure, obj)
+
+
+def _write_text(path: Path, text: str) -> None:
+    """Write UTF-8 text to disk, wrapping IO errors."""
+    try:
+        path.write_text(text, encoding="utf-8")
+    except Exception as exc:
+        raise OutputError(f"Failed to write output to '{path}'.") from exc
 
 
 def save_as_json(
     model: WorkbookData, path: Path, *, pretty: bool = False, indent: int | None = None
 ) -> None:
     text = serialize_workbook(model, fmt="json", pretty=pretty, indent=indent)
-    path.write_text(text, encoding="utf-8")
+    _write_text(path, text)
 
 
 def save_as_yaml(model: WorkbookData, path: Path) -> None:
     text = serialize_workbook(model, fmt="yaml")
-    path.write_text(text, encoding="utf-8")
+    _write_text(path, text)
 
 
 def save_as_toon(model: WorkbookData, path: Path) -> None:
     text = serialize_workbook(model, fmt="toon")
-    path.write_text(text, encoding="utf-8")
+    _write_text(path, text)
 
 
 def _sanitize_sheet_filename(name: str) -> str:
@@ -270,7 +285,9 @@ def save_print_area_views(
     if format_hint == "yml":
         format_hint = "yaml"
     if format_hint not in ("json", "yaml", "toon"):
-        raise ValueError(f"Unsupported print-area export format: {fmt}")
+        raise SerializationError(
+            f"Unsupported print-area export format '{fmt}'. Allowed: json, yaml, yml, toon."
+        )
 
     views = build_print_area_views(
         workbook,
@@ -281,6 +298,7 @@ def save_print_area_views(
         include_chart_size=include_chart_size,
     )
     if not views:
+        logger.info("No print areas found; skipping export to %s", output_dir)
         return {}
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -305,8 +323,10 @@ def save_print_area_views(
                 case "toon":
                     text = view.to_toon()
                 case _:
-                    raise ValueError(f"Unsupported print-area export format: {fmt}")
-            path.write_text(text, encoding="utf-8")
+                    raise SerializationError(
+                        f"Unsupported print-area export format '{fmt}'. Allowed: json, yaml, yml, toon."
+                    )
+            _write_text(path, text)
             written[key] = path
     return written
 
@@ -332,7 +352,9 @@ def save_auto_page_break_views(
     if format_hint == "yml":
         format_hint = "yaml"
     if format_hint not in ("json", "yaml", "toon"):
-        raise ValueError(f"Unsupported auto page-break export format: {fmt}")
+        raise SerializationError(
+            f"Unsupported auto page-break export format '{fmt}'. Allowed: json, yaml, yml, toon."
+        )
 
     views = _iter_area_views(
         workbook,
@@ -344,6 +366,7 @@ def save_auto_page_break_views(
         include_chart_size=include_chart_size,
     )
     if not views:
+        logger.info("No auto page-break areas found; skipping export to %s", output_dir)
         return {}
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -368,8 +391,10 @@ def save_auto_page_break_views(
                 case "toon":
                     text = view.to_toon()
                 case _:
-                    raise ValueError(f"Unsupported auto page-break export format: {fmt}")
-            path.write_text(text, encoding="utf-8")
+                    raise SerializationError(
+                        f"Unsupported auto page-break export format '{fmt}'. Allowed: json, yaml, yml, toon."
+                    )
+            _write_text(path, text)
             written[key] = path
     return written
 
@@ -407,7 +432,9 @@ def serialize_workbook(
             toon = _require_toon()
             return str(toon.encode(filtered_dict))
         case _:
-            raise ValueError(f"Unsupported export format: {fmt}")
+            raise SerializationError(
+                f"Unsupported export format '{fmt}'. Allowed: json, yaml, yml, toon."
+            )
 
 
 def save_sheets_as_json(
@@ -435,9 +462,7 @@ def save_sheets_as_json(
         file_name = f"{_sanitize_sheet_filename(sheet_name)}.json"
         path = output_dir / file_name
         indent_val = 2 if pretty and indent is None else indent
-        path.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=indent_val), encoding="utf-8"
-        )
+        _write_text(path, json.dumps(payload, ensure_ascii=False, indent=indent_val))
         written[sheet_name] = path
     return written
 
@@ -488,8 +513,10 @@ def save_sheets(
                 toon = _require_toon()
                 text = str(toon.encode(payload))
             case _:
-                raise ValueError(f"Unsupported sheet export format: {format_hint}")
-        path.write_text(text, encoding="utf-8")
+                raise SerializationError(
+                    f"Unsupported sheet export format '{format_hint}'. Allowed: json, yaml, yml, toon."
+                )
+        _write_text(path, text)
         written[sheet_name] = path
     return written
 
@@ -498,9 +525,8 @@ def _require_yaml() -> ModuleType:
     try:
         module = importlib.import_module("yaml")
     except ImportError as e:
-        raise RuntimeError(
-            "YAML export requires pyyaml. Install it via `pip install pyyaml` "
-            "or add the 'yaml' extra."
+        raise MissingDependencyError(
+            "YAML export requires pyyaml. Install it via `pip install pyyaml` or add the 'yaml' extra."
         ) from e
     return module
 
@@ -509,9 +535,8 @@ def _require_toon() -> ModuleType:
     try:
         module = importlib.import_module("toon")
     except ImportError as e:
-        raise RuntimeError(
-            "TOON export requires python-toon. Install it via `pip install python-toon` "
-            "or add the 'toon' extra."
+        raise MissingDependencyError(
+            "TOON export requires python-toon. Install it via `pip install python-toon` or add the 'toon' extra."
         ) from e
     return module
 

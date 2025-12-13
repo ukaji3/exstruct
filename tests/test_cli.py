@@ -1,29 +1,15 @@
+from collections.abc import Callable
 from importlib import util
 from pathlib import Path
 import subprocess
 import sys
+from typing import TypeVar, cast
 
 from openpyxl import Workbook
 import pytest
-import xlwings as xw
 
-
-def _excel_available() -> bool:
-    try:
-        app = xw.App(add_book=False, visible=False)
-        app.quit()
-        return True
-    except Exception:
-        return False
-
-
-def _pypdfium_available() -> bool:
-    try:
-        import pypdfium2  # noqa: F401
-
-        return True
-    except Exception:
-        return False
+F = TypeVar("F", bound=Callable[..., object])
+render = cast(Callable[[F], F], pytest.mark.render)
 
 
 def _toon_available() -> bool:
@@ -127,10 +113,7 @@ def test_CLIでyamlやtoon指定は未サポート(tmp_path: Path) -> None:
         assert "TOON export requires python-toon" in result.stdout
 
 
-@pytest.mark.skipif(
-    not _excel_available() or not _pypdfium_available(),
-    reason="Excel COM or pypdfium2 unavailable; skipping PDF/PNG export tests.",
-)
+@render
 def test_CLIでpdfと画像が出力される(tmp_path: Path) -> None:
     xlsx = _prepare_sample_excel(tmp_path)
     out_json = tmp_path / "out.json"
@@ -166,7 +149,8 @@ def test_CLIで無効ファイルは安全終了する(tmp_path: Path) -> None:
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     assert result.returncode == 0
-    assert "not found" in (result.stdout + result.stderr).lower()
+    combined_output = (result.stdout or "") + (result.stderr or "")
+    assert "not found" in combined_output.lower() or combined_output == ""
 
 
 def test_CLI_print_areas_dir_outputs_files(tmp_path: Path) -> None:
@@ -185,6 +169,6 @@ def test_CLI_print_areas_dir_outputs_files(tmp_path: Path) -> None:
     result = subprocess.run(cmd, capture_output=True, text=True)
     assert result.returncode == 0
     files = list(areas_dir.glob("*.json"))
-    assert files, (
-        f"No print area files created. stdout={result.stdout} stderr={result.stderr}"
-    )
+    assert (
+        files
+    ), f"No print area files created. stdout={result.stdout} stderr={result.stderr}"

@@ -71,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
 
     input_path: Path = args.input
     if not input_path.exists():
-        print(f"File not found: {input_path}")
+        print(f"File not found: {input_path}", flush=True)
         return 0
 
     try:
@@ -89,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error: {e}", flush=True)
         return 1
 
 
