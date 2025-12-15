@@ -79,8 +79,19 @@ def _format_annotation(annotation: object) -> str:
     origin = get_origin(annotation)
     args = get_args(annotation)
 
+    if annotation is type(None):
+        return "None"
+
     if origin in {Union, UnionType}:
-        return " | ".join(sorted({_format_annotation(arg) for arg in args}))
+        parts: list[str] = []
+        seen: set[str] = set()
+        for arg in args:
+            formatted = _format_annotation(arg)
+            if formatted in seen:
+                continue
+            seen.add(formatted)
+            parts.append(formatted)
+        return " | ".join(parts)
 
     if origin is tuple and len(args) == 2 and args[1] is Ellipsis:
         return f"tuple[{_format_annotation(args[0])}, ...]"
