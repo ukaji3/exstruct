@@ -357,6 +357,34 @@ class ExStructEngine:
         }
         return WorkbookData(book_name=wb.book_name, sheets=filtered)
 
+    @staticmethod
+    def _ensure_path(path: str | Path) -> Path:
+        """Normalize a string or Path input to a Path instance.
+
+        Args:
+            path: Path-like input value.
+
+        Returns:
+            Path constructed from the given value.
+        """
+
+        return path if isinstance(path, Path) else Path(path)
+
+    @classmethod
+    def _ensure_optional_path(cls, path: str | Path | None) -> Path | None:
+        """Normalize an optional path-like value to Path when provided.
+
+        Args:
+            path: Optional path-like input value.
+
+        Returns:
+            Normalized Path when provided, otherwise None.
+        """
+
+        if path is None:
+            return None
+        return cls._ensure_path(path)
+
     def extract(
         self, file_path: str | Path, *, mode: ExtractionMode | None = None
     ) -> WorkbookData:
@@ -384,9 +412,10 @@ class ExStructEngine:
             self.output.filters.include_auto_print_areas
             or self.output.destinations.auto_page_breaks_dir is not None
         )
+        normalized_file_path = self._ensure_path(file_path)
         with self._table_params_scope():
             return extract_workbook(
-                Path(file_path),
+                normalized_file_path,
                 mode=chosen_mode,
                 include_cell_links=include_links,
                 include_print_areas=include_print_areas,
@@ -523,8 +552,8 @@ class ExStructEngine:
 
     def process(
         self,
-        file_path: Path,
-        output_path: Path | None = None,
+        file_path: str | Path,
+        output_path: str | Path | None = None,
         *,
         out_fmt: str | None = None,
         image: bool = False,
@@ -533,9 +562,9 @@ class ExStructEngine:
         mode: ExtractionMode | None = None,
         pretty: bool | None = None,
         indent: int | None = None,
-        sheets_dir: Path | None = None,
-        print_areas_dir: Path | None = None,
-        auto_page_breaks_dir: Path | None = None,
+        sheets_dir: str | Path | None = None,
+        print_areas_dir: str | Path | None = None,
+        auto_page_breaks_dir: str | Path | None = None,
         stream: TextIO | None = None,
     ) -> None:
         """
@@ -556,22 +585,30 @@ class ExStructEngine:
             auto_page_breaks_dir: Directory for auto page-break outputs.
             stream: Stream override when writing to stdout.
         """
-        wb = self.extract(file_path, mode=mode)
+        normalized_file_path = self._ensure_path(file_path)
+        normalized_output_path = self._ensure_optional_path(output_path)
+        normalized_sheets_dir = self._ensure_optional_path(sheets_dir)
+        normalized_print_areas_dir = self._ensure_optional_path(print_areas_dir)
+        normalized_auto_page_breaks_dir = self._ensure_optional_path(
+            auto_page_breaks_dir
+        )
+
+        wb = self.extract(normalized_file_path, mode=mode)
         chosen_fmt = out_fmt or self.output.format.fmt
         self.export(
             wb,
-            output_path=output_path,
+            output_path=normalized_output_path,
             fmt=chosen_fmt,  # type: ignore[arg-type]
             pretty=pretty,
             indent=indent,
-            sheets_dir=sheets_dir,
-            print_areas_dir=print_areas_dir,
-            auto_page_breaks_dir=auto_page_breaks_dir,
+            sheets_dir=normalized_sheets_dir,
+            print_areas_dir=normalized_print_areas_dir,
+            auto_page_breaks_dir=normalized_auto_page_breaks_dir,
             stream=stream,
         )
 
         if pdf or image:
-            base_target = output_path or file_path.with_suffix(
+            base_target = normalized_output_path or normalized_file_path.with_suffix(
                 ".yaml"
                 if chosen_fmt in ("yaml", "yml")
                 else ".toon"
