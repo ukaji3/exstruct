@@ -10,6 +10,7 @@ from openpyxl.utils import range_boundaries
 import xlwings as xw
 
 from ..models import CellRow, PrintArea, Shape, SheetData, WorkbookData
+from ..ooxml import get_charts_ooxml, get_shapes_ooxml
 from .cells import (
     detect_tables,
     detect_tables_openpyxl,
@@ -311,7 +312,32 @@ def extract_workbook(  # noqa: C901
         print_area_data = _extract_print_areas_openpyxl(normalized_file_path)
     auto_page_break_data: dict[str, list[PrintArea]] = {}
 
+    def _extract_with_ooxml(reason: str) -> WorkbookData:
+        """Extract using OOXML parser (no COM required)."""
+        logger.info("%s Using OOXML parser for shapes/charts.", reason)
+        shape_data = get_shapes_ooxml(normalized_file_path, mode=mode)
+        chart_data = get_charts_ooxml(normalized_file_path, mode=mode)
+
+        sheets: dict[str, SheetData] = {}
+        for sheet_name, rows in cell_data.items():
+            try:
+                tables = detect_tables_openpyxl(normalized_file_path, sheet_name)
+            except Exception:
+                tables = []
+            sheets[sheet_name] = SheetData(
+                rows=rows,
+                shapes=shape_data.get(sheet_name, []),
+                charts=chart_data.get(sheet_name, []),
+                table_candidates=tables,
+                print_areas=print_area_data.get(sheet_name, [])
+                if include_print_areas
+                else [],
+                auto_print_areas=[],
+            )
+        return WorkbookData(book_name=normalized_file_path.name, sheets=sheets)
+
     def _cells_and_tables_only(reason: str) -> WorkbookData:
+        """Fallback to cells+tables only (no shapes/charts)."""
         sheets: dict[str, SheetData] = {}
         for sheet_name, rows in cell_data.items():
             try:
@@ -338,14 +364,14 @@ def extract_workbook(  # noqa: C901
         return _cells_and_tables_only("Light mode selected.")
 
     if os.getenv("SKIP_COM_TESTS"):
-        return _cells_and_tables_only(
-            "SKIP_COM_TESTS is set; skipping COM/xlwings access."
-        )
+        # Use OOXML parser instead of skipping shapes/charts entirely
+        return _extract_with_ooxml("SKIP_COM_TESTS is set.")
 
     try:
         wb, close_app = _open_workbook(normalized_file_path)
     except Exception as e:
-        return _cells_and_tables_only(f"xlwings/Excel COM is unavailable. ({e!r})")
+        # COM unavailable - use OOXML parser for shapes/charts
+        return _extract_with_ooxml(f"xlwings/Excel COM is unavailable ({e!r}).")
 
     try:
         try:
@@ -374,9 +400,9 @@ def extract_workbook(  # noqa: C901
             return WorkbookData(book_name=normalized_file_path.name, sheets=merged)
         except Exception as e:
             logger.warning(
-                "Shape extraction failed; falling back to cells+tables. (%r)", e
+                "Shape extraction failed; falling back to OOXML parser. (%r)", e
             )
-            return _cells_and_tables_only(f"Shape extraction failed ({e!r}).")
+            return _extract_with_ooxml(f"Shape extraction failed ({e!r}).")
     finally:
         # Close only if we created the app to avoid shutting user sessions.
         try:
