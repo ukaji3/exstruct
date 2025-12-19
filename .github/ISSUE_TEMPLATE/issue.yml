@@ -1,0 +1,58 @@
+name: General issue
+description: Bug report, question, or discussion about ExStruct
+title: ""
+labels: []
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your interest in ExStruct 👋
+
+        Issues are welcome for bug reports, questions, and general discussion.
+        Feel free to share observations, ideas, or concerns.
+
+        ExStruct is maintained as a personal project, so responses and decisions
+        may take time. Thank you for your understanding.
+
+  - type: checkboxes
+    attributes:
+      label: Before submitting
+      options:
+        - label: I understand that this project is maintained in spare time and that not all issues may result in changes.
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Description
+      description: |
+        Please describe what you noticed, wondered about, or would like to discuss.
+      placeholder: |
+        Examples:
+        - Unexpected behavior you observed
+        - A question about how ExStruct works
+        - An idea or interpretation worth discussing
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Minimal example (optional)
+      description: |
+        If applicable, a small reproducible example is helpful.
+        This is optional, but appreciated.
+      placeholder: |
+        Python version:
+        ExStruct version:
+        Sample code or file description:
+    validations:
+      required: false
+
+  - type: textarea
+    attributes:
+      label: Additional notes (optional)
+      description: |
+        Any extra context, thoughts, or background information.
+    validations:
+      required: false
