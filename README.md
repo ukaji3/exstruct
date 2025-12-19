@@ -350,6 +350,18 @@ In short, **exstruct = “an engine that converts Excel into a format AI can und
 - Default JSON is compact to reduce tokens; use `--pretty` or `pretty=True` when readability matters.
 - Field `table_candidates` replaces `tables`; adjust downstream consumers accordingly.
 
+## Enterprise Use
+
+ExStruct is used primarily as a **library**, not a service.
+
+- No official support or SLA is provided
+- Long-term stability is prioritized over rapid feature growth
+- Forking and internal modification are expected in enterprise use
+
+This project is suitable for teams that:
+- need transparency over black-box tools
+- are comfortable maintaining internal forks if necessary
+
 ## Print Areas and Auto Page Breaks (PrintArea / PrintAreaView)
 
 - `SheetData.print_areas` holds print areas (cell coordinates) in light/standard/verbose.
@@ -365,3 +377,4 @@ BSD-3-Clause. See `LICENSE` for details.
 ## Documentation
 
 - API Reference (GitHub Pages): https://harumiweb.github.io/exstruct/
+- JSON Schemas: see `schemas/` (one file per model); regenerate via `python scripts/gen_json_schema.py`.
