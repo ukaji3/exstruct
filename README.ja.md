@@ -33,6 +33,48 @@ pip install exstruct
 
 - 図形・チャートを含むフル抽出は Windows + Excel (xlwings/COM) 前提。その他プラットフォームでは `mode=light` でセル＋`table_candidates` のみ安全に取得できます。
 
+## クロスプラットフォーム対応（OOXML パーサー）
+
+ExStruct は純粋な Python による OOXML パーサーを搭載しており、**Linux や macOS** でも Excel なしで図形・チャートを抽出できます。
+
+### 動作の仕組み
+
+- **Windows + Excel**: COM API（xlwings 経由）を使用（全機能対応）
+- **Linux / macOS**: 自動的に OOXML パーサーにフォールバック（Excel 不要）
+- **Windows（Excel なし）**: OOXML パーサーを使用
+
+### 対応機能（OOXML）
+
+| 機能 | 対応 |
+|------|------|
+| 図形の位置 (l, t) | ✓ |
+| 図形のサイズ (w, h) | ✓（verbose モード） |
+| 図形のテキスト | ✓ |
+| 図形の種別 | ✓ |
+| 図形 ID の割り当て | ✓ |
+| コネクターの方向 | ✓ |
+| 矢印スタイル | ✓ |
+| コネクター接続先 (begin_id, end_id) | ✓ |
+| 回転 | ✓ |
+| グループのフラット化 | ✓ |
+| チャート種別 | ✓ |
+| チャートタイトル | ✓ |
+| Y 軸タイトル/範囲 | ✓ |
+| 系列データ | ✓ |
+
+### 制限事項（OOXML vs COM）
+
+一部の機能は Excel の計算エンジンが必要なため、OOXML では実装できません：
+
+- 自動計算された Y 軸範囲（Excel で「自動」設定の場合）
+- タイトル/ラベルのセル参照解決
+- 条件付き書式の評価
+- 自動改ページの計算
+- OLE / 埋め込みオブジェクト
+- VBA マクロ
+
+詳細な比較は [docs/com-vs-ooxml-implementation.md](docs/com-vs-ooxml-implementation.md) を参照してください。
+
 ## クイックスタート CLI
 
 ```bash
