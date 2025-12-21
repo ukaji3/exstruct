@@ -77,6 +77,30 @@ Some features require Excel's calculation engine and cannot be implemented in OO
 
 For detailed comparison, see [docs/com-vs-ooxml-implementation.md](docs/com-vs-ooxml-implementation.md).
 
+### Improvement over upstream (without COM)
+
+In the original upstream ExStruct, non-COM environments (Linux/macOS) returned **empty arrays for shapes and charts**. This fork's OOXML parser provides near-complete feature parity:
+
+| Feature | Upstream (no COM) | This Fork (OOXML) |
+|---------|-------------------|-------------------|
+| Cells | ✓ | ✓ |
+| Table candidates | ✓ | ✓ |
+| Print areas | ✓ | ✓ |
+| Shape position/size | ❌ empty | ✓ |
+| Shape text/type | ❌ empty | ✓ |
+| Shape ID assignment | ❌ empty | ✓ |
+| Connector direction | ❌ empty | ✓ |
+| Arrow styles | ❌ empty | ✓ |
+| Connector endpoints | ❌ empty | ✓ |
+| Chart type/title | ❌ empty | ✓ |
+| Chart axis/series | ❌ empty | ✓ |
+| Auto page-breaks | ❌ | ❌ (COM only) |
+
+This enables:
+- **Flowchart extraction** on Linux/macOS (shapes + connectors with begin_id/end_id)
+- **Chart data extraction** without Excel
+- **CI/CD and Docker** environments (headless operation)
+
 ## Quick Start (CLI)
 
 ```bash
