@@ -35,6 +35,48 @@ Platform note:
 
 - Full extraction (shapes/charts) targets Windows + Excel (COM via xlwings). On other platforms, use `mode=light` to get cells + `table_candidates`.
 
+## Cross-Platform Support (OOXML Parser)
+
+ExStruct now includes a pure-Python OOXML parser that enables shape and chart extraction on **Linux and macOS** without requiring Excel.
+
+### How it works
+
+- **Windows + Excel**: Uses COM API via xlwings (full feature support)
+- **Linux / macOS**: Automatically falls back to OOXML parser (no Excel required)
+- **Windows without Excel**: Also uses OOXML parser
+
+### Supported features (OOXML)
+
+| Feature | Support |
+|---------|---------|
+| Shape position (l, t) | ✓ |
+| Shape size (w, h) | ✓ (verbose mode) |
+| Shape text | ✓ |
+| Shape type | ✓ |
+| Shape ID assignment | ✓ |
+| Connector direction | ✓ |
+| Arrow styles | ✓ |
+| Connector endpoints (begin_id, end_id) | ✓ |
+| Rotation | ✓ |
+| Group flattening | ✓ |
+| Chart type | ✓ |
+| Chart title | ✓ |
+| Y-axis title/range | ✓ |
+| Series data | ✓ |
+
+### Limitations (OOXML vs COM)
+
+Some features require Excel's calculation engine and cannot be implemented in OOXML:
+
+- Auto-calculated Y-axis range (when set to "auto" in Excel)
+- Cell reference resolution for titles/labels
+- Conditional formatting evaluation
+- Auto page-break calculation
+- OLE/embedded objects
+- VBA macros
+
+For detailed comparison, see [docs/com-vs-ooxml-implementation.md](docs/com-vs-ooxml-implementation.md).
+
 ## Quick Start (CLI)
 
 ```bash
