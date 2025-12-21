@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
+import sys
 from typing import Any, Literal, cast
 
 from openpyxl import load_workbook
@@ -22,6 +23,25 @@ from .shapes import get_shapes_with_position
 
 logger = logging.getLogger(__name__)
 _ALLOWED_MODES: set[str] = {"light", "standard", "verbose"}
+
+
+def _is_com_available() -> bool:
+    """Check if Excel COM/AppleScript is available without launching Excel.
+
+    Returns:
+        True if COM is available (Windows with pywin32), False otherwise.
+    """
+    # Only Windows with pywin32 supports COM reliably
+    if sys.platform != "win32":
+        return False
+
+    try:
+        import pythoncom  # noqa: F401
+        import win32com.client  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
 
 
 def _find_open_workbook(file_path: Path) -> xw.Book | None:
@@ -366,6 +386,10 @@ def extract_workbook(  # noqa: C901
     if os.getenv("SKIP_COM_TESTS"):
         # Use OOXML parser instead of skipping shapes/charts entirely
         return _extract_with_ooxml("SKIP_COM_TESTS is set.")
+
+    # Check COM availability before attempting to launch Excel
+    if not _is_com_available():
+        return _extract_with_ooxml("COM is not available (non-Windows or pywin32 missing).")
 
     try:
         wb, close_app = _open_workbook(normalized_file_path)
