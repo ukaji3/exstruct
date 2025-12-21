@@ -79,24 +79,19 @@ For detailed comparison, see [docs/com-vs-ooxml-implementation.md](docs/com-vs-o
 
 ### Improvement over upstream (without COM)
 
-In the original upstream ExStruct, non-COM environments (Linux/macOS) returned **empty arrays for shapes and charts**. This fork's OOXML parser provides near-complete feature parity:
+The original ExStruct was designed with a focus on Windows + Excel environments, providing graceful fallback to cells-only extraction on other platforms. This fork extends that foundation by adding an OOXML parser for cross-platform shape/chart extraction:
 
-| Feature | Upstream (no COM) | This Fork (OOXML) |
+| Feature | Original (no COM) | With OOXML Parser |
 |---------|-------------------|-------------------|
 | Cells | ✓ | ✓ |
 | Table candidates | ✓ | ✓ |
 | Print areas | ✓ | ✓ |
-| Shape position/size | ❌ empty | ✓ |
-| Shape text/type | ❌ empty | ✓ |
-| Shape ID assignment | ❌ empty | ✓ |
-| Connector direction | ❌ empty | ✓ |
-| Arrow styles | ❌ empty | ✓ |
-| Connector endpoints | ❌ empty | ✓ |
-| Chart type/title | ❌ empty | ✓ |
-| Chart axis/series | ❌ empty | ✓ |
-| Auto page-breaks | ❌ | ❌ (COM only) |
+| Shape extraction | — (fallback) | ✓ |
+| Chart extraction | — (fallback) | ✓ |
+| Connector relationships | — | ✓ |
+| Auto page-breaks | — | — (COM only) |
 
-This enables:
+This extension enables:
 - **Flowchart extraction** on Linux/macOS (shapes + connectors with begin_id/end_id)
 - **Chart data extraction** without Excel
 - **CI/CD and Docker** environments (headless operation)
@@ -443,6 +438,10 @@ This project is suitable for teams that:
 ## License
 
 BSD-3-Clause. See `LICENSE` for details.
+
+## Acknowledgments
+
+This project is a fork of [harumiWeb/exstruct](https://github.com/harumiWeb/exstruct). We are deeply grateful to the original authors for creating such a well-designed Excel extraction engine with clean architecture and comprehensive documentation. The OOXML parser extension in this fork builds upon their excellent foundation.
 
 ## Documentation
 
