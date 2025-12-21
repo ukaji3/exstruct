@@ -217,12 +217,14 @@ exstruct input.xlsx --pdf --image --dpi 144
       ],
       "shapes": [
         {
+          "id": 1,
           "text": "開始",
           "l": 148,
           "t": 220,
           "type": "AutoShape-FlowchartProcess"
         },
         {
+          "id": 2,
           "text": "入力データ読み込み",
           "l": 132,
           "t": 282,
@@ -234,6 +236,8 @@ exstruct input.xlsx --pdf --image --dpi 144
           "type": "AutoShape-Mixed",
           "begin_arrow_style": 1,
           "end_arrow_style": 2,
+          "begin_id": 1,
+          "end_id": 2,
           "direction": "N"
         },
         ...
@@ -350,6 +354,18 @@ flowchart TD
 - デフォルト JSON はコンパクト（トークン削減目的）。可読性が必要なら `--pretty` / `pretty=True` を利用してください。
 - フィールド名は `table_candidates` を使用します（以前の `tables` から変更）。下流のスキーマを調整してください。
 
+## 企業向け
+
+ExStruct は主に **ライブラリ** として利用される想定で、サービスではありません。
+
+- 公式サポートや SLA は提供されません
+- 迅速な機能追加より、長期的な安定性を優先します
+- 企業利用ではフォークや内部改修が前提です
+
+次のようなチームに適しています。
+- ブラックボックス化されたツールではなく、透明性が必要
+- 必要に応じて内部フォークを保守できる
+
 ## 印刷範囲と自動改ページ範囲（PrintArea / PrintAreaView）
 
 - `SheetData.print_areas` に印刷範囲（セル座標）が含まれます（light/standard/verbose で取得）。
@@ -370,3 +386,4 @@ BSD-3-Clause. See `LICENSE` for details.
 ## ドキュメント
 
 - API リファレンス (GitHub Pages): https://harumiweb.github.io/exstruct/
+- JSON Schema は `schemas/` にモデルごとに配置しています。モデル変更後は `python scripts/gen_json_schema.py` で再生成してください。

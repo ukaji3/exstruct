@@ -216,12 +216,14 @@ Below is a **shortened JSON output example** from parsing this Excel workbook.
       ],
       "shapes": [
         {
+          "id": 1,
           "text": "開始",
           "l": 148,
           "t": 220,
           "type": "AutoShape-FlowchartProcess"
         },
         {
+          "id": 2,
           "text": "入力データ読み込み",
           "l": 132,
           "t": 282,
@@ -233,6 +235,8 @@ Below is a **shortened JSON output example** from parsing this Excel workbook.
           "type": "AutoShape-Mixed",
           "begin_arrow_style": 1,
           "end_arrow_style": 2,
+          "begin_id": 1,
+          "end_id": 2,
           "direction": "N"
         },
         ...
@@ -347,6 +351,18 @@ In short, **exstruct = “an engine that converts Excel into a format AI can und
 - Default JSON is compact to reduce tokens; use `--pretty` or `pretty=True` when readability matters.
 - Field `table_candidates` replaces `tables`; adjust downstream consumers accordingly.
 
+## Enterprise Use
+
+ExStruct is used primarily as a **library**, not a service.
+
+- No official support or SLA is provided
+- Long-term stability is prioritized over rapid feature growth
+- Forking and internal modification are expected in enterprise use
+
+This project is suitable for teams that:
+- need transparency over black-box tools
+- are comfortable maintaining internal forks if necessary
+
 ## Print Areas and Auto Page Breaks (PrintArea / PrintAreaView)
 
 - `SheetData.print_areas` holds print areas (cell coordinates) in light/standard/verbose.
@@ -367,3 +383,4 @@ BSD-3-Clause. See `LICENSE` for details.
 ## Documentation
 
 - API Reference (GitHub Pages): https://harumiweb.github.io/exstruct/
+- JSON Schemas: see `schemas/` (one file per model); regenerate via `python scripts/gen_json_schema.py`.
