@@ -7,6 +7,7 @@ position, size, text, type, and connector arrow styles.
 from __future__ import annotations
 
 import logging
+import math
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 from xml.etree import ElementTree as ET
@@ -188,7 +189,12 @@ def _get_xfrm_position(elem: Element) -> tuple[int, int, int, int] | None:
         y = int(off.get("y", "0"))
         cx = int(ext.get("cx", "0"))
         cy = int(ext.get("cy", "0"))
-        return (emu_to_pixels(x), emu_to_pixels(y), emu_to_pixels(cx), emu_to_pixels(cy))
+        return (
+            emu_to_pixels(x),
+            emu_to_pixels(y),
+            emu_to_pixels(cx),
+            emu_to_pixels(cy),
+        )
     except ValueError:
         return None
 
@@ -248,8 +254,6 @@ def _compute_direction(width: int, height: int) -> str | None:
     Returns:
         Compass direction (N, NE, E, SE, S, SW, W, NW) or None.
     """
-    import math
-
     if width == 0 and height == 0:
         return None
 
@@ -304,38 +308,159 @@ def _get_rotation(elem: Element) -> float | None:
         return None
 
 
-def _is_connector_shape(prst: str | None, elem: Element) -> bool:
+def _is_connector_shape(prst: str | None, type_label: str) -> bool:
     """Check if shape is a connector or line.
 
     Args:
         prst: Preset geometry name.
-        elem: XML element.
+        type_label: Type label string.
 
     Returns:
         True if shape is a connector/line.
     """
-    if prst is None:
+    if prst is not None:
+        connector_keywords = ["Connector", "line", "straightConnector"]
+        if any(kw.lower() in prst.lower() for kw in connector_keywords):
+            return True
+
+    if type_label:
+        if "Line" in type_label or "Connector" in type_label:
+            return True
+
+    return False
+
+
+def _should_include_shape(
+    text: str,
+    type_label: str,
+    is_connector: bool,
+    mode: str,
+) -> bool:
+    """Decide whether to emit a shape given output mode.
+
+    Args:
+        text: Shape text content.
+        type_label: Shape type label.
+        is_connector: Whether shape is a connector/line.
+        mode: Output mode (light, standard, verbose).
+
+    Returns:
+        True if shape should be included.
+    """
+    if mode == "light":
         return False
 
-    connector_keywords = ["Connector", "line", "straightConnector"]
-    return any(kw.lower() in prst.lower() for kw in connector_keywords)
+    if mode == "verbose":
+        return True
+
+    # standard mode: emit if text exists OR the shape is a connector/arrow
+    if text:
+        return True
+
+    if is_connector:
+        return True
+
+    # Check for arrow shapes
+    if type_label and "Arrow" in type_label:
+        return True
+
+    return False
+
+
+def _get_connector_endpoints(elem: Element) -> tuple[str | None, str | None]:
+    """Extract connector start and end shape IDs.
+
+    Args:
+        elem: xdr:cxnSp element.
+
+    Returns:
+        Tuple of (start_shape_id, end_shape_id) as strings.
+    """
+    start_id: str | None = None
+    end_id: str | None = None
+
+    # Look for cNvCxnSpPr which contains connection info
+    cnv_cxn_sp_pr = elem.find("xdr:nvCxnSpPr/xdr:cNvCxnSpPr", NS)
+    if cnv_cxn_sp_pr is None:
+        return (None, None)
+
+    # stCxn = start connection, endCxn = end connection
+    st_cxn = cnv_cxn_sp_pr.find("a:stCxn", NS)
+    end_cxn = cnv_cxn_sp_pr.find("a:endCxn", NS)
+
+    if st_cxn is not None:
+        start_id = st_cxn.get("id")
+
+    if end_cxn is not None:
+        end_id = end_cxn.get("id")
+
+    return (start_id, end_id)
+
+
+def _get_shape_excel_id(elem: Element) -> str | None:
+    """Extract Excel shape ID from cNvPr element.
+
+    Args:
+        elem: Shape element.
+
+    Returns:
+        Shape ID as string or None.
+    """
+    cnv_pr = elem.find(".//xdr:cNvPr", NS)
+    if cnv_pr is not None:
+        return cnv_pr.get("id")
+    return None
+
+
+class _ShapeParseResult:
+    """Intermediate result from parsing a shape element."""
+
+    def __init__(
+        self,
+        shape: Shape,
+        excel_id: str | None,
+        excel_name: str | None,
+        is_connector: bool,
+        start_cxn_id: str | None,
+        end_cxn_id: str | None,
+    ) -> None:
+        """Initialize parse result.
+
+        Args:
+            shape: Parsed Shape model.
+            excel_id: Excel shape ID from cNvPr.
+            excel_name: Excel shape name from cNvPr.
+            is_connector: Whether this is a connector shape.
+            start_cxn_id: Connected start shape Excel ID.
+            end_cxn_id: Connected end shape Excel ID.
+        """
+        self.shape = shape
+        self.excel_id = excel_id
+        self.excel_name = excel_name
+        self.is_connector = is_connector
+        self.start_cxn_id = start_cxn_id
+        self.end_cxn_id = end_cxn_id
 
 
 def _parse_shape_element(
-    elem: Element, mode: str
-) -> Shape | None:
+    elem: Element,
+    mode: str,
+    is_cxn_sp: bool = False,
+) -> _ShapeParseResult | None:
     """Parse a single shape element into Shape model.
 
     Args:
         elem: xdr:sp or xdr:cxnSp element.
         mode: Output mode (light, standard, verbose).
+        is_cxn_sp: Whether this is a connector shape element.
 
     Returns:
-        Shape model or None if should be skipped.
+        ShapeParseResult or None if should be skipped.
     """
-    # Get shape name from cNvPr
+    # Get shape name and ID from cNvPr
     cnv_pr = elem.find(".//xdr:cNvPr", NS)
     shape_name = cnv_pr.get("name", "") if cnv_pr is not None else ""
+    excel_id = cnv_pr.get("id") if cnv_pr is not None else None
 
     # Get position and size
     pos = _get_xfrm_position(elem)
@@ -359,7 +484,11 @@ def _parse_shape_element(
         type_label = "Unknown"
 
     # Check if connector
-    is_connector = _is_connector_shape(prst, elem)
+    is_connector = is_cxn_sp or _is_connector_shape(prst, type_label)
+
+    # Apply filtering based on mode
+    if not _should_include_shape(text, type_label, is_connector, mode):
+        return None
 
     # Build shape object
     shape = Shape(
@@ -370,6 +499,10 @@ def _parse_shape_element(
         h=height if mode == "verbose" else None,
         type=type_label,
     )
+
+    # Get connector endpoints
+    start_cxn_id: str | None = None
+    end_cxn_id: str | None = None
 
     # Add connector-specific properties
     if is_connector:
@@ -383,17 +516,116 @@ def _parse_shape_element(
         if end_style is not None:
             shape.end_arrow_style = end_style
 
+        # Get connector endpoints if this is a cxnSp
+        if is_cxn_sp:
+            start_cxn_id, end_cxn_id = _get_connector_endpoints(elem)
+
     # Add rotation if present
     rotation = _get_rotation(elem)
     if rotation is not None:
         shape.rotation = rotation
 
-    return shape
+    return _ShapeParseResult(
+        shape=shape,
+        excel_id=excel_id,
+        excel_name=shape_name if shape_name else None,
+        is_connector=is_connector,
+        start_cxn_id=start_cxn_id,
+        end_cxn_id=end_cxn_id,
+    )
 
 
-def _parse_drawing_xml(
-    drawing_xml: bytes, mode: str
-) -> list[Shape]:
+def _parse_group_shapes(
+    grp_sp: Element,
+    mode: str,
+) -> list[_ShapeParseResult]:
+    """Parse shapes within a group recursively.
+
+    Args:
+        grp_sp: xdr:grpSp element.
+        mode: Output mode.
+
+    Returns:
+        List of ShapeParseResult from group children.
+    """
+    results: list[_ShapeParseResult] = []
+
+    # Parse regular shapes in group
+    for sp in grp_sp.findall("xdr:sp", NS):
+        result = _parse_shape_element(sp, mode, is_cxn_sp=False)
+        if result is not None:
+            results.append(result)
+
+    # Parse connector shapes in group
+    for cxn_sp in grp_sp.findall("xdr:cxnSp", NS):
+        result = _parse_shape_element(cxn_sp, mode, is_cxn_sp=True)
+        if result is not None:
+            results.append(result)
+
+    # Recursively parse nested groups
+    for nested_grp in grp_sp.findall("xdr:grpSp", NS):
+        results.extend(_parse_group_shapes(nested_grp, mode))
+
+    return results
+
+
+def _parse_anchor_shapes(anchor: Element, mode: str) -> list[_ShapeParseResult]:
+    """Parse all shapes within an anchor element.
+
+    Args:
+        anchor: Anchor element (twoCellAnchor, oneCellAnchor, absoluteAnchor).
+        mode: Output mode.
+
+    Returns:
+        List of ShapeParseResult.
+    """
+    results: list[_ShapeParseResult] = []
+
+    # Regular shapes
+    for sp in anchor.findall("xdr:sp", NS):
+        result = _parse_shape_element(sp, mode, is_cxn_sp=False)
+        if result is not None:
+            results.append(result)
+
+    # Connector shapes
+    for cxn_sp in anchor.findall("xdr:cxnSp", NS):
+        result = _parse_shape_element(cxn_sp, mode, is_cxn_sp=True)
+        if result is not None:
+            results.append(result)
+
+    # Group shapes (flatten recursively)
+    for grp_sp in anchor.findall("xdr:grpSp", NS):
+        results.extend(_parse_group_shapes(grp_sp, mode))
+
+    return results
+
+
+def _assign_shape_ids(parse_results: list[_ShapeParseResult]) -> None:
+    """Assign IDs to shapes and resolve connector endpoints.
+
+    Args:
+        parse_results: List of parse results to process (modified in place).
+    """
+    excel_id_to_node_id: dict[str, int] = {}
+    node_index = 0
+
+    # First pass: assign node IDs to non-connector shapes
+    for result in parse_results:
+        if not result.is_connector and result.excel_id:
+            node_index += 1
+            result.shape.id = node_index
+            excel_id_to_node_id[result.excel_id] = node_index
+
+    # Second pass: resolve connector endpoints
+    for result in parse_results:
+        if result.is_connector:
+            if result.start_cxn_id and result.start_cxn_id in excel_id_to_node_id:
+                result.shape.begin_id = excel_id_to_node_id[result.start_cxn_id]
+            if result.end_cxn_id and result.end_cxn_id in excel_id_to_node_id:
+                result.shape.end_id = excel_id_to_node_id[result.end_cxn_id]
+
+
+def _parse_drawing_xml(drawing_xml: bytes, mode: str) -> list[Shape]:
     """Parse a drawing XML file and extract shapes.
 
     Args:
@@ -403,36 +635,28 @@ def _parse_drawing_xml(
     Returns:
         List of Shape models.
     """
-    shapes: list[Shape] = []
-
     try:
         root = ET.fromstring(drawing_xml)
     except ET.ParseError as e:
         logger.warning("Failed to parse drawing XML: %s", e)
-        return shapes
+        return []
 
-    # Find all shape elements (sp = shape, cxnSp = connector shape)
-    for anchor in root.findall(".//xdr:twoCellAnchor", NS):
-        # Regular shapes
-        for sp in anchor.findall("xdr:sp", NS):
-            shape = _parse_shape_element(sp, mode)
-            if shape is not None:
-                shapes.append(shape)
+    parse_results: list[_ShapeParseResult] = []
 
-        # Connector shapes
-        for cxn_sp in anchor.findall("xdr:cxnSp", NS):
-            shape = _parse_shape_element(cxn_sp, mode)
-            if shape is not None:
-                shapes.append(shape)
+    # Process all anchor types
+    anchor_xpaths = [
+        ".//xdr:twoCellAnchor",
+        ".//xdr:oneCellAnchor",
+        ".//xdr:absoluteAnchor",
+    ]
 
-    # Also check oneCellAnchor and absoluteAnchor
-    for anchor in root.findall(".//xdr:oneCellAnchor", NS):
-        for sp in anchor.findall("xdr:sp", NS):
-            shape = _parse_shape_element(sp, mode)
-            if shape is not None:
-                shapes.append(shape)
+    for anchor_xpath in anchor_xpaths:
+        for anchor in root.findall(anchor_xpath, NS):
+            parse_results.extend(_parse_anchor_shapes(anchor, mode))
 
-    return shapes
+    _assign_shape_ids(parse_results)
+
+    return [r.shape for r in parse_results]
 
 
 def _get_sheet_drawing_map(xlsx_path: Path) -> dict[str, str]:
@@ -474,9 +698,7 @@ def _get_sheet_drawing_map(xlsx_path: Path) -> dict[str, str]:
         except (KeyError, ET.ParseError):
             return sheet_drawing_map
 
-        rels_ns = {
-            "": "http://schemas.openxmlformats.org/package/2006/relationships"
-        }
+        rels_ns = {"": "http://schemas.openxmlformats.org/package/2006/relationships"}
 
         sheet_files: dict[str, str] = {}  # sheet name -> sheet file path
         for rel in rels_root.findall("Relationship", rels_ns):
@@ -528,6 +750,10 @@ def get_shapes_ooxml(
 
     if not xlsx_path.exists():
         logger.warning("File not found: %s", xlsx_path)
+        return result
+
+    if mode == "light":
+        # Light mode skips shape extraction entirely
         return result
 
     sheet_drawing_map = _get_sheet_drawing_map(xlsx_path)
