@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 import json
 from importlib import util
 import os
@@ -80,11 +80,35 @@ def _prepare_unicode_excel(tmp_path: Path) -> Path:
     return dest
 
 
+def _run_cli(
+    args: list[str], *, text: bool = True, env: Mapping[str, str] | None = None
+) -> subprocess.CompletedProcess[bytes | str]:
+    """Execute the ExStruct CLI with a fixed command prefix.
+
+    Args:
+        args: Argument list appended after the module invocation.
+        text: Whether to decode stdout/stderr as text.
+        env: Optional environment variables overriding the current process.
+
+    Returns:
+        The completed process result from ``subprocess.run``.
+    """
+
+    base_cmd = [sys.executable, "-m", "exstruct.cli.main"]
+    return subprocess.run(
+        [*base_cmd, *args],
+        capture_output=True,
+        text=text,
+        env=env,
+        shell=False,
+        check=False,
+    )
+
+
 def test_CLIでjson出力が成功する(tmp_path: Path) -> None:
     xlsx = _prepare_sample_excel(tmp_path)
     out_json = tmp_path / "out.json"
-    cmd = [sys.executable, "-m", "exstruct.cli.main", str(xlsx), "-o", str(out_json)]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = _run_cli([str(xlsx), "-o", str(out_json)])
     assert result.returncode == 0
     assert out_json.exists()
     # stdout may be empty when writing to a file; ensure no errors surfaced
@@ -94,17 +118,7 @@ def test_CLIでjson出力が成功する(tmp_path: Path) -> None:
 def test_CLIでyamlやtoon指定は未サポート(tmp_path: Path) -> None:
     xlsx = _prepare_sample_excel(tmp_path)
     out_yaml = tmp_path / "out.yaml"
-    cmd = [
-        sys.executable,
-        "-m",
-        "exstruct.cli.main",
-        str(xlsx),
-        "-o",
-        str(out_yaml),
-        "-f",
-        "yaml",
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = _run_cli([str(xlsx), "-o", str(out_yaml), "-f", "yaml"])
     if util.find_spec("yaml") is not None:
         assert result.returncode == 0
         assert out_yaml.exists()
@@ -113,17 +127,7 @@ def test_CLIでyamlやtoon指定は未サポート(tmp_path: Path) -> None:
         assert "pyyaml" in result.stdout or "pyyaml" in result.stderr
 
     out_toon = tmp_path / "out.toon"
-    cmd = [
-        sys.executable,
-        "-m",
-        "exstruct.cli.main",
-        str(xlsx),
-        "-o",
-        str(out_toon),
-        "-f",
-        "toon",
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = _run_cli([str(xlsx), "-o", str(out_toon), "-f", "toon"])
     if _toon_available():
         assert result.returncode == 0
         assert out_toon.exists()
@@ -136,17 +140,7 @@ def test_CLIでyamlやtoon指定は未サポート(tmp_path: Path) -> None:
 def test_CLIでpdfと画像が出力される(tmp_path: Path) -> None:
     xlsx = _prepare_sample_excel(tmp_path)
     out_json = tmp_path / "out.json"
-    cmd = [
-        sys.executable,
-        "-m",
-        "exstruct.cli.main",
-        str(xlsx),
-        "-o",
-        str(out_json),
-        "--pdf",
-        "--image",
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = _run_cli([str(xlsx), "-o", str(out_json), "--pdf", "--image"])
     assert result.returncode == 0
     pdf_path = out_json.with_suffix(".pdf")
     images_dir = out_json.parent / f"{out_json.stem}_images"
@@ -158,15 +152,7 @@ def test_CLIでpdfと画像が出力される(tmp_path: Path) -> None:
 def test_CLIで無効ファイルは安全終了する(tmp_path: Path) -> None:
     bad_path = tmp_path / "nope.xlsx"
     out_json = tmp_path / "out.json"
-    cmd = [
-        sys.executable,
-        "-m",
-        "exstruct.cli.main",
-        str(bad_path),
-        "-o",
-        str(out_json),
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = _run_cli([str(bad_path), "-o", str(out_json)])
     assert result.returncode == 0
     combined_output = (result.stdout or "") + (result.stderr or "")
     assert "not found" in combined_output.lower() or combined_output == ""
@@ -175,17 +161,7 @@ def test_CLIで無効ファイルは安全終了する(tmp_path: Path) -> None:
 def test_CLI_print_areas_dir_outputs_files(tmp_path: Path) -> None:
     xlsx = _prepare_print_area_excel(tmp_path)
     areas_dir = tmp_path / "areas"
-    cmd = [
-        sys.executable,
-        "-m",
-        "exstruct.cli.main",
-        str(xlsx),
-        "--print-areas-dir",
-        str(areas_dir),
-        "--mode",
-        "standard",
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = _run_cli([str(xlsx), "--print-areas-dir", str(areas_dir), "--mode", "standard"])
     assert result.returncode == 0
     files = list(areas_dir.glob("*.json"))
     assert (
@@ -211,10 +187,9 @@ def test_cli_parser_excludes_auto_page_breaks_option() -> None:
 
 def test_CLI_stdout_is_utf8_with_cp932_env(tmp_path: Path) -> None:
     xlsx = _prepare_unicode_excel(tmp_path)
-    cmd = [sys.executable, "-m", "exstruct.cli.main", str(xlsx), "--format", "json"]
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "cp932"
-    result = subprocess.run(cmd, capture_output=True, text=False, env=env)
+    result = _run_cli([str(xlsx), "--format", "json"], text=False, env=env)
 
     assert result.returncode == 0
 
