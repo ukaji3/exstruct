@@ -1,6 +1,6 @@
 from collections.abc import Callable
-import json
 from importlib import util
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -15,6 +15,16 @@ from exstruct.cli.main import build_parser
 
 F = TypeVar("F", bound=Callable[..., object])
 render = cast(Callable[[F], F], pytest.mark.render)
+
+_ALLOWED_CLI_FLAGS: set[str] = {
+    "-f",
+    "-o",
+    "--format",
+    "--image",
+    "--mode",
+    "--pdf",
+    "--print-areas-dir",
+}
 
 
 def _toon_available() -> bool:
@@ -118,10 +128,9 @@ def _run_cli(
     # - ``shell`` remains False to avoid shell interpretation.
     base_cmd = [sys.executable, "-m", "exstruct.cli.main"]
 
-    # nosemgrep: python.lang.security.subprocess.run-non-literal
     # The command prefix is fully static and controlled by tests; arguments are
     # sanitized and shell interpretation is disabled.
-    return subprocess.run(
+    return subprocess.run(  # nosec B603  # nosemgrep: python.lang.security.subprocess.run-non-literal
         [*base_cmd, *safe_args],
         capture_output=True,
         text=text,
@@ -132,15 +141,90 @@ def _run_cli(
 
 
 def _sanitize_cli_args(args: list[str]) -> list[str]:
-    """Validate CLI arguments to mitigate command-injection risks in tests."""
+    """Validate CLI arguments to mitigate command-injection risks in tests.
+
+    Args:
+        args: Argument list appended after the module invocation.
+
+    Returns:
+        Sanitized argument list safe for subprocess execution in tests.
+
+    Raises:
+        ValueError: If control characters or disallowed flags are present.
+    """
 
     validated: list[str] = []
     for arg in args:
-        if "\x00" in arg or "\n" in arg or "\r" in arg:
-            msg = "CLI arguments must not contain control characters"
-            raise ValueError(msg)
+        _ensure_no_control_chars(arg)
+        _ensure_allowed_cli_flag(arg)
         validated.append(arg)
     return validated
+
+
+def _stdout_text(result: subprocess.CompletedProcess[bytes | str]) -> str:
+    """Return stdout as text for assertions.
+
+    Args:
+        result: Completed subprocess result.
+
+    Returns:
+        Decoded stdout string or empty string when stdout is absent.
+    """
+
+    stdout = result.stdout
+    if stdout is None:
+        return ""
+    if isinstance(stdout, bytes):
+        return stdout.decode("utf-8", errors="replace")
+    return stdout
+
+
+def _stderr_text(result: subprocess.CompletedProcess[bytes | str]) -> str:
+    """Return stderr as text for assertions.
+
+    Args:
+        result: Completed subprocess result.
+
+    Returns:
+        Decoded stderr string or empty string when stderr is absent.
+    """
+
+    stderr = result.stderr
+    if stderr is None:
+        return ""
+    if isinstance(stderr, bytes):
+        return stderr.decode("utf-8", errors="replace")
+    return stderr
+
+
+def _ensure_no_control_chars(arg: str) -> None:
+    """Reject control characters in CLI arguments.
+
+    Args:
+        arg: CLI argument to validate.
+
+    Raises:
+        ValueError: If control characters are found.
+    """
+
+    if "\x00" in arg or "\n" in arg or "\r" in arg:
+        msg = "CLI arguments must not contain control characters"
+        raise ValueError(msg)
+
+
+def _ensure_allowed_cli_flag(arg: str) -> None:
+    """Ensure only known CLI flags are passed to the subprocess.
+
+    Args:
+        arg: CLI argument to validate.
+
+    Raises:
+        ValueError: If a flag is not in the allowlist.
+    """
+
+    if arg.startswith("-") and arg not in _ALLOWED_CLI_FLAGS:
+        msg = f"CLI flag is not allowed in tests: {arg}"
+        raise ValueError(msg)
 
 
 def test_CLIでjson出力が成功する(tmp_path: Path) -> None:
@@ -150,7 +234,7 @@ def test_CLIでjson出力が成功する(tmp_path: Path) -> None:
     assert result.returncode == 0
     assert out_json.exists()
     # stdout may be empty when writing to a file; ensure no errors surfaced
-    assert "Error" not in result.stdout
+    assert "Error" not in _stdout_text(result)
 
 
 def test_CLIでyamlやtoon指定は未サポート(tmp_path: Path) -> None:
@@ -162,7 +246,7 @@ def test_CLIでyamlやtoon指定は未サポート(tmp_path: Path) -> None:
         assert out_yaml.exists()
     else:
         assert result.returncode != 0
-        assert "pyyaml" in result.stdout or "pyyaml" in result.stderr
+        assert "pyyaml" in _stdout_text(result) or "pyyaml" in _stderr_text(result)
 
     out_toon = tmp_path / "out.toon"
     result = _run_cli([str(xlsx), "-o", str(out_toon), "-f", "toon"])
@@ -171,7 +255,7 @@ def test_CLIでyamlやtoon指定は未サポート(tmp_path: Path) -> None:
         assert out_toon.exists()
     else:
         assert result.returncode != 0
-        assert "TOON export requires python-toon" in result.stdout
+        assert "TOON export requires python-toon" in _stdout_text(result)
 
 
 @render
@@ -192,19 +276,24 @@ def test_CLIで無効ファイルは安全終了する(tmp_path: Path) -> None:
     out_json = tmp_path / "out.json"
     result = _run_cli([str(bad_path), "-o", str(out_json)])
     assert result.returncode == 0
-    combined_output = (result.stdout or "") + (result.stderr or "")
+    combined_output = _stdout_text(result) + _stderr_text(result)
     assert "not found" in combined_output.lower() or combined_output == ""
 
 
 def test_CLI_print_areas_dir_outputs_files(tmp_path: Path) -> None:
     xlsx = _prepare_print_area_excel(tmp_path)
     areas_dir = tmp_path / "areas"
-    result = _run_cli([str(xlsx), "--print-areas-dir", str(areas_dir), "--mode", "standard"])
+    result = _run_cli(
+        [str(xlsx), "--print-areas-dir", str(areas_dir), "--mode", "standard"]
+    )
     assert result.returncode == 0
     files = list(areas_dir.glob("*.json"))
     assert (
         files
-    ), f"No print area files created. stdout={result.stdout} stderr={result.stderr}"
+    ), (
+        "No print area files created. "
+        f"stdout={_stdout_text(result)} stderr={_stderr_text(result)}"
+    )
 
 
 def test_cli_parser_includes_auto_page_breaks_option() -> None:
@@ -237,6 +326,6 @@ def test_CLI_stdout_is_utf8_with_cp932_env(tmp_path: Path) -> None:
 
     assert result.returncode == 0
 
-    stdout_text = result.stdout.decode("utf-8")
+    stdout_text = _stdout_text(result)
     assert "☑︎ テスト ✓ こんにちは 🌸" in stdout_text
     json.loads(stdout_text)
