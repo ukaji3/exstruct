@@ -94,15 +94,34 @@ def _run_cli(
         The completed process result from ``subprocess.run``.
     """
 
-    base_cmd = [sys.executable, "-m", "exstruct.cli.main"]
+    base_cmd = _cli_command_prefix()
+    safe_args = _sanitize_cli_args(args)
     return subprocess.run(
-        [*base_cmd, *args],
+        [*base_cmd, *safe_args],
         capture_output=True,
         text=text,
         env=env,
         shell=False,
         check=False,
     )
+
+
+def _cli_command_prefix() -> list[str]:
+    """Return a static CLI command prefix to avoid dynamic shell construction."""
+
+    return [sys.executable, "-m", "exstruct.cli.main"]
+
+
+def _sanitize_cli_args(args: list[str]) -> list[str]:
+    """Validate CLI arguments to mitigate command-injection risks in tests."""
+
+    validated: list[str] = []
+    for arg in args:
+        if "\x00" in arg or "\n" in arg or "\r" in arg:
+            msg = "CLI arguments must not contain control characters"
+            raise ValueError(msg)
+        validated.append(arg)
+    return validated
 
 
 def test_CLIでjson出力が成功する(tmp_path: Path) -> None:
