@@ -1,5 +1,7 @@
 from collections.abc import Callable
+import json
 from importlib import util
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -59,6 +61,20 @@ def _prepare_print_area_excel(tmp_path: Path) -> Path:
     ws.append([1, 2])
     ws.print_area = "A1:B2"
     dest = tmp_path / "print_area.xlsx"
+    wb.save(dest)
+    wb.close()
+    return dest
+
+
+def _prepare_unicode_excel(tmp_path: Path) -> Path:
+    """Create a workbook containing varied Unicode characters."""
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "ユニコード"
+    ws.append(["ラベル", "値"])
+    ws.append(["チェック", "☑︎ テスト ✓ こんにちは 🌸"])
+    dest = tmp_path / "unicode.xlsx"
     wb.save(dest)
     wb.close()
     return dest
@@ -191,3 +207,17 @@ def test_cli_parser_excludes_auto_page_breaks_option() -> None:
     parser = build_parser(availability=availability)
     help_text = parser.format_help()
     assert "--auto-page-breaks-dir" not in help_text
+
+
+def test_CLI_stdout_is_utf8_with_cp932_env(tmp_path: Path) -> None:
+    xlsx = _prepare_unicode_excel(tmp_path)
+    cmd = [sys.executable, "-m", "exstruct.cli.main", str(xlsx), "--format", "json"]
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "cp932"
+    result = subprocess.run(cmd, capture_output=True, text=False, env=env)
+
+    assert result.returncode == 0
+
+    stdout_text = result.stdout.decode("utf-8")
+    assert "☑︎ テスト ✓ こんにちは 🌸" in stdout_text
+    json.loads(stdout_text)
