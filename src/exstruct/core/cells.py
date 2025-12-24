@@ -40,6 +40,7 @@ _DEFAULT_BACKGROUND_HEX = "FFFFFF"
 _XL_COLOR_NONE = -4142
 
 
+# Use dataclasses for lightweight models
 @dataclass(frozen=True)
 class SheetColorsMap:
     """Background color map for a single worksheet."""
