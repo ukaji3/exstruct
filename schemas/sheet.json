@@ -248,19 +248,6 @@
     "Shape": {
       "description": "Shape metadata (position, size, text, and styling).",
       "properties": {
-        "id": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Sequential shape id within the sheet (if applicable).",
-          "title": "Id"
-        },
         "begin_arrow_style": {
           "anyOf": [
             {
@@ -310,19 +297,6 @@
           "description": "Connector direction (compass heading).",
           "title": "Direction"
         },
-        "end_id": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Shape id at the end of a connector (ConnectorFormat.EndConnectedShape).",
-          "title": "End Id"
-        },
         "end_arrow_style": {
           "anyOf": [
             {
@@ -336,6 +310,19 @@
           "description": "Arrow style enum for the end of a connector.",
           "title": "End Arrow Style"
         },
+        "end_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Shape id at the end of a connector (ConnectorFormat.EndConnectedShape).",
+          "title": "End Id"
+        },
         "h": {
           "anyOf": [
             {
@@ -348,6 +335,19 @@
           "default": null,
           "description": "Shape height (None if unknown).",
           "title": "H"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sequential shape id within the sheet (if applicable).",
+          "title": "Id"
         },
         "l": {
           "description": "Left offset (Excel units).",
@@ -431,6 +431,27 @@
       },
       "title": "Charts",
       "type": "array"
+    },
+    "colors_map": {
+      "additionalProperties": {
+        "items": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "type": "array"
+        },
+        "type": "array"
+      },
+      "description": "Mapping of hex color codes to lists of (row, column) tuples where the background color matches.",
+      "title": "Colors Map",
+      "type": "object"
     },
     "print_areas": {
       "description": "User-defined print areas.",
