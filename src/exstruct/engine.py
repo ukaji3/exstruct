@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, TextIO, TypedDict, cast
 
@@ -30,6 +30,32 @@ class TableParams(TypedDict, total=False):
     min_nonempty_cells: int
 
 
+class ColorsOptions(BaseModel):
+    """Color extraction options.
+
+    Examples:
+        >>> ColorsOptions(
+        ...     include_default_background=False,
+        ...     ignore_colors=["#FFFFFF", "AD3815", "theme:1:0.2", "indexed:64", "auto"],
+        ... )
+    """
+
+    include_default_background: bool = Field(
+        default=False, description="Include default (white) backgrounds."
+    )
+    ignore_colors: list[str] = Field(
+        default_factory=list, description="List of color keys to ignore."
+    )
+
+    def ignore_colors_set(self) -> set[str]:
+        """Return ignore_colors as a set of normalized strings.
+
+        Returns:
+            Set of color keys to ignore.
+        """
+        return set(self.ignore_colors)
+
+
 @dataclass(frozen=True)
 class StructOptions:
     """
@@ -43,6 +69,8 @@ class StructOptions:
         table_params: Optional dict passed to `set_table_detection_params(**table_params)`
                       before extraction. Use this to tweak table detection heuristics
                       per engine instance without touching global state.
+        include_colors_map: Whether to extract background color maps.
+        colors: Color extraction options.
     """
 
     mode: ExtractionMode = "standard"
@@ -50,6 +78,8 @@ class StructOptions:
         None  # forwarded to set_table_detection_params if provided
     )
     include_cell_links: bool | None = None  # None -> auto: verbose=True, others=False
+    include_colors_map: bool | None = None  # None -> auto: verbose=True, others=False
+    colors: ColorsOptions = field(default_factory=ColorsOptions)
 
 
 class FormatOptions(BaseModel):
@@ -319,6 +349,15 @@ class ExStructEngine:
             return self.options.mode != "light"
         return self.output.filters.include_print_areas
 
+    def _include_colors_map(self, *, mode: ExtractionMode) -> bool:
+        """
+        Decide whether to include background color maps in extraction.
+        Auto: verbose -> True, others -> False.
+        """
+        if self.options.include_colors_map is None:
+            return mode == "verbose"
+        return self.options.include_colors_map
+
     def _include_auto_print_areas(self) -> bool:
         """
         Decide whether to include auto page-break areas in output.
@@ -353,6 +392,7 @@ class ExStructEngine:
             table_candidates=sheet.table_candidates
             if self.output.filters.include_tables
             else [],
+            colors_map=sheet.colors_map,
             print_areas=sheet.print_areas if include_print_areas else [],
             auto_print_areas=sheet.auto_print_areas if include_auto_print_areas else [],
         )
@@ -421,6 +461,15 @@ class ExStructEngine:
             self.output.filters.include_auto_print_areas
             or self.output.destinations.auto_page_breaks_dir is not None
         )
+        include_colors_map = self._include_colors_map(mode=chosen_mode)
+        include_default_background = (
+            self.options.colors.include_default_background
+            if include_colors_map
+            else False
+        )
+        ignore_colors = (
+            self.options.colors.ignore_colors_set() if include_colors_map else set()
+        )
         normalized_file_path = self._ensure_path(file_path)
         with self._table_params_scope():
             return extract_workbook(
@@ -429,6 +478,9 @@ class ExStructEngine:
                 include_cell_links=include_links,
                 include_print_areas=include_print_areas,
                 include_auto_page_breaks=include_auto_page_breaks,
+                include_colors_map=include_colors_map,
+                include_default_background=include_default_background,
+                ignore_colors=ignore_colors,
             )
 
     def serialize(

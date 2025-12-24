@@ -24,6 +24,9 @@ def test_engine_extract_uses_mode(monkeypatch: MonkeyPatch, tmp_path: Path) -> N
         include_cell_links: bool = False,
         include_print_areas: bool = True,
         include_auto_page_breaks: bool = False,
+        include_colors_map: bool = False,
+        include_default_background: bool = False,
+        ignore_colors: set[str] | None = None,
     ) -> WorkbookData:
         called["mode"] = mode
         called["include_print_areas"] = include_print_areas

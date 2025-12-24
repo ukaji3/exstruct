@@ -6,12 +6,12 @@
 
 ExStruct reads Excel workbooks and outputs structured data (cells, table candidates, shapes, charts, print areas/views, auto page-break areas, hyperlinks) as JSON by default, with optional YAML/TOON formats. It targets both COM/Excel environments (rich extraction) and non-COM environments (cells + table candidates + print areas), with tunable detection heuristics and multiple output modes to fit LLM/RAG pipelines.
 
-[日本版README](README.ja.md)
+[日本版 README](README.ja.md)
 
 ## Features
 
 - **Excel → Structured JSON**: cells, shapes, charts, table candidates, print areas/views, and auto page-break areas per sheet.
-- **Output modes**: `light` (cells + table candidates + print areas; no COM, shapes/charts empty), `standard` (texted shapes + arrows, charts, print areas), `verbose` (all shapes with width/height, charts with size, print areas). Verbose also emits cell hyperlinks. Size output is flag-controlled.
+- **Output modes**: `light` (cells + table candidates + print areas; no COM, shapes/charts empty), `standard` (texted shapes + arrows, charts, print areas), `verbose` (all shapes with width/height, charts with size, print areas). Verbose also emits cell hyperlinks and `colors_map`. Size output is flag-controlled.
 - **Auto page-break export (COM only)**: capture Excel-computed auto page breaks and write per-area JSON/YAML/TOON when requested (CLI option appears only when COM is available).
 - **Formats**: JSON (compact by default, `--pretty` available), YAML, TOON (optional dependencies).
 - **Table detection tuning**: adjust heuristics at runtime via API.
@@ -134,7 +134,7 @@ Use higher thresholds to reduce false positives; lower them if true tables are m
 
 - **light**: cells + table candidates (no COM needed).
 - **standard**: texted shapes + arrows, charts (COM if available), table candidates. Hyperlinks are off unless `include_cell_links=True`.
-- **verbose**: all shapes (with width/height), charts, table candidates, and cell hyperlinks.
+- **verbose**: all shapes (with width/height), charts, table candidates, cell hyperlinks, and `colors_map`.
 
 ## Error Handling / Fallbacks
 
@@ -162,7 +162,6 @@ To show how well exstruct can structure Excel, we parse a workbook that combines
 
 (Screenshot below is the actual sample Excel sheet)
 ![Sample Excel](/docs/assets/demo_sheet.png)
-Sample workbook: `sample/sample.xlsx`
 Sample workbook: `sample/sample.xlsx`
 
 ### 1. Input: Excel Sheet Overview
@@ -323,14 +322,14 @@ flowchart TD
 
     A --> B
     B --> C
-    C -- no --> D
-    C -- yes --> E
+    C -->|yes| D
+    C --> H
+    D --> E
     E --> F
-    F -- yes --> E
-    F -- no --> G
-    G --> H
-    H -- yes --> I
-    H -- no --> J
+    F --> G
+    G -->|yes| I
+    G -->|no| J
+    H --> J
     I --> J
 ```
 ````
@@ -338,6 +337,12 @@ flowchart TD
 From this we can see:
 
 **exstruct's JSON is already in a format that AI can read and reason over directly.**
+
+Other LLM inference samples using this library can be found in the following directory:
+
+- [Basic Excel](sample/basic/)
+- [Flowchart](sample/flowchart/)
+- [Gantt Chart](sample/gantt_chart/)
 
 ### 4. Summary
 
@@ -363,6 +368,7 @@ ExStruct is used primarily as a **library**, not a service.
 - Forking and internal modification are expected in enterprise use
 
 This project is suitable for teams that:
+
 - need transparency over black-box tools
 - are comfortable maintaining internal forks if necessary
 

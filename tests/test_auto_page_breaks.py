@@ -23,6 +23,9 @@ def test_extract_passes_auto_page_break_flag(
         include_cell_links: bool = False,
         include_print_areas: bool = True,
         include_auto_page_breaks: bool = False,
+        include_colors_map: bool = False,
+        include_default_background: bool = False,
+        ignore_colors: set[str] | None = None,
     ) -> WorkbookData:
         called["include_auto_page_breaks"] = include_auto_page_breaks
         return WorkbookData(book_name=path.name, sheets={})
