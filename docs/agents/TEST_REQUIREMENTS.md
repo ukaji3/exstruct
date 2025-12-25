@@ -36,6 +36,12 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [CEL-09] `detect_tables_openpyxl` が openpyxl Table を検出  
 - [CEL-10] `CellRow.links` は mode=verbose か include_cell_links=True で出力  
 
+## 2.1.1 セル背景色
+- [COL-01] `include_colors_map=True` のみ `colors_map` を抽出  
+- [COL-02] `include_default_background=False` では `FFFFFF` を出力しない  
+- [COL-03] `ignore_colors` 指定時は対象色を除外（`#` 付き/大小文字を正規化）  
+- [COL-04] COM 利用時は `DisplayFormat.Interior` を参照し条件付き書式を含めて取得  
+
 ## 2.2 図形抽出
 - [SHP-01] AutoShape の type を正規化  
 - [SHP-02] TextFrame を正しく取得  
@@ -122,9 +128,10 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [CLI-02] `--format json/yaml/toml` が機能する  
 - [CLI-03] `--image` で PNG 出力  
 - [CLI-04] `--pdf` で PDF 出力  
-- [CLI-05] 無効パス入力時も安全終了（クラッシュしない）  
-- [CLI-06] エラーメッセージが stdout/stderr に出力される  
-- [CLI-07] `--print-areas-dir` で印刷範囲ファイルを出力し、include_print_areas=False ならスキップ  
+- [CLI-05] 無効パス入力時も安全終了（クラッシュしない）
+- [CLI-06] エラーメッセージが stdout/stderr に出力される
+- [CLI-07] `--print-areas-dir` で印刷範囲ファイルを出力し、include_print_areas=False ならスキップ
+- [CLI-08] Windows の cp932 環境（例: PYTHONIOENCODING=cp932）でも stdout 出力が UTF-8 を維持し、Unicode 文字を含む JSON を正しくパイプできる
 
 ---
 

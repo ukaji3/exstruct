@@ -13,10 +13,13 @@ import xlwings as xw
 from ..models import CellRow, PrintArea, Shape, SheetData, WorkbookData
 from ..ooxml import get_charts_ooxml, get_shapes_ooxml
 from .cells import (
+    WorkbookColorsMap,
     detect_tables,
     detect_tables_openpyxl,
     extract_sheet_cells,
     extract_sheet_cells_with_links,
+    extract_sheet_colors_map,
+    extract_sheet_colors_map_com,
 )
 from .charts import get_charts
 from .shapes import get_shapes_with_position
@@ -286,12 +289,16 @@ def integrate_sheet_content(
     mode: Literal["light", "standard", "verbose"] = "standard",
     print_area_data: dict[str, list[PrintArea]] | None = None,
     auto_page_break_data: dict[str, list[PrintArea]] | None = None,
+    colors_map_data: WorkbookColorsMap | None = None,
 ) -> dict[str, SheetData]:
     """Integrate cells, shapes, charts, and tables into SheetData per sheet."""
     result: dict[str, SheetData] = {}
     for sheet_name, rows in cell_data.items():
         sheet_shapes = shape_data.get(sheet_name, [])
         sheet = workbook.sheets[sheet_name]
+        sheet_colors = (
+            colors_map_data.get_sheet(sheet_name) if colors_map_data else None
+        )
 
         sheet_model = SheetData(
             rows=rows,
@@ -302,6 +309,7 @@ def integrate_sheet_content(
             auto_print_areas=auto_page_break_data.get(sheet_name, [])
             if auto_page_break_data
             else [],
+            colors_map=sheet_colors.colors_map if sheet_colors else {},
         )
 
         result[sheet_name] = sheet_model
@@ -315,6 +323,9 @@ def extract_workbook(  # noqa: C901
     include_cell_links: bool = False,
     include_print_areas: bool = True,
     include_auto_page_breaks: bool = False,
+    include_colors_map: bool = False,
+    include_default_background: bool = False,
+    ignore_colors: set[str] | None = None,
 ) -> WorkbookData:
     """Extract workbook and return WorkbookData; fallback to cells+tables if Excel COM is unavailable."""
     if mode not in _ALLOWED_MODES:
@@ -322,6 +333,19 @@ def extract_workbook(  # noqa: C901
 
     normalized_file_path = file_path if isinstance(file_path, Path) else Path(file_path)
 
+    colors_map_data: WorkbookColorsMap | None = None
+    if include_colors_map and (mode == "light" or os.getenv("SKIP_COM_TESTS")):
+        try:
+            colors_map_data = extract_sheet_colors_map(
+                normalized_file_path,
+                include_default_background=include_default_background,
+                ignore_colors=ignore_colors,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Color map extraction failed; skipping colors_map. (%r)", exc
+            )
+            colors_map_data = None
     cell_data = (
         extract_sheet_cells_with_links(normalized_file_path)
         if include_cell_links
@@ -359,7 +383,23 @@ def extract_workbook(  # noqa: C901
     def _cells_and_tables_only(reason: str) -> WorkbookData:
         """Fallback to cells+tables only (no shapes/charts)."""
         sheets: dict[str, SheetData] = {}
+        fallback_colors = colors_map_data
+        if include_colors_map and fallback_colors is None:
+            try:
+                fallback_colors = extract_sheet_colors_map(
+                    normalized_file_path,
+                    include_default_background=include_default_background,
+                    ignore_colors=ignore_colors,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Color map extraction failed; skipping colors_map. (%r)", exc
+                )
+                fallback_colors = None
         for sheet_name, rows in cell_data.items():
+            sheet_colors = (
+                fallback_colors.get_sheet(sheet_name) if fallback_colors else None
+            )
             try:
                 tables = detect_tables_openpyxl(normalized_file_path, sheet_name)
             except Exception:
@@ -373,6 +413,7 @@ def extract_workbook(  # noqa: C901
                 if include_print_areas
                 else [],
                 auto_print_areas=[],
+                colors_map=sheet_colors.colors_map if sheet_colors else {},
             )
         logger.warning(
             "%s Falling back to cells+tables only; shapes and charts will be empty.",
@@ -399,6 +440,30 @@ def extract_workbook(  # noqa: C901
 
     try:
         try:
+            if include_colors_map and colors_map_data is None:
+                try:
+                    colors_map_data = extract_sheet_colors_map_com(
+                        wb,
+                        include_default_background=include_default_background,
+                        ignore_colors=ignore_colors,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "COM color map extraction failed; falling back to openpyxl. (%r)",
+                        exc,
+                    )
+                    try:
+                        colors_map_data = extract_sheet_colors_map(
+                            normalized_file_path,
+                            include_default_background=include_default_background,
+                            ignore_colors=ignore_colors,
+                        )
+                    except Exception as fallback_exc:
+                        logger.warning(
+                            "Color map extraction failed; skipping colors_map. (%r)",
+                            fallback_exc,
+                        )
+                        colors_map_data = None
             shape_data = get_shapes_with_position(wb, mode=mode)
             if include_print_areas and not print_area_data:
                 # openpyxl couldn't read (e.g., .xls). Try COM as a fallback.
@@ -420,6 +485,7 @@ def extract_workbook(  # noqa: C901
                 auto_page_break_data=auto_page_break_data
                 if include_auto_page_breaks
                 else None,
+                colors_map_data=colors_map_data,
             )
             return WorkbookData(book_name=normalized_file_path.name, sheets=merged)
         except Exception as e:

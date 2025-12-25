@@ -7,6 +7,7 @@ from typing import Literal, TextIO
 from .core.cells import set_table_detection_params
 from .core.integrate import extract_workbook
 from .engine import (
+    ColorsOptions,
     DestinationOptions,
     ExStructEngine,
     FilterOptions,
@@ -76,6 +77,7 @@ __all__ = [
     "OutputOptions",
     "FilterOptions",
     "DestinationOptions",
+    "ColorsOptions",
     "serialize_workbook",
     "export_auto_page_breaks",
 ]
@@ -93,7 +95,7 @@ def extract(file_path: str | Path, mode: ExtractionMode = "standard") -> Workboo
         mode: "light" / "standard" / "verbose"
             - light: cells + table detection only (no COM, shapes/charts empty). Print areas via openpyxl.
             - standard: texted shapes + arrows + charts (COM if available), print areas included. Shape/chart size is kept but hidden by default in output.
-            - verbose: all shapes (including textless) with size, charts with size.
+            - verbose: all shapes (including textless) with size, charts with size, and colors_map.
 
     Returns:
         WorkbookData containing sheets, rows, shapes, charts, and print areas.
@@ -110,8 +112,13 @@ def extract(file_path: str | Path, mode: ExtractionMode = "standard") -> Workboo
         ['A1:B5']
     """
     include_links = True if mode == "verbose" else False
+    include_colors_map = True if mode == "verbose" else None
     engine = ExStructEngine(
-        options=StructOptions(mode=mode, include_cell_links=include_links)
+        options=StructOptions(
+            mode=mode,
+            include_cell_links=include_links,
+            include_colors_map=include_colors_map,
+        )
     )
     return engine.extract(file_path, mode=mode)
 

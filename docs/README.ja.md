@@ -131,7 +131,7 @@ set_table_detection_params(
 
 - **light**: セル＋テーブル候補のみ（COM 不要）。
 - **standard**: テキスト付き図形＋矢印、チャート（COM ありで取得）、テーブル候補。セルのハイパーリンクは `include_cell_links=True` を指定したときのみ出力。
-- **verbose**: 全図形（幅・高さ付き）、チャート、テーブル候補、セルのハイパーリンク。
+- **verbose**: all shapes, charts, table_candidates, hyperlinks, and `colors_map`.
 
 ## エラーハンドリング / フォールバック
 
@@ -311,24 +311,24 @@ flowchart TD
     A[開始]
     B[入力データ読み込み]
     C{形式は正しい？}
-    D[エラー表示]
-    E[1件処理]
-    F{残件あり？}
-    G[出力を生成]
-    H{メール送信？}
+    D[1件処理]
+    E{残件あり？}
+    F[出力を生成]
+    G{メール送信？}
+    H[エラー表示]
     I[メール送信]
     J[終了]
 
     A --> B
     B --> C
-    C -- いいえ --> D
-    C -- はい --> E
+    C -->|はい| D
+    C --> H
+    D --> E
     E --> F
-    F -- はい --> E
-    F -- いいえ --> G
-    G --> H
-    H -- はい --> I
-    H -- いいえ --> J
+    F --> G
+    G -->|はい| I
+    G -->|いいえ| J
+    H --> J
     I --> J
 ```
 ````
@@ -338,6 +338,12 @@ flowchart TD
 **exstruct の JSON は AI にとって "そのまま意味として理解できる形式" である**
 
 ということが明確に示されています。
+
+その他の本ライブラリを使ったLLM推論サンプルは以下のディレクトリにあります。
+
+- [Basic Excel](sample/basic/)
+- [Flowchart](sample/flowchart/)
+- [Gantt Chart](sample/gantt_chart/)
 
 ### 4. Summary
 

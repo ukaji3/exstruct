@@ -2,45 +2,6 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Shape metadata (position, size, text, and styling).",
   "properties": {
-    "id": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Sequential shape id within the sheet (if applicable).",
-      "title": "Id"
-    },
-        "begin_id": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Shape id at the start of a connector (ConnectorFormat.BeginConnectedShape).",
-          "title": "Begin Id"
-        },
-        "end_id": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Shape id at the end of a connector (ConnectorFormat.EndConnectedShape).",
-          "title": "End Id"
-        },
     "begin_arrow_style": {
       "anyOf": [
         {
@@ -53,6 +14,19 @@
       "default": null,
       "description": "Arrow style enum for the start of a connector.",
       "title": "Begin Arrow Style"
+    },
+    "begin_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Shape id at the start of a connector (ConnectorFormat.BeginConnectedShape).",
+      "title": "Begin Id"
     },
     "direction": {
       "anyOf": [
@@ -90,6 +64,19 @@
       "description": "Arrow style enum for the end of a connector.",
       "title": "End Arrow Style"
     },
+    "end_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Shape id at the end of a connector (ConnectorFormat.EndConnectedShape).",
+      "title": "End Id"
+    },
     "h": {
       "anyOf": [
         {
@@ -102,6 +89,19 @@
       "default": null,
       "description": "Shape height (None if unknown).",
       "title": "H"
+    },
+    "id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Sequential shape id within the sheet (if applicable).",
+      "title": "Id"
     },
     "l": {
       "description": "Left offset (Excel units).",

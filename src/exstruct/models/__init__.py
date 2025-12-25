@@ -123,6 +123,10 @@ class SheetData(BaseModel):
     auto_print_areas: list[PrintArea] = Field(
         default_factory=list, description="COM-computed auto page-break areas."
     )
+    colors_map: dict[str, list[tuple[int, int]]] = Field(
+        default_factory=dict,
+        description="Mapping of hex color codes to lists of (row, column) tuples where the background color matches.",
+    )
 
     def _as_payload(self) -> dict[str, object]:
         from ..io import dict_without_empty_values
