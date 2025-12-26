@@ -21,11 +21,11 @@
   - [ ] light/standard/verbose の差分を「ステップ構成表」で管理
   - [ ] 既存の `engine.ExStructEngine.extract` から新パイプラインを呼び出し
 
-- [ ] openpyxl/COM の backend 抽象化（get_* 系 API を統一）
-  - [ ] `core/backends/base.py`（抽象）を設計
-  - [ ] `core/backends/openpyxl.py` を実装（cells/print_areas/colors/tables）
-  - [ ] `core/backends/com.py` を実装（shapes/charts/auto_page_breaks/colors/tables fallback）
-  - [ ] backend 選択規則（mode / SKIP_COM_TESTS / 拡張子）を整理
+- [x] openpyxl/COM の backend 抽象化（get_* 系 API を統一）
+  - [x] `core/backends/base.py`（抽象）を設計
+  - [x] `core/backends/openpyxl.py` を実装（cells/print_areas/colors/tables）
+  - [x] `core/backends/com.py` を実装（shapes/charts/auto_page_breaks/colors/tables fallback）
+  - [x] backend 選択規則（mode / SKIP_COM_TESTS / 拡張子）を整理
 
 - [ ] テーブル検出の共通化（矩形抽出・評価・範囲文字列化の再利用）
   - [ ] 矩形抽出（border cluster 検出）を共通関数へ移動

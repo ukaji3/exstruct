@@ -8,6 +8,7 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 ---
 
 # 1. カバレッジカテゴリ
+
 1. セル抽出
 2. 図形抽出
 3. 矢印・方向推定
@@ -25,6 +26,7 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 # 2. 機能要件
 
 ## 2.1 セル抽出
+
 - [CEL-01] 空セルを除外し、非空セルのみ `c` に出力する
 - [CEL-02] 行番号 `r` は 0 始まり
 - [CEL-03] 列キーは 0 始まりのインデックス "0", "1" …
@@ -37,12 +39,14 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [CEL-10] `CellRow.links` は mode=verbose または include_cell_links=True で出力
 
 ## 2.1.1 セル背景色
+
 - [COL-01] `include_colors_map=True` のみ `colors_map` を抽出
 - [COL-02] `include_default_background=False` では `FFFFFF` を出力しない
 - [COL-03] `ignore_colors` 指定時は対象色を除外（`#` 付き/大小文字を正規化）
 - [COL-04] COM 利用時は `DisplayFormat.Interior` を参照し条件付き書式を含めて取得
 
 ## 2.2 図形抽出
+
 - [SHP-01] AutoShape の type を正規化
 - [SHP-02] TextFrame を正しく取得
 - [SHP-03] サイズ `w`,`h` は取得できない場合のみ null
@@ -55,7 +59,8 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [SHP-12] 複数段落のテキストも取得
 
 ## 2.3 矢印方向推定
-- [DIR-01] 0° ±22.5°  → "E"
+
+- [DIR-01] 0° ±22.5° → "E"
 - [DIR-02] 45° ±22.5° → "NE"
 - [DIR-03] 90° ±22.5° → "N"
 - [DIR-04] 135° ±22.5° → "NW"
@@ -66,6 +71,7 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [DIR-09] 境界角度は仕様どおり丸める
 
 ## 2.4 チャート抽出
+
 - [CH-01] ChartType は `XL_CHART_TYPE_MAP` で正規化
 - [CH-02] タイトル取得（なければ null）
 - [CH-03] y_axis_title 取得（なければ空文字）
@@ -78,6 +84,7 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [CH-10] 失敗時は `error` にメッセージを残しチャートを維持
 
 ## 2.5 レイアウト統合
+
 - [LAY-01] Shape のテキストを属する行に紐づける
 - [LAY-02] 列方向の簡易紐づけ（未実装のため skip）
 - [LAY-03] 1 行に複数 shape がある場合も順序を保持
@@ -86,6 +93,7 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 ---
 
 # 3. モデル検証要件
+
 - [MOD-01] すべてのモデルは `BaseModel` 継承
 - [MOD-02] 型が DATA_MODEL.md と完全一致
 - [MOD-03] Optional は未指定で None
@@ -97,6 +105,7 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 ---
 
 # 4. 出力要件（JSON/YAML/TOON）
+
 - [EXP-01] None/空文字/空リスト/空 dict は `dict_without_empty_values` で除去
 - [EXP-02] JSON 出力は UTF-8
 - [EXP-03] YAML 出力は sort_keys=False
@@ -106,7 +115,7 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [EXP-07] `to_json` は pretty/indent に対応
 - [EXP-08] `save(path)` は拡張子で判別し未対応拡張子は ValueError
 - [EXP-09] `to_yaml` / `to_toon` は依存未導入時に MissingDependencyError
-- [EXP-10] OutputOptions の include_* で対象フィールドを除外し空リストは出力しない
+- [EXP-10] OutputOptions の include\_\* で対象フィールドを除外し空リストは出力しない
 - [EXP-11] `print_areas_dir` / `save_print_area_views` で印刷範囲ごとのファイル出力（範囲なしなら書き出さない）
 - [EXP-12] PrintAreaView は範囲内の行のみ保持し、範囲外のセル/リンクを除外
 - [EXP-13] PrintAreaView の table_candidates は範囲内に完全に収まるもののみ
@@ -124,6 +133,7 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 ---
 
 # 5. CLI 要件
+
 - [CLI-01] `exstruct extract file.xlsx` が成功する
 - [CLI-02] `--format json/yaml/toon` が機能する
 - [CLI-03] `--image` で PNG 出力
@@ -136,6 +146,7 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 ---
 
 # 6. エラー処理要件
+
 - [ERR-01] xlwings COM エラーでもプロセスが落ちない
 - [ERR-02] 図形抽出失敗でも他要素を維持
 - [ERR-03] チャート抽出失敗時は Chart.error に記録
@@ -144,11 +155,12 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [ERR-06] openpyxl `_print_area` 設定も抽出漏れしない
 - [ERR-07] auto_print_areas が空の場合 export_auto_page_breaks は PrintAreaError（ValueError 互換）を送出
 - [ERR-08] YAML/TOON 依存なしの場合 MissingDependencyError でインストール案内
-- [ERR-09] 書き込み失敗は OutputError を送出し、例外の __cause__ に保持
+- [ERR-09] 書き込み失敗は OutputError を送出し、例外の **cause** に保持
 
 ---
 
 # 7. 回帰要件
+
 - [REG-01] 既存フィクスチャの JSON 構造が過去版と一致
 - [REG-02] モデルのキー削除・名称変更を破壊的変更として検知
 - [REG-03] 方向推定アルゴリズム変更を検知
@@ -157,11 +169,13 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 ---
 
 # 8. 非機能要件
+
 - パフォーマンス・メモリ目標は別途定義時に追記
 
 ---
 
 # 9. モード/統合要件
+
 - [MODE-01] CLI `--mode` / API `extract(..., mode=)` は light/standard/verbose のみ（デフォルト standard）
 - [MODE-02] light: セル+テーブルのみ、shapes/charts 空、COM 不使用
 - [MODE-03] standard: 既存挙動（テキスト付き図形・矢印、COM 有効ならチャート）
@@ -175,5 +189,12 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [MODE-08] light では openpyxl で print_areas 抽出、デフォルト出力は除外（auto 判定）
 
 ## 2.6 Pipeline
-- [PIPE-01] build_pre_com_pipeline は include_* と mode に応じて必要なステップのみ含む
+
+- [PIPE-01] build*pre_com_pipeline は include*\* と mode に応じて必要なステップのみ含む
 - [PIPE-02] build_cells_tables_workbook は print_areas を条件に反映し table_candidates を保持
+
+## 2.7 Backend
+
+- [BE-01] OpenpyxlBackend は include_links の有無で cells 抽出経路を切り替える
+- [BE-02] OpenpyxlBackend は table 検出失敗時に空リストで継続する
+- [BE-03] ComBackend は colors_map 抽出失敗時に None を返す

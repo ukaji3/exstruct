@@ -37,7 +37,8 @@ def test_build_cells_tables_workbook_uses_print_areas(
         return ["A1:B2"]
 
     monkeypatch.setattr(
-        "exstruct.core.pipeline.detect_tables_openpyxl", fake_detect_tables
+        "exstruct.core.backends.openpyxl_backend.detect_tables_openpyxl",
+        fake_detect_tables,
     )
 
     inputs = ExtractionInputs(

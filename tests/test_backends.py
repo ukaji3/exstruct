@@ -1,0 +1,71 @@
+from pathlib import Path
+
+from _pytest.monkeypatch import MonkeyPatch
+
+from exstruct.core.backends.com_backend import ComBackend
+from exstruct.core.backends.openpyxl_backend import OpenpyxlBackend
+
+
+def test_openpyxl_backend_extract_cells_switches_link_mode(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    calls: list[str] = []
+
+    def fake_cells(_: Path) -> dict[str, list[object]]:
+        calls.append("cells")
+        return {}
+
+    def fake_cells_links(_: Path) -> dict[str, list[object]]:
+        calls.append("links")
+        return {}
+
+    monkeypatch.setattr(
+        "exstruct.core.backends.openpyxl_backend.extract_sheet_cells",
+        fake_cells,
+    )
+    monkeypatch.setattr(
+        "exstruct.core.backends.openpyxl_backend.extract_sheet_cells_with_links",
+        fake_cells_links,
+    )
+
+    backend = OpenpyxlBackend(tmp_path / "book.xlsx")
+    backend.extract_cells(include_links=False)
+    backend.extract_cells(include_links=True)
+
+    assert calls == ["cells", "links"]
+
+
+def test_openpyxl_backend_detect_tables_handles_failure(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    def fake_detect(_: Path, __: str) -> list[str]:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        "exstruct.core.backends.openpyxl_backend.detect_tables_openpyxl",
+        fake_detect,
+    )
+
+    backend = OpenpyxlBackend(tmp_path / "book.xlsx")
+    assert backend.detect_tables("Sheet1") == []
+
+
+def test_com_backend_extract_colors_map_returns_none_on_failure(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    def fake_colors_map(*_: object, **__: object) -> object:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        "exstruct.core.backends.com_backend.extract_sheet_colors_map_com",
+        fake_colors_map,
+    )
+
+    class DummyWorkbook:
+        pass
+
+    backend = ComBackend(DummyWorkbook())
+    assert (
+        backend.extract_colors_map(include_default_background=False, ignore_colors=None)
+        is None
+    )

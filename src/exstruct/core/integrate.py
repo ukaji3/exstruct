@@ -8,6 +8,7 @@ from typing import Literal
 import xlwings as xw
 
 from ..models import CellRow, PrintArea, Shape, SheetData, WorkbookData
+from .backends.com_backend import ComBackend
 from .cells import WorkbookColorsMap, detect_tables, extract_sheet_colors_map
 from .charts import get_charts
 from .pipeline import (
@@ -15,9 +16,6 @@ from .pipeline import (
     ExtractionInputs,
     build_cells_tables_workbook,
     build_pre_com_pipeline,
-    extract_auto_page_breaks,
-    extract_colors_map_com,
-    extract_print_areas_com,
     run_pipeline,
 )
 from .shapes import get_shapes_with_position
@@ -184,9 +182,9 @@ def extract_workbook(  # noqa: C901
 
     try:
         try:
+            com_backend = ComBackend(wb)
             if include_colors_map and artifacts.colors_map_data is None:
-                artifacts.colors_map_data = extract_colors_map_com(
-                    wb,
+                artifacts.colors_map_data = com_backend.extract_colors_map(
                     include_default_background=include_default_background,
                     ignore_colors=ignore_colors,
                 )
@@ -207,12 +205,14 @@ def extract_workbook(  # noqa: C901
             if include_print_areas and not artifacts.print_area_data:
                 # openpyxl couldn't read (e.g., .xls). Try COM as a fallback.
                 try:
-                    artifacts.print_area_data = extract_print_areas_com(wb)
+                    artifacts.print_area_data = com_backend.extract_print_areas()
                 except Exception:
                     artifacts.print_area_data = {}
             if include_auto_page_breaks:
                 try:
-                    artifacts.auto_page_break_data = extract_auto_page_breaks(wb)
+                    artifacts.auto_page_break_data = (
+                        com_backend.extract_auto_page_breaks()
+                    )
                 except Exception:
                     artifacts.auto_page_break_data = {}
             merged = integrate_sheet_content(
