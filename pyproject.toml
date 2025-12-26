@@ -121,7 +121,7 @@ markers = [
 
 [tool.taskipy.tasks]
 ruff = "ruff check ."
-format = "ruff check . --fix"
+ruff-fix = "ruff check . --fix"
 mypy = "mypy src/exstruct --strict"
 test = "pytest -vv --cov"
 docs = "mkdocs serve"
