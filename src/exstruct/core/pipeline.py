@@ -6,9 +6,10 @@ import os
 from pathlib import Path
 from typing import Literal
 
-from ..models import CellRow, PrintArea, SheetData, WorkbookData
+from ..models import CellRow, PrintArea, WorkbookData
 from .backends.openpyxl_backend import OpenpyxlBackend
 from .cells import WorkbookColorsMap
+from .modeling import SheetRawData, WorkbookRawData, build_workbook_data
 
 ExtractionMode = Literal["light", "standard", "verbose"]
 CellData = dict[str, list[CellRow]]
@@ -321,13 +322,13 @@ def build_cells_tables_workbook(
             include_default_background=inputs.include_default_background,
             ignore_colors=inputs.ignore_colors,
         )
-    sheets: dict[str, SheetData] = {}
+    sheets: dict[str, SheetRawData] = {}
     for sheet_name, rows in artifacts.cell_data.items():
         sheet_colors = (
             colors_map_data.get_sheet(sheet_name) if colors_map_data else None
         )
         tables = backend.detect_tables(sheet_name)
-        sheets[sheet_name] = SheetData(
+        sheets[sheet_name] = SheetRawData(
             rows=rows,
             shapes=[],
             charts=[],
@@ -338,4 +339,5 @@ def build_cells_tables_workbook(
             auto_print_areas=[],
             colors_map=sheet_colors.colors_map if sheet_colors else {},
         )
-    return WorkbookData(book_name=inputs.file_path.name, sheets=sheets)
+    raw = WorkbookRawData(book_name=inputs.file_path.name, sheets=sheets)
+    return build_workbook_data(raw)

@@ -48,10 +48,10 @@
   - [x] 例外時の close/quit を統一
   - [x] `integrate.py` / `cells.py` からの散在呼び出しを置換
 
-- [ ] モデル化フェーズの分離（生データ収集とモデル生成の段階化）
-  - [ ] 生データ収集の出力を中間モデルで統一
-  - [ ] `SheetData` / `WorkbookData` の生成を builder に移動
-  - [ ] `integrate_sheet_content` を分割して責務整理
+- [x] モデル化フェーズの分離（生データ収集とモデル生成の段階化）
+  - [x] 生データ収集の出力を中間モデルで統一
+  - [x] `SheetData` / `WorkbookData` の生成を builder に移動
+  - [x] `integrate_sheet_content` を分割して責務整理
 
 - [x] フォールバック/警告ログの統一（理由コードの整理）
   - [x] `errors.py` にフォールバック理由コードを定義

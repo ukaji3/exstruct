@@ -8,11 +8,12 @@ from typing import Literal
 import xlwings as xw
 
 from ..errors import FallbackReason
-from ..models import CellRow, PrintArea, Shape, SheetData, WorkbookData
+from ..models import CellRow, PrintArea, Shape, WorkbookData
 from .backends.com_backend import ComBackend
 from .cells import WorkbookColorsMap, detect_tables, extract_sheet_colors_map
 from .charts import get_charts
 from .logging_utils import log_fallback
+from .modeling import SheetRawData, WorkbookRawData, build_workbook_data
 from .pipeline import (
     ExtractionArtifacts,
     build_cells_tables_workbook,
@@ -26,7 +27,28 @@ from .workbook import xlwings_workbook
 logger = logging.getLogger(__name__)
 
 
-def integrate_sheet_content(
+def _resolve_sheet_colors_map(
+    colors_map_data: WorkbookColorsMap | None, sheet_name: str
+) -> dict[str, list[tuple[int, int]]]:
+    """Resolve colors_map for a single sheet.
+
+    Args:
+        colors_map_data: Optional workbook colors map container.
+        sheet_name: Target sheet name.
+
+    Returns:
+        colors_map dictionary for the sheet, or empty dict if unavailable.
+    """
+    if not colors_map_data:
+        return {}
+    sheet_colors = colors_map_data.get_sheet(sheet_name)
+    if sheet_colors is None:
+        return {}
+    return sheet_colors.colors_map
+
+
+def collect_sheet_raw_data(
+    *,
     cell_data: dict[str, list[CellRow]],
     shape_data: dict[str, list[Shape]],
     workbook: xw.Book,
@@ -34,8 +56,8 @@ def integrate_sheet_content(
     print_area_data: dict[str, list[PrintArea]] | None = None,
     auto_page_break_data: dict[str, list[PrintArea]] | None = None,
     colors_map_data: WorkbookColorsMap | None = None,
-) -> dict[str, SheetData]:
-    """Integrate cells, shapes, charts, and tables into SheetData per sheet.
+) -> dict[str, SheetRawData]:
+    """Collect per-sheet raw data from extraction artifacts.
 
     Args:
         cell_data: Extracted cell rows per sheet.
@@ -47,17 +69,13 @@ def integrate_sheet_content(
         colors_map_data: Optional colors map data.
 
     Returns:
-        Mapping of sheet name to SheetData.
+        Mapping of sheet name to raw sheet data.
     """
-    result: dict[str, SheetData] = {}
+    result: dict[str, SheetRawData] = {}
     for sheet_name, rows in cell_data.items():
         sheet_shapes = shape_data.get(sheet_name, [])
         sheet = workbook.sheets[sheet_name]
-        sheet_colors = (
-            colors_map_data.get_sheet(sheet_name) if colors_map_data else None
-        )
-
-        sheet_model = SheetData(
+        sheet_raw = SheetRawData(
             rows=rows,
             shapes=sheet_shapes,
             charts=[] if mode == "light" else get_charts(sheet, mode=mode),
@@ -66,10 +84,9 @@ def integrate_sheet_content(
             auto_print_areas=auto_page_break_data.get(sheet_name, [])
             if auto_page_break_data
             else [],
-            colors_map=sheet_colors.colors_map if sheet_colors else {},
+            colors_map=_resolve_sheet_colors_map(colors_map_data, sheet_name),
         )
-
-        result[sheet_name] = sheet_model
+        result[sheet_name] = sheet_raw
     return result
 
 
@@ -179,10 +196,10 @@ def extract_workbook(  # noqa: C901
                         )
                     except Exception:
                         artifacts.auto_page_break_data = {}
-                merged = integrate_sheet_content(
-                    artifacts.cell_data,
-                    shape_data,
-                    wb,
+                raw_sheets = collect_sheet_raw_data(
+                    cell_data=artifacts.cell_data,
+                    shape_data=shape_data,
+                    workbook=wb,
                     mode=mode,
                     print_area_data=artifacts.print_area_data
                     if inputs.include_print_areas
@@ -192,7 +209,10 @@ def extract_workbook(  # noqa: C901
                     else None,
                     colors_map_data=artifacts.colors_map_data,
                 )
-                return WorkbookData(book_name=normalized_file_path.name, sheets=merged)
+                raw_workbook = WorkbookRawData(
+                    book_name=normalized_file_path.name, sheets=raw_sheets
+                )
+                return build_workbook_data(raw_workbook)
             except Exception as e:
                 logger.warning(
                     "Shape extraction failed; falling back to cells+tables. (%r)", e
