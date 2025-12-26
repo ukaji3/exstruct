@@ -38,10 +38,10 @@
   - [x] `integrate.py` / `io/__init__.py` の重複実装を置換
   - [x] 既存の範囲文字列の仕様差分を整理（"Sheet!A1:B2" など）
 
-- [ ] 出力整形ロジックの共通化（json/yaml/toon 分岐とファイル書込みの整理）
-  - [ ] `io/serialize.py` に format 判定・文字列生成を集約
-  - [ ] `save_print_area_views` / `save_auto_page_break_views` / `save_sheets` を共通 writer に集約
-  - [ ] 拡張子・命名規則を統一しテストを追加
+- [x] 出力整形ロジックの共通化（json/yaml/toon 分岐とファイル書込みの整理）
+  - [x] `io/serialize.py` に format 判定・文字列生成を集約
+  - [x] `save_print_area_views` / `save_auto_page_break_views` / `save_sheets` を共通 writer に集約
+  - [x] 拡張子・命名規則を統一しテストを追加
 
 - [ ] workbook の open/close 管理を共通化（contextmanager 化）
   - [ ] `core/workbook.py` に openpyxl/COM の contextmanager を用意
