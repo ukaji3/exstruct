@@ -1,3 +1,5 @@
+"""COM backend for Excel workbook extraction via xlwings."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

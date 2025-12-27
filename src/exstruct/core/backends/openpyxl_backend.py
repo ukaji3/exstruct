@@ -1,3 +1,5 @@
+"""Openpyxl backend for Excel workbook extraction."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

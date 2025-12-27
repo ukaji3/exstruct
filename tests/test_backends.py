@@ -13,11 +13,11 @@ def test_openpyxl_backend_extract_cells_switches_link_mode(
 ) -> None:
     calls: list[str] = []
 
-    def fake_cells(_: Path) -> dict[str, list[object]]:
+    def fake_cells(file_path: Path) -> dict[str, list[object]]:
         calls.append("cells")
         return {}
 
-    def fake_cells_links(_: Path) -> dict[str, list[object]]:
+    def fake_cells_links(file_path: Path) -> dict[str, list[object]]:
         calls.append("links")
         return {}
 
@@ -40,7 +40,7 @@ def test_openpyxl_backend_extract_cells_switches_link_mode(
 def test_openpyxl_backend_detect_tables_handles_failure(
     monkeypatch: MonkeyPatch, tmp_path: Path
 ) -> None:
-    def fake_detect(_: Path, __: str) -> list[str]:
+    def fake_detect(file_path: Path, sheet_name: str) -> list[str]:
         raise RuntimeError("boom")
 
     monkeypatch.setattr(
@@ -55,7 +55,12 @@ def test_openpyxl_backend_detect_tables_handles_failure(
 def test_com_backend_extract_colors_map_returns_none_on_failure(
     monkeypatch: MonkeyPatch,
 ) -> None:
-    def fake_colors_map(*_: object, **__: object) -> object:
+    def fake_colors_map(
+        workbook: object,
+        *,
+        include_default_background: bool,
+        ignore_colors: set[str] | None,
+    ) -> object:
         raise RuntimeError("boom")
 
     monkeypatch.setattr(

@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 from typing import Literal, cast
 
-from ..core.ranges import parse_range_zero_based
+from ..core.ranges import RangeBounds, parse_range_zero_based
 from ..errors import OutputError, SerializationError
 from ..models import CellRow, Chart, PrintArea, PrintAreaView, Shape, WorkbookData
 from ..models.types import JsonStructure
@@ -71,15 +71,16 @@ def _sanitize_sheet_filename(name: str) -> str:
     return safe or "sheet"
 
 
-def _parse_range_zero_based(range_str: str) -> tuple[int, int, int, int] | None:
+def _parse_range_zero_based(range_str: str) -> RangeBounds | None:
+    """Parse an Excel range string into zero-based bounds.
+
+    Args:
+        range_str: Excel range string (e.g., "Sheet1!A1:B2").
+
+    Returns:
+        RangeBounds in zero-based coordinates, or None on failure.
     """
-    Parse an Excel range string into zero-based (r1, c1, r2, c2) bounds.
-    Returns None on failure.
-    """
-    bounds = parse_range_zero_based(range_str)
-    if bounds is None:
-        return None
-    return (bounds.r1, bounds.c1, bounds.r2, bounds.c2)
+    return parse_range_zero_based(range_str)
 
 
 def _row_in_area(row: CellRow, area: PrintArea) -> bool:
@@ -129,10 +130,14 @@ def _filter_table_candidates_to_area(
         bounds = _parse_range_zero_based(candidate)
         if not bounds:
             continue
-        r1, c1, r2, c2 = bounds
-        r1 += 1
-        r2 += 1
-        if r1 >= area.r1 and r2 <= area.r2 and c1 >= area.c1 and c2 <= area.c2:
+        r1 = bounds.r1 + 1
+        r2 = bounds.r2 + 1
+        if (
+            r1 >= area.r1
+            and r2 <= area.r2
+            and bounds.c1 >= area.c1
+            and bounds.c2 <= area.c2
+        ):
             filtered.append(candidate)
     return filtered
 

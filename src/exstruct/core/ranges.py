@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import NamedTuple
+from dataclasses import dataclass
 
 from openpyxl.utils import range_boundaries
 
 
-class RangeBounds(NamedTuple):
+@dataclass(frozen=True)
+class RangeBounds:
     """Normalized range bounds.
 
     Attributes:
