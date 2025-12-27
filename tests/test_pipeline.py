@@ -6,6 +6,7 @@ from exstruct.core.pipeline import (
     ExtractionArtifacts,
     ExtractionInputs,
     build_cells_tables_workbook,
+    build_com_pipeline,
     build_pre_com_pipeline,
     resolve_extraction_inputs,
 )
@@ -52,6 +53,41 @@ def test_build_pre_com_pipeline_includes_colors_map_for_light(
         "step_extract_print_areas_openpyxl",
         "step_extract_colors_map_openpyxl",
     ]
+
+
+def test_build_com_pipeline_respects_flags(tmp_path: Path) -> None:
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="standard",
+        include_cell_links=False,
+        include_print_areas=False,
+        include_auto_page_breaks=True,
+        include_colors_map=False,
+        include_default_background=False,
+        ignore_colors=None,
+    )
+    steps = build_com_pipeline(inputs)
+    step_names = [step.__name__ for step in steps]
+    assert step_names == [
+        "step_extract_shapes_com",
+        "step_extract_charts_com",
+        "step_extract_auto_page_breaks_com",
+    ]
+
+
+def test_build_com_pipeline_empty_for_light(tmp_path: Path) -> None:
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="light",
+        include_cell_links=False,
+        include_print_areas=True,
+        include_auto_page_breaks=True,
+        include_colors_map=True,
+        include_default_background=False,
+        ignore_colors=None,
+    )
+    steps = build_com_pipeline(inputs)
+    assert steps == []
 
 
 def test_resolve_extraction_inputs_defaults(tmp_path: Path) -> None:

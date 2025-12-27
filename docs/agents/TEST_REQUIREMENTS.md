@@ -195,6 +195,10 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [PIPE-01] build*pre_com_pipeline は include*\* と mode に応じて必要なステップのみ含む
 - [PIPE-02] build_cells_tables_workbook は print_areas を条件に反映し table_candidates を保持
 - [PIPE-03] resolve_extraction_inputs は mode デフォルトで include_* を解決する
+- [PIPE-04] run_extraction_pipeline は COM を試行し、失敗時は cells+tables にフォールバックする
+- [PIPE-05] colors_map は COM 成功時に COM 結果で上書きし、失敗時のみ openpyxl を使う
+- [PIPE-06] print_areas は openpyxl の結果を保持し、COM は不足分のみ補完する
+- [PIPE-07] PipelineState は com_attempted/com_succeeded/fallback_reason を保持する
 - [MOD-01] build_workbook_data は raw コンテナから WorkbookData/SheetData を構築する
 - [MOD-02] collect_sheet_raw_data は抽出済みデータを raw コンテナにまとめる
 

@@ -68,26 +68,26 @@
   - [x] openpyxl/COM 切替時の warning を整理
 
 <!-- 実装背景: 今すぐやる価値は高い。理由は、今の構成だと「openpyxl 前段」「COM 後段」の境界が pipeline と integrate に分散しており、次の機能追加で条件分岐が増えるリスクが高いから。今のうちに統合しておく。 -->
-- [ ] パイプライン設計の拡張
+- [x] パイプライン設計の拡張
 
-  - [ ] COM 依存ステップ（shapes/charts/auto_page_breaks/print_areas 補完/ colors_map 補完）を pipeline のステップ構成表に追加。
-    - PipelinePlan に「COM 実行可否」「COM 実行済みフラグ」「fallback 理由」を持たせる。
+  - [x] COM 依存ステップ（shapes/charts/auto_page_breaks/print_areas 補完/ colors_map 補完）を pipeline のステップ構成表に追加。
+    - PipelinePlan は静的な構成のみ保持し、COM 実行済み・fallback 理由は PipelineState/PipelineResult に分離する。
     - resolve_extraction_inputs の結果に基づいて「pre-com → com 補完」の流れを定義。
-  - [ ] COM 可否判定と fallback を pipeline に集約
+  - [x] COM 可否判定と fallback を pipeline に集約
     - integrate.extract_workbook 内の COM try/except を pipeline に移す。
     - COM 不可・例外時は cells+tables だけを返すフォールバックを pipeline 内で決定。
     - FallbackReason のログも pipeline 統一。
-  - [ ] openpyxl 前段の責務を整理
-    - print_areas / colors_map は pre-com で取得し、COM 成功時は「不足分のみ補完」。
+  - [x] openpyxl 前段の責務を整理
+    - print_areas / colors_map は pre-com で取得し、COM 成功時は colors_map を COM 結果で上書き、print_areas は openpyxl 結果を保持。
     - auto_page_breaks は COM ステップのみ。
     - light モードは COM ステップを完全にスキップ。
-  - [ ] integrate の簡素化
+  - [x] integrate の簡素化
     - integrate は resolve_extraction_inputs + run_pipeline を呼ぶだけにする。
     - collect_sheet_raw_data / build_workbook_data は pipeline から呼ぶ形に集約。
-  - [ ] テスト更新
+  - [x] テスト更新
     - pipeline の step 構成テストを COM ステップ含みで拡張。
     - COM 失敗時フォールバックの挙動が pipeline で完結することを検証。
     - CLI や integrate 系テストは「pipeline 経由で同等動作」であることを確認。
-  - [ ] ドキュメント更新
+  - [x] ドキュメント更新
     - TEST_REQUIREMENTS.md に pipeline の COM 統合要件を追記。
     - TASKS.md の該当項目を完了に更新。

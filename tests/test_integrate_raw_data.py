@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from _pytest.monkeypatch import MonkeyPatch
 
 from exstruct.core.cells import SheetColorsMap, WorkbookColorsMap
-from exstruct.core.integrate import collect_sheet_raw_data
+from exstruct.core.pipeline import collect_sheet_raw_data
 from exstruct.models import CellRow, Chart, ChartSeries, PrintArea, Shape
 
 
@@ -41,12 +41,8 @@ def test_collect_sheet_raw_data_includes_extracted_fields(
     workbook = SimpleNamespace(sheets={"Sheet1": sheet})
 
     monkeypatch.setattr(
-        "exstruct.core.integrate.detect_tables",
+        "exstruct.core.pipeline.detect_tables",
         lambda _sheet: ["A1:B2"],
-    )
-    monkeypatch.setattr(
-        "exstruct.core.integrate.get_charts",
-        lambda _sheet, mode: [_make_chart()],
     )
 
     colors_map = WorkbookColorsMap(
@@ -59,6 +55,7 @@ def test_collect_sheet_raw_data_includes_extracted_fields(
     result = collect_sheet_raw_data(
         cell_data={"Sheet1": [CellRow(r=1, c={"0": "A"}, links=None)]},
         shape_data={"Sheet1": [Shape(text="S", l=0, t=0)]},
+        chart_data={"Sheet1": [_make_chart()]},
         workbook=workbook,
         mode="standard",
         print_area_data={"Sheet1": [PrintArea(r1=0, c1=0, r2=0, c2=0)]},
@@ -87,15 +84,12 @@ def test_collect_sheet_raw_data_skips_charts_in_light_mode(
     sheet = SimpleNamespace(name="Sheet1")
     workbook = SimpleNamespace(sheets={"Sheet1": sheet})
 
-    def _boom(*_args: object, **_kwargs: object) -> list[Chart]:
-        raise AssertionError("get_charts should not be called in light mode")
-
-    monkeypatch.setattr("exstruct.core.integrate.get_charts", _boom)
-    monkeypatch.setattr("exstruct.core.integrate.detect_tables", lambda _sheet: [])
+    monkeypatch.setattr("exstruct.core.pipeline.detect_tables", lambda _sheet: [])
 
     result = collect_sheet_raw_data(
         cell_data={"Sheet1": []},
         shape_data={"Sheet1": []},
+        chart_data={"Sheet1": []},
         workbook=workbook,
         mode="light",
         print_area_data=None,

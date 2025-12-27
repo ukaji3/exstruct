@@ -27,7 +27,7 @@ def test_extract_workbook_fallback_on_com_failure(
     def boom(_path: Path, *args: object, **kwargs: object) -> Never:
         raise RuntimeError("COM unavailable")
 
-    monkeypatch.setattr(integrate, "xlwings_workbook", boom)
+    monkeypatch.setattr("exstruct.core.pipeline.xlwings_workbook", boom)
     result = integrate.extract_workbook(xlsx, mode="standard")
     assert result.sheets["Sheet1"].shapes == []
     assert result.sheets["Sheet1"].charts == []
@@ -51,7 +51,7 @@ def test_extract_workbook_fallback_includes_print_areas(
     def boom(_path: Path, *args: object, **kwargs: object) -> Never:
         raise RuntimeError("COM unavailable")
 
-    monkeypatch.setattr(integrate, "xlwings_workbook", boom)
+    monkeypatch.setattr("exstruct.core.pipeline.xlwings_workbook", boom)
     result = integrate.extract_workbook(xlsx, mode="standard")
     assert result.sheets["Sheet1"].print_areas
 
@@ -71,7 +71,7 @@ def test_extract_workbook_with_links(monkeypatch: MonkeyPatch, tmp_path: Path) -
     def _raise(*_args: object, **_kwargs: object) -> Never:
         raise RuntimeError("no COM")
 
-    monkeypatch.setattr(integrate, "xlwings_workbook", _raise)
+    monkeypatch.setattr("exstruct.core.pipeline.xlwings_workbook", _raise)
 
     result = integrate.extract_workbook(path, mode="standard", include_cell_links=True)
     row = result.sheets["Sheet1"].rows[0]
