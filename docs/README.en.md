@@ -4,12 +4,14 @@
 
 ![ExStruct Image](assets/icon.webp)
 
-ExStruct reads Excel workbooks and outputs structured data (cells, table candidates, shapes, charts, print areas/views, auto page-break areas, hyperlinks) as JSON by default, with optional YAML/TOON formats. It targets both COM/Excel environments (rich extraction) and non-COM environments (cells + table candidates + print areas), with tunable detection heuristics and multiple output modes to fit LLM/RAG pipelines.
+ExStruct reads Excel workbooks and outputs structured data (cells, table candidates, shapes, charts, smartart,print areas/views, auto page-break areas, hyperlinks) as JSON by default, with optional YAML/TOON formats. It targets both COM/Excel environments (rich extraction) and non-COM environments (cells + table candidates + print areas), with tunable detection heuristics and multiple output modes to fit LLM/RAG pipelines.
+
+[日本版 README](README.ja.md)
 
 ## Features
 
-- **Excel → Structured JSON**: cells, shapes, charts, table candidates, print areas/views, and auto page-break areas per sheet.
-- **Output modes**: `light` (cells + table candidates + print areas; no COM, shapes/charts empty), `standard` (texted shapes + arrows, charts, print areas), `verbose` (all shapes with width/height, charts with size, print areas). Verbose also emits cell hyperlinks and `colors_map`. Size output is flag-controlled.
+- **Excel → Structured JSON**: cells, shapes, charts, smartart, table candidates, print areas/views, and auto page-break areas per sheet.
+- **Output modes**: `light` (cells + table candidates + print areas; no COM, shapes/charts empty), `standard` (texted shapes + arrows, charts, smartart, print areas), `verbose` (all shapes with width/height, charts with size, print areas). Verbose also emits cell hyperlinks and `colors_map`. Size output is flag-controlled.
 - **Auto page-break export (COM only)**: capture Excel-computed auto page breaks and write per-area JSON/YAML/TOON when requested (CLI option appears only when COM is available).
 - **Formats**: JSON (compact by default, `--pretty` available), YAML, TOON (optional dependencies).
 - **Table detection tuning**: adjust heuristics at runtime via API.

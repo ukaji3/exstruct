@@ -11,6 +11,9 @@ repository to access the raw files.
 - `schemas/sheet.json` — `SheetData`
 - `schemas/cell_row.json` — `CellRow`
 - `schemas/shape.json` — `Shape`
+- `schemas/arrow.json`  `Arrow`
+- `schemas/smartart.json`  `SmartArt`
+- `schemas/smartart_node.json`  `SmartArtNode`
 - `schemas/chart.json` — `Chart`
 - `schemas/chart_series.json` — `ChartSeries`
 - `schemas/print_area.json` — `PrintArea`

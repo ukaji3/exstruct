@@ -6,6 +6,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from exstruct.models import (
+    Arrow,
     CellRow,
     Chart,
     ChartSeries,
@@ -13,6 +14,8 @@ from exstruct.models import (
     PrintAreaView,
     Shape,
     SheetData,
+    SmartArt,
+    SmartArtNode,
     WorkbookData,
 )
 
@@ -44,6 +47,9 @@ def main() -> int:
         "sheet": SheetData,
         "cell_row": CellRow,
         "shape": Shape,
+        "arrow": Arrow,
+        "smartart": SmartArt,
+        "smartart_node": SmartArtNode,
         "chart": Chart,
         "chart_series": ChartSeries,
         "print_area": PrintArea,

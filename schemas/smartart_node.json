@@ -1,0 +1,29 @@
+{
+  "$defs": {
+    "SmartArtNode": {
+      "description": "Node of SmartArt hierarchy.",
+      "properties": {
+        "kids": {
+          "description": "Child nodes.",
+          "items": {
+            "$ref": "#/$defs/SmartArtNode"
+          },
+          "title": "Kids",
+          "type": "array"
+        },
+        "text": {
+          "description": "Visible text for the node.",
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "SmartArtNode",
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/SmartArtNode",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

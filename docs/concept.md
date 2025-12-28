@@ -108,7 +108,7 @@ For RAG and AI systems, this missing structure becomes a major bottleneck.
 ExStruct outputs a unified structure containing:
 
 - cells, rows, and sheets
-- shapes and text blocks
+- shapes, arrows, and SmartArt nodes (nested)
 - chart series and metadata
 - automatically detected table candidates
 - layout geometry (positions, sizes)

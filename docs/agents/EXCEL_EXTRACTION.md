@@ -32,14 +32,15 @@
 - openpyxl のテーブル定義 + 罫線クラスターを統合
 - COM が使えない場合でも table_candidates を維持
 
-## Shapes
+## Shapes / Arrows / SmartArt
 
 抽出内容:
 
-- Type / AutoShapeType の正規化
+- Type / AutoShapeType の正規化（`type` は Shape のみ）
 - Left/Top/Width/Height
 - TextFrame2.TextRange.Text
 - 矢印方向や接続情報
+- SmartArt の layout/nodes/kids（ネスト構造）
 
 ## Charts
 

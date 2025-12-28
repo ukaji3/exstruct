@@ -16,7 +16,7 @@ openpyxl と Excel COM（xlwings）を組み合わせ、LLM が扱いやすい�
 
 - Cells（値/リンク/座標）
 - Tables（候補範囲）
-- Shapes（位置/種類/テキスト/矢印）
+- Shapes / Arrows / SmartArt（位置/テキスト/矢印/レイアウト）
 - Charts（Series/Axis/Type/Title）
 - Print Areas / Auto Page Breaks
 - Colors Map（条件付き書式を含む）
@@ -24,7 +24,7 @@ openpyxl と Excel COM（xlwings）を組み合わせ、LLM が扱いやすい�
 ## 利用例（概要）
 
 - `extract(path, mode="standard")` で WorkbookData を取得
-- `process_excel` でファイル出力やディレクトリ分割
+- `process_excel` でファイル出力やディレクトリ出力
 - CLI で `exstruct file.xlsx --format json` を利用
 
 ## ディレクトリ構成（概要）
