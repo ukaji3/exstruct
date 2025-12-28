@@ -13,7 +13,7 @@
 ## フェーズ1: 純粋関数/ユーティリティ（高優先）
 - [x] core/shapes.py: _should_include_shape の分岐テスト（standard/light/verbose）
 - [x] core/shapes.py: compute_line_angle_deg, angle_to_compass, has_arrow の境界値テスト
-- [ ] core/cells.py: _coerce_numeric_preserve_format の入力パターンテスト
+- [x] core/cells.py: _coerce_numeric_preserve_format の入力パターンテスト
 - [ ] core/backends/com_backend.py: _split_csv_respecting_quotes の引用符対応テスト
 - [ ] core/backends/com_backend.py: _normalize_area_for_sheet の補正ロジックテスト
 
