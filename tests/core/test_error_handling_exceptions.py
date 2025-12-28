@@ -25,7 +25,7 @@ def test_serialize_workbook_unsupported_format() -> None:
     """Unsupported formats should raise SerializationError."""
     workbook = _minimal_workbook()
     with pytest.raises(SerializationError):
-        serialize_workbook(workbook, fmt="invalid")  # type: ignore[arg-type]
+        serialize_workbook(workbook, fmt="invalid")
 
 
 def test_save_as_yaml_missing_dependency(

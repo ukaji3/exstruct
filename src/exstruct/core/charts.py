@@ -78,11 +78,12 @@ def _split_top_level_args(args_text: str) -> list[str]:  # noqa: C901
         if in_str:
             if ch == '"':
                 if i + 1 < len(args_text) and args_text[i + 1] == '"':
-                    buf.append('"')
+                    buf.append('""')
                     i += 2
                     continue
                 else:
                     in_str = False
+                    buf.append('"')
                     i += 1
                     continue
             else:
@@ -92,6 +93,7 @@ def _split_top_level_args(args_text: str) -> list[str]:  # noqa: C901
         else:
             if ch == '"':
                 in_str = True
+                buf.append('"')
                 i += 1
                 continue
             elif ch == "(":
@@ -177,6 +179,8 @@ def get_charts(
         y_axis_range: list[int] = []
         chart_type_label: str = "unknown"
         error: str | None = None
+        chart_width: int | None = None
+        chart_height: int | None = None
 
         try:
             chart_com = sheet.api.ChartObjects(ch.name).Chart
@@ -184,8 +188,6 @@ def get_charts(
             chart_type_label = XL_CHART_TYPE_MAP.get(
                 chart_type_num, f"unknown_{chart_type_num}"
             )
-            chart_width: int | None = None
-            chart_height: int | None = None
             try:
                 chart_width = int(ch.width)
                 chart_height = int(ch.height)

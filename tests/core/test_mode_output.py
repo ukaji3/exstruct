@@ -108,11 +108,11 @@ def test_invalidモードはエラーになる(tmp_path: Path) -> None:
     path = tmp_path / "book.xlsx"
     _make_basic_book(path)
     with pytest.raises(ValueError):
-        extract(path, mode="invalid")  # type: ignore[arg-type]
+        extract(path, mode="invalid")
 
     out = tmp_path / "out.json"
     with pytest.raises(ValueError):
-        process_excel(path, out, mode="invalid")  # type: ignore[arg-type]
+        process_excel(path, out, mode="invalid")
 
 
 def test_CLIのmode引数バリデーション(tmp_path: Path) -> None:

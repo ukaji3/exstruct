@@ -1,6 +1,6 @@
 ﻿# ExStruct テスト要件仕様書
 
-Version: 0.2
+Version: 0.3
 Status: Required for Release
 
 ExStruct の全機能について、正式なテスト要件をまとめたドキュメントです。AI エージェント／人間開発者が自動テスト・手動テストを設計するための基盤とします。
@@ -37,6 +37,7 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [CEL-08] `_coerce_numeric_preserve_format` が int/float/非数を正しく判定
 - [CEL-09] `detect_tables_openpyxl` が openpyxl Table を検出
 - [CEL-10] `CellRow.links` は mode=verbose または include_cell_links=True で出力
+- [CEL-11] detect_tables は .xlsx/.xls の拡張子と openpyxl 有無で経路を切り替える
 
 ## 2.1.1 セル背景色
 
@@ -44,6 +45,7 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [COL-02] `include_default_background=False` では `FFFFFF` を出力しない
 - [COL-03] `ignore_colors` 指定時は対象色を除外（`#` 付き/大小文字を正規化）
 - [COL-04] COM 利用時は `DisplayFormat.Interior` を参照し条件付き書式を含めて取得
+- [COL-05] `_normalize_color_key` / `_normalize_rgb` は ARGB/#/auto/theme/indexed を正規化
 
 ## 2.2 図形抽出
 
@@ -78,10 +80,12 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [CH-04] 軸 min/max は float
 - [CH-05] 未設定軸は空リスト
 - [CH-06] name_range を参照式で出力（例: `=Sheet1!$B$1`）
+- [CH-06a] 文字列リテラルの series 名は name_literal に格納される
 - [CH-07] x_range を参照式で出力
 - [CH-08] y_range を参照式で出力
 - [CH-09] 主要チャート種別（散布・棒など）を解析
 - [CH-10] 失敗時は `error` にメッセージを残しチャートを維持
+- [CH-11] 文化圏差のセミコロン区切りも解析できる
 
 ## 2.5 レイアウト統合
 
@@ -200,6 +204,7 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [PIPE-05] colors_map は COM 成功時に COM 結果で上書きし、失敗時のみ openpyxl を使う
 - [PIPE-06] print_areas は openpyxl の結果を保持し、COM は不足分のみ補完する
 - [PIPE-07] PipelineState は com_attempted/com_succeeded/fallback_reason を保持する
+- [PIPE-08] include_auto_page_breaks=False の場合は auto_page_breaks の COM ステップを含めない
 - [PIPE-MOD-01] build_workbook_data は raw コンテナから WorkbookData/SheetData を構築する
 - [PIPE-MOD-02] collect_sheet_raw_data は抽出済みデータを raw コンテナにまとめる
 
@@ -208,6 +213,8 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 - [BE-01] OpenpyxlBackend は include_links の有無で cells 抽出経路を切り替える
 - [BE-02] OpenpyxlBackend は table 検出失敗時に空リストで継続する
 - [BE-03] ComBackend は colors_map 抽出失敗時に None を返す
+- [BE-04] OpenpyxlBackend は colors_map 抽出失敗時に None を返す
+- [BE-05] ComBackend は print_areas 抽出失敗時に空マップで継続する
 
 ## 2.8 Ranges
 
@@ -222,7 +229,15 @@ ExStruct の全機能について、正式なテスト要件をまとめたド�
 
 - [WB-01] openpyxl_workbook は例外の有無に関係なく close を呼び出す
 - [WB-02] openpyxl_workbook は既知の openpyxl 警告を抑制するフィルタを設定する
+- [WB-03] _find_open_workbook は fullname/resolve 例外を許容し None を返す
+- [WB-04] _find_open_workbook の全体例外時は None を返す
+- [WB-05] xlwings_workbook は既存ブックが見つかれば App を起動しない
 
 ## 2.11 Logging
 
 - [LOG-01] log_fallback は理由コードを含む警告ログを出力する
+
+## 2.12 統合/E2E
+
+- [E2E-01] light 抽出→serialize_workbook→export_sheets の一連が成功する
+- [E2E-02] Engine.process は output_path=None のとき stream へ JSON を出力できる

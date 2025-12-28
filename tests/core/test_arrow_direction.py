@@ -1,9 +1,10 @@
 import pytest
+from tests.utils import parametrize
 
 from exstruct.core.shapes import angle_to_compass, compute_line_angle_deg
 
 
-@pytest.mark.parametrize(
+@parametrize(
     "angle,expected",
     [
         (0, "E"),
@@ -39,7 +40,7 @@ def test_angle_to_compass_8方位(angle: float, expected: str) -> None:
     assert angle_to_compass(angle) == expected
 
 
-@pytest.mark.parametrize(
+@parametrize(
     "w,h,expected",
     [
         (10.0, 0.0, 0.0),
