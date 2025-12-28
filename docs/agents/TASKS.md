@@ -32,7 +32,7 @@
 
 - [x] core/cells.py: detect_tables の .xlsx / .xls 分岐（openpyxl/COM の呼び分け）
 - [x] core/backends/openpyxl_backend.py: extract_print_areas 複数範囲の処理
-- [ ] core/backends/openpyxl_backend.py: extract_colors_map の例外時 None 返却
+- [x] core/backends/openpyxl_backend.py: extract_colors_map の例外時 None 返却
 - [ ] core/backends/com_backend.py: extract_print_areas の例外処理分岐
 
 ## フェーズ 4: 疑似 COM オブジェクトでの網羅（中優先）

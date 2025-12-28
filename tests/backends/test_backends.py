@@ -52,6 +52,29 @@ def test_openpyxl_backend_detect_tables_handles_failure(
     assert backend.detect_tables("Sheet1") == []
 
 
+def test_openpyxl_backend_extract_colors_map_returns_none_on_failure(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    def fake_colors_map(
+        file_path: Path,
+        *,
+        include_default_background: bool,
+        ignore_colors: set[str] | None,
+    ) -> object:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        "exstruct.core.backends.openpyxl_backend.extract_sheet_colors_map",
+        fake_colors_map,
+    )
+
+    backend = OpenpyxlBackend(tmp_path / "book.xlsx")
+    assert (
+        backend.extract_colors_map(include_default_background=False, ignore_colors=None)
+        is None
+    )
+
+
 def test_com_backend_extract_colors_map_returns_none_on_failure(
     monkeypatch: MonkeyPatch,
 ) -> None:
