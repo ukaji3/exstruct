@@ -49,7 +49,7 @@
 ## 追加カバレッジ強化: cells.py / workbook.py
 
 ### cells.py（低カバレッジ重点）
-- [ ] _normalize_color_key / _normalize_rgb の正規化パターン（#/ARGB/auto/theme/indexed）
+- [x] _normalize_color_key / _normalize_rgb の正規化パターン（#/ARGB/auto/theme/indexed）
 - [ ] _normalize_ignore_colors の空/重複/不正キーの除外
 - [ ] _resolve_cell_background / _resolve_fill_color_key の既定背景/None/パターン種別分岐
 - [ ] _color_to_key の theme/indexed/auto 分岐（openpyxl Color 風ダミー）
