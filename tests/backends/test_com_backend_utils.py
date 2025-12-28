@@ -1,28 +1,12 @@
-from collections.abc import Callable
-from typing import TypeVar, cast
-
-import pytest
-from typing_extensions import ParamSpec
+from tests.utils import parametrize
 
 from exstruct.core.backends.com_backend import (
     _normalize_area_for_sheet,
     _split_csv_respecting_quotes,
 )
 
-P = ParamSpec("P")
-R = TypeVar("R")
 
-
-def _parametrize(
-    *args: object, **kwargs: object
-) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    return cast(
-        Callable[[Callable[P, R]], Callable[P, R]],
-        pytest.mark.parametrize(*args, **kwargs),
-    )
-
-
-@_parametrize(
+@parametrize(
     "raw,expected",
     [
         ("A,B", ["A", "B"]),
@@ -37,7 +21,7 @@ def test_split_csv_respecting_quotes(raw: str, expected: list[str]) -> None:
     assert _split_csv_respecting_quotes(raw) == expected
 
 
-@_parametrize(
+@parametrize(
     "part,ws_name,expected",
     [
         ("Sheet1!A1:B2", "Sheet1", "A1:B2"),

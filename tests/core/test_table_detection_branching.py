@@ -1,5 +1,7 @@
 import builtins
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from types import ModuleType
 
 from _pytest.monkeypatch import MonkeyPatch
 
@@ -54,14 +56,15 @@ def test_detect_tables_openpyxl_missing_falls_back_to_com(
 
     def _fake_import(
         name: str,
-        globals_: dict[str, object] | None = None,
-        locals_: dict[str, object] | None = None,
-        fromlist: tuple[str, ...] = (),
+        globals_: Mapping[str, object] | None = None,
+        locals_: Mapping[str, object] | None = None,
+        fromlist: Sequence[str] | None = (),
         level: int = 0,
-    ) -> object:
+    ) -> ModuleType:
         if name == "openpyxl":
             raise ImportError("openpyxl missing")
-        return original_import(name, globals_, locals_, fromlist, level)
+        fromlist_seq: Sequence[str] = () if fromlist is None else fromlist
+        return original_import(name, globals_, locals_, fromlist_seq, level)
 
     def _com_tables(_sheet: object) -> list[str]:
         return ["E5:F6"]

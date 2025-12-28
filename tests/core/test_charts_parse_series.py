@@ -1,25 +1,9 @@
-from collections.abc import Callable
-from typing import TypeVar, cast
-
-import pytest
-from typing_extensions import ParamSpec
+from tests.utils import parametrize
 
 from exstruct.core.charts import parse_series_formula
 
-P = ParamSpec("P")
-R = TypeVar("R")
 
-
-def _parametrize(
-    *args: object, **kwargs: object
-) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    return cast(
-        Callable[[Callable[P, R]], Callable[P, R]],
-        pytest.mark.parametrize(*args, **kwargs),
-    )
-
-
-@_parametrize(
+@parametrize(
     "formula,expected",
     [
         (
@@ -86,7 +70,7 @@ def test_parse_series_formula_valid(
     assert parse_series_formula(formula) == expected
 
 
-@_parametrize(
+@parametrize(
     "formula",
     [
         "",

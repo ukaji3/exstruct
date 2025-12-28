@@ -1,26 +1,10 @@
-from collections.abc import Callable
-from typing import TypeVar, cast
-
-import pytest
-from typing_extensions import ParamSpec
+from tests.utils import parametrize
 
 from exstruct.core.shapes import (
     _should_include_shape,
     coord_to_cell_by_edges,
     has_arrow,
 )
-
-P = ParamSpec("P")
-R = TypeVar("R")
-
-
-def _parametrize(
-    *args: object, **kwargs: object
-) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    return cast(
-        Callable[[Callable[P, R]], Callable[P, R]],
-        pytest.mark.parametrize(*args, **kwargs),
-    )
 
 
 def test_should_include_shape_lightは常に除外() -> None:
@@ -35,7 +19,7 @@ def test_should_include_shape_lightは常に除外() -> None:
     )
 
 
-@_parametrize(
+@parametrize(
     "text,shape_type_num,shape_type_str,autoshape_type_str,shape_name,expected",
     [
         ("", None, "Rectangle", None, None, False),
@@ -77,7 +61,7 @@ def test_should_include_shape_verboseは常に含める() -> None:
     )
 
 
-@_parametrize(
+@parametrize(
     "style,expected",
     [
         (0, False),

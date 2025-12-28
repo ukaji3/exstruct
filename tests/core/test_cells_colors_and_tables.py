@@ -1,9 +1,7 @@
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TypeVar, cast
 
 import pytest
-from typing_extensions import ParamSpec
+from tests.utils import parametrize
 
 from exstruct.core import cells
 from exstruct.core.cells import (
@@ -15,18 +13,6 @@ from exstruct.core.cells import (
     _resolve_fill_color_key,
     _table_signal_score,
 )
-
-P = ParamSpec("P")
-R = TypeVar("R")
-
-
-def _parametrize(
-    *args: object, **kwargs: object
-) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    return cast(
-        Callable[[Callable[P, R]], Callable[P, R]],
-        pytest.mark.parametrize(*args, **kwargs),
-    )
 
 
 @dataclass(frozen=True)
@@ -63,7 +49,7 @@ class _DummyCell:
     fill: _DummyFill | None
 
 
-@_parametrize(
+@parametrize(
     "cell,include_default,expected",
     [
         (_DummyCell(fill=None), False, None),
@@ -112,7 +98,7 @@ def test_resolve_fill_color_key_prefers_fg_over_bg() -> None:
     assert _resolve_fill_color_key(fill) == "FF0000"
 
 
-@_parametrize(
+@parametrize(
     "color,expected",
     [
         (_DummyColor(rgb="00ABCDEF"), "ABCDEF"),
@@ -128,7 +114,7 @@ def test_color_to_key_variants(color: _DummyColor, expected: str) -> None:
     assert _color_to_key(color) == expected
 
 
-@_parametrize(
+@parametrize(
     "row,expected",
     [
         (["A", "B"], True),

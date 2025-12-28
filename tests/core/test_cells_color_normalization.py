@@ -1,8 +1,4 @@
-from collections.abc import Callable
-from typing import TypeVar, cast
-
-import pytest
-from typing_extensions import ParamSpec
+from tests.utils import parametrize
 
 from exstruct.core.cells import (
     _normalize_color_key,
@@ -10,20 +6,8 @@ from exstruct.core.cells import (
     _normalize_rgb,
 )
 
-P = ParamSpec("P")
-R = TypeVar("R")
 
-
-def _parametrize(
-    *args: object, **kwargs: object
-) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    return cast(
-        Callable[[Callable[P, R]], Callable[P, R]],
-        pytest.mark.parametrize(*args, **kwargs),
-    )
-
-
-@_parametrize(
+@parametrize(
     "raw,expected",
     [
         (" #aabbcc ", "AABBCC"),
@@ -42,7 +26,7 @@ def test_normalize_color_key(raw: str, expected: str) -> None:
     assert _normalize_color_key(raw) == expected
 
 
-@_parametrize(
+@parametrize(
     "raw,expected",
     [
         ("0xFFAABBCC", "AABBCC"),
