@@ -30,6 +30,7 @@ Optional extras:
 - All extras at once: `pip install exstruct[yaml,toon,render]`
 
 Platform note:
+
 - Full extraction (shapes/charts) targets Windows + Excel (COM via xlwings). On other platforms, use `mode=light` to get cells + `table_candidates`.
 
 ## Quick Start (CLI)
@@ -128,6 +129,7 @@ set_table_detection_params(
 Use higher thresholds to reduce false positives; lower them if true tables are missed.
 
 ## Output Modes
+
 - **light**: cells + table candidates (no COM needed).
 - **standard**: texted shapes + arrows, charts (COM if available), table candidates. Hyperlinks are off unless `include_cell_links=True`.
 - **verbose**: all shapes (with width/height), charts, table candidates, cell hyperlinks, and `colors_map`.
@@ -364,6 +366,7 @@ ExStruct is used primarily as a **library**, not a service.
 - Forking and internal modification are expected in enterprise use
 
 This project is suitable for teams that:
+
 - need transparency over black-box tools
 - are comfortable maintaining internal forks if necessary
 
@@ -379,6 +382,21 @@ This project is suitable for teams that:
 
 - Update generated model docs before building the site: `python scripts/gen_model_docs.py`.
 - Build locally with mkdocs + mkdocstrings (dev deps required): `uv run mkdocs serve` or `uv run mkdocs build`.
+
+## Architecture
+
+ExStruct uses a pipeline-based architecture that separates
+extraction strategy (Backend) from orchestration (Pipeline)
+and semantic modeling.
+
+→ See: [docs/architecture/pipeline.md](docs/architecture/pipeline.md)
+
+## Contributing
+
+If you plan to extend ExStruct internals,
+please read the contributor architecture guide.
+
+→ [docs/contributors/architecture.md](docs/contributors/architecture.md)
 
 ## License
 

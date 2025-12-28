@@ -6,6 +6,8 @@
 
 ExStruct は Excel ワークブックを読み取り、構造化データ（セル・テーブル候補・図形・チャート・印刷範囲ビュー）をデフォルトで JSON に出力します。必要に応じて YAML/TOON も選択でき、COM/Excel 環境ではリッチ抽出、非 COM 環境ではセル＋テーブル候補＋印刷範囲へのフォールバックで安全に動作します。LLM/RAG 向けに検出ヒューリスティックや出力モードを調整可能です。
 
+[English README](README.en.md)
+
 ## 主な特徴
 
 - **Excel → 構造化 JSON**: セル、図形、チャート、テーブル候補、印刷範囲/自動改ページ範囲（PrintArea/PrintAreaView）をシート単位・範囲単位で出力。
@@ -384,6 +386,21 @@ ExStruct は主に **ライブラリ** として利用される想定で、サ�
 
 - サイトビルド前にモデル断片を再生成してください: `python scripts/gen_model_docs.py`
 - mkdocs + mkdocstrings でローカルビルド（開発用依存が必要）: `uv run mkdocs serve` または `uv run mkdocs build`
+
+## アーキテクチャ
+
+ExStruct はパイプライン型のアーキテクチャを採用し、
+抽出戦略（Backend）とオーケストレーション（Pipeline）、
+そして意味モデルの構築を分離しています。
+
+→ 参照: [docs/architecture/pipeline.md](docs/architecture/pipeline.md)
+
+## コントリビュート
+
+ExStruct の内部実装を拡張する場合は、
+コントリビューター向けのアーキテクチャガイドを確認してください。
+
+→ [docs/contributors/architecture.md](docs/contributors/architecture.md)
 
 ## License
 

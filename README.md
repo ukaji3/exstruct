@@ -380,6 +380,21 @@ This project is suitable for teams that:
 - Use CLI `--auto-page-breaks-dir` (COM only), `DestinationOptions.auto_page_breaks_dir` (preferred), or `export_auto_page_breaks(...)` to write per-auto-page-break files; the API raises `ValueError` if no auto page breaks exist.
 - `PrintAreaView` includes rows and table candidates inside the area, plus shapes/charts that overlap the area (size-less shapes are treated as points). `normalize=True` rebases row/col indices to the area origin.
 
+## Architecture
+
+ExStruct uses a pipeline-based architecture that separates
+extraction strategy (Backend) from orchestration (Pipeline)
+and semantic modeling.
+
+→ See: [docs/architecture/pipeline.md](docs/architecture/pipeline.md)
+
+## Contributing
+
+If you plan to extend ExStruct internals,
+please read the contributor architecture guide.
+
+→ [docs/contributors/architecture.md](docs/contributors/architecture.md)
+
 ## License
 
 BSD-3-Clause. See `LICENSE` for details.

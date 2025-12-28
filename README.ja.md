@@ -339,7 +339,7 @@ flowchart TD
 
 ということが明確に示されています。
 
-その他の本ライブラリを使ったLLM推論サンプルは以下のディレクトリにあります。
+その他の本ライブラリを使った LLM 推論サンプルは以下のディレクトリにあります。
 
 - [Basic Excel](sample/basic/)
 - [Flowchart](sample/flowchart/)
@@ -369,6 +369,7 @@ ExStruct は主に **ライブラリ** として利用される想定で、サ�
 - 企業利用ではフォークや内部改修が前提です
 
 次のようなチームに適しています。
+
 - ブラックボックス化されたツールではなく、透明性が必要
 - 必要に応じて内部フォークを保守できる
 
@@ -379,6 +380,21 @@ ExStruct は主に **ライブラリ** として利用される想定で、サ�
 - `export_print_areas_as(...)` や CLI `--print-areas-dir` で印刷範囲ごとにファイルを出力できます（印刷範囲が無い場合はファイルを作りません）。
 - CLI `--auto-page-breaks-dir`（COM 限定）、`DestinationOptions.auto_page_breaks_dir`（推奨）、または `export_auto_page_breaks(...)` で自動改ページ範囲ごとにファイルを出力できます。自動改ページが存在しない場合、`export_auto_page_breaks(...)` は `ValueError` を送出します。
 - `PrintAreaView` には範囲内の行・テーブル候補に加え、範囲と交差する図形/チャートを含みます（サイズ不明の図形は座標のみで判定）。`normalize=True` で行/列を範囲起点に再基準化できます。
+
+## アーキテクチャ
+
+ExStruct はパイプライン型のアーキテクチャを採用し、
+抽出戦略（Backend）とオーケストレーション（Pipeline）、
+そして意味モデルの構築を分離しています。
+
+→ 参照: [docs/architecture/pipeline.md](docs/architecture/pipeline.md)
+
+## コントリビュート
+
+ExStruct の内部実装を拡張する場合は、
+コントリビューター向けのアーキテクチャガイドを確認してください。
+
+→ [docs/contributors/architecture.md](docs/contributors/architecture.md)
 
 ## License
 

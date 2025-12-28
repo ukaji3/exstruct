@@ -4,6 +4,8 @@ theme:
   name: material
 exclude_docs:
   agents/
+  architecture/
+  contributors/
 plugins:
   - search
   - mkdocstrings:
