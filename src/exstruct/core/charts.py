@@ -78,11 +78,12 @@ def _split_top_level_args(args_text: str) -> list[str]:  # noqa: C901
         if in_str:
             if ch == '"':
                 if i + 1 < len(args_text) and args_text[i + 1] == '"':
-                    buf.append('"')
+                    buf.append('""')
                     i += 2
                     continue
                 else:
                     in_str = False
+                    buf.append('"')
                     i += 1
                     continue
             else:
@@ -92,6 +93,7 @@ def _split_top_level_args(args_text: str) -> list[str]:  # noqa: C901
         else:
             if ch == '"':
                 in_str = True
+                buf.append('"')
                 i += 1
                 continue
             elif ch == "(":
