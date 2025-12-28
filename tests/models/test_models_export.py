@@ -87,6 +87,11 @@ def test_sheet_to_toon_dependency() -> None:
 
 
 def test_workbook_iter_and_getitem() -> None:
+    """
+    Verify Workbook supports lookup by sheet name and iteration over (name, sheet) pairs, and that missing sheet names raise KeyError.
+
+    Asserts that retrieving a known sheet by key returns the SheetData instance, that iterating the workbook yields a single (name, sheet) pair matching the retrieved sheet, and that accessing a nonexistent sheet raises KeyError.
+    """
     wb = _workbook()
     first = wb["Sheet1"]
     assert isinstance(first, SheetData)

@@ -20,6 +20,7 @@ output.json
 .ruff-cache/
 .mypy_cache/
 ruff_report.txt
+ruff-error.txt
 mypy_report.txt
 coverage.xml
 htmlcov/

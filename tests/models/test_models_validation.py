@@ -80,6 +80,11 @@ def test_cellrowの数値正規化() -> None:
 
 
 def test_arrow_only_fields_are_not_on_shape() -> None:
+    """
+    Ensure Arrow-specific identifier fields exist on Arrow instances and are absent from Shape instances.
+
+    Verifies that an Arrow created with `begin_id` and `end_id` preserves those integer identifiers, and that a Shape does not expose `begin_id` or `end_id` attributes.
+    """
     arrow = Arrow(
         id=None,
         text="a",

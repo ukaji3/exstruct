@@ -14,6 +14,12 @@ from exstruct.models import Arrow
 
 
 def _make_basic_book(path: Path) -> None:
+    """
+    Create and save a simple Excel workbook with one sheet named "Sheet1" containing "v1" in A1 and "v2" in B1.
+
+    Parameters:
+        path (Path): Filesystem path where the workbook will be saved.
+    """
     wb = Workbook()
     ws = wb.active
     ws.title = "Sheet1"

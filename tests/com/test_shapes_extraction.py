@@ -64,6 +64,15 @@ def _make_workbook_with_shapes(path: Path) -> None:
 
 
 def test_図形の種別とテキストが抽出される(tmp_path: Path) -> None:
+    """
+    Verifies extraction of shape types, texts, IDs, and uniqueness from a workbook containing various shapes.
+
+    Creates a workbook with a rectangle, an oval, a line, a nested group, and a connector, then extracts shapes from "Sheet1" and asserts:
+    - a shape with text "rect" is an AutoShape, has non-negative left/top coordinates, and a positive id;
+    - a nested child with text "inner" is not reported as a Group and has a positive id;
+    - all emitted shape ids are unique;
+    - no AutoShape without text is emitted in standard mode.
+    """
     _ensure_excel()
     path = tmp_path / "shapes.xlsx"
     _make_workbook_with_shapes(path)
@@ -92,6 +101,11 @@ def test_図形の種別とテキストが抽出される(tmp_path: Path) -> Non
 
 
 def test_線図形の方向と矢印情報が抽出される(tmp_path: Path) -> None:
+    """
+    Verifies that a line shape's direction and arrow style information is extracted correctly from a workbook.
+
+    Creates a workbook containing shapes, extracts shapes from "Sheet1", finds an Arrow with a begin or end arrow style, and asserts its direction is "E".
+    """
     _ensure_excel()
     path = tmp_path / "lines.xlsx"
     _make_workbook_with_shapes(path)

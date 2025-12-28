@@ -12,14 +12,33 @@ from ..models.maps import MSO_AUTO_SHAPE_TYPE_MAP, MSO_SHAPE_TYPE_MAP
 
 
 def compute_line_angle_deg(w: float, h: float) -> float:
-    """Compute clockwise angle in Excel coordinates where 0 deg points East."""
+    """
+    Compute the clockwise angle (in degrees) in Excel coordinates where 0° points East.
+
+    Parameters:
+        w (float): Horizontal delta (width, positive to the right).
+        h (float): Vertical delta (height, positive downward).
+
+    Returns:
+        float: Angle in degrees measured clockwise from East (e.g., 0° = East, 90° = South).
+    """
     return math.degrees(math.atan2(h, w)) % 360.0
 
 
 def angle_to_compass(
     angle: float,
 ) -> Literal["E", "SE", "S", "SW", "W", "NW", "N", "NE"]:
-    """Convert angle to 8-point compass direction (0deg=E, 45deg=NE, 90deg=N, etc)."""
+    """
+    Map an angle in degrees to one of eight compass directions.
+
+    The angle is interpreted with 0 degrees at East and increasing values rotating counterclockwise (45 -> NE, 90 -> N).
+
+    Parameters:
+        angle (float): Angle in degrees.
+
+    Returns:
+        str: One of `"E"`, `"SE"`, `"S"`, `"SW"`, `"W"`, `"NW"`, `"N"`, or `"NE"` corresponding to the nearest 8-point compass direction.
+    """
     dirs = ["E", "NE", "N", "NW", "W", "SW", "S", "SE"]
     idx = int(((angle + 22.5) % 360) // 45)
     return cast(Literal["E", "SE", "S", "SW", "W", "NW", "N", "NE"], dirs[idx])
@@ -28,7 +47,18 @@ def angle_to_compass(
 def coord_to_cell_by_edges(
     row_edges: list[float], col_edges: list[float], x: float, y: float
 ) -> str | None:
-    """Estimate cell address from coordinates and cumulative edges; return None if out of range."""
+    """
+    Estimate the Excel A1-style cell that contains a point given cumulative row and column edge coordinates.
+
+    Parameters:
+        row_edges (list[float]): Monotonic list of cumulative vertical edges (top-to-bottom). Consecutive entries define row spans.
+        col_edges (list[float]): Monotonic list of cumulative horizontal edges (left-to-right). Consecutive entries define column spans.
+        x (float): Horizontal coordinate (same coordinate system as col_edges).
+        y (float): Vertical coordinate (same coordinate system as row_edges).
+
+    Returns:
+        str | None: A1-style cell address (e.g., "B3") if the point falls inside the grid; `None` if the point is outside the provided edge ranges. Intervals are treated as left-inclusive and right-exclusive: [edge_i, edge_{i+1}).
+    """
 
     def find_index(edges: list[float], pos: float) -> int | None:
         for i in range(1, len(edges)):
@@ -82,10 +112,18 @@ def _should_include_shape(
     output_mode: str = "standard",
 ) -> bool:
     """
-    Decide whether to emit a shape given output mode.
-    - standard: emit if text exists OR the shape is an arrow/line/connector.
-    - light: suppress shapes entirely (handled upstream, but guard defensively).
-    - verbose: include all (except already-filtered chart/comment/picture/form controls).
+    Determine whether a shape should be included in the output based on its properties and the selected output mode.
+
+    Modes:
+    - "light": always exclude shapes.
+    - "standard": include when the shape has text or represents a relationship (line/connector).
+    - "verbose": include all shapes (other global exclusions are handled elsewhere).
+
+    Parameters:
+        output_mode (str): One of "light", "standard", or "verbose"; controls inclusion rules.
+
+    Returns:
+        bool: `True` if the shape should be emitted, `False` otherwise.
     """
     if output_mode == "light":
         return False
@@ -142,7 +180,12 @@ class _SmartArtLike(Protocol):
 
 
 def _shape_has_smartart(shp: xw.Shape) -> bool:
-    """Return True if the shape exposes SmartArt content."""
+    """
+    Determine whether a shape exposes SmartArt content.
+
+    Returns:
+        bool: `True` if the shape exposes SmartArt (i.e., has an accessible `HasSmartArt` attribute), `False` otherwise.
+    """
     try:
         api = shp.api
     except Exception:
@@ -154,7 +197,12 @@ def _shape_has_smartart(shp: xw.Shape) -> bool:
 
 
 def _get_smartart_layout_name(smartart: _SmartArtLike | None) -> str:
-    """Return SmartArt layout name or a fallback label."""
+    """
+    Get the SmartArt layout name or "Unknown" if it cannot be determined.
+
+    Returns:
+        layout_name (str): The layout name from `smartart.Layout.Name`, or "Unknown" when `smartart` is None or the name cannot be retrieved.
+    """
     if smartart is None:
         return "Unknown"
     try:
@@ -168,7 +216,15 @@ def _get_smartart_layout_name(smartart: _SmartArtLike | None) -> str:
 def _collect_smartart_node_info(
     smartart: _SmartArtLike | None,
 ) -> list[tuple[int, str]]:
-    """Collect (level, text) pairs from SmartArt nodes."""
+    """
+    Extract a list of (level, text) tuples for each node present in the given SmartArt.
+
+    Parameters:
+        smartart (_SmartArtLike | None): A SmartArt-like COM object or `None`. If `None` or inaccessible, no nodes are collected.
+
+    Returns:
+        list[tuple[int, str]]: A list of tuples where each tuple is (node level, node text). Returns an empty list if the SmartArt is `None`, inaccessible, or if nodes lack a numeric level.
+    """
     nodes_info: list[tuple[int, str]] = []
     if smartart is None:
         return nodes_info
@@ -194,7 +250,12 @@ def _collect_smartart_node_info(
 
 
 def _get_smartart_node_level(node: _SmartArtNodeLike) -> int | None:
-    """Return SmartArt node level or None when unavailable."""
+    """
+    Get the numerical level of a SmartArt node.
+
+    Returns:
+        int | None: The node's level as an integer, or `None` if the level is missing or cannot be converted to an integer.
+    """
     try:
         return int(node.Level)
     except Exception:
@@ -202,7 +263,17 @@ def _get_smartart_node_level(node: _SmartArtNodeLike) -> int | None:
 
 
 def _build_smartart_tree(nodes_info: list[tuple[int, str]]) -> list[SmartArtNode]:
-    """Build nested SmartArtNode roots from flat (level, text) tuples."""
+    """
+    Build a nested tree of SmartArtNode objects from a flat list of (level, text) tuples.
+
+    Parameters:
+        nodes_info (list[tuple[int, str]]): Ordered tuples where each tuple is (level, text);
+            `level` is the hierarchical depth (integer) and `text` is the node label.
+
+    Returns:
+        roots (list[SmartArtNode]): Top-level SmartArtNode instances whose `kids` lists
+            contain their nested child nodes according to the provided levels.
+    """
     roots: list[SmartArtNode] = []
     stack: list[tuple[int, SmartArtNode]] = []
     for level, text in nodes_info:
@@ -218,7 +289,15 @@ def _build_smartart_tree(nodes_info: list[tuple[int, str]]) -> list[SmartArtNode
 
 
 def _extract_smartart_nodes(smartart: _SmartArtLike | None) -> list[SmartArtNode]:
-    """Extract SmartArt nodes as nested roots."""
+    """
+    Convert a SmartArt COM object into a list of root SmartArtNode trees.
+
+    Parameters:
+        smartart (_SmartArtLike | None): SmartArt-like COM object to extract nodes from; pass `None` to produce an empty list.
+
+    Returns:
+        list[SmartArtNode]: Root nodes representing the hierarchical SmartArt structure (each node contains its text and children).
+    """
     nodes_info = _collect_smartart_node_info(smartart)
     return _build_smartart_tree(nodes_info)
 
@@ -226,7 +305,16 @@ def _extract_smartart_nodes(smartart: _SmartArtLike | None) -> list[SmartArtNode
 def get_shapes_with_position(  # noqa: C901
     workbook: Book, mode: str = "standard"
 ) -> dict[str, list[Shape | Arrow | SmartArt]]:
-    """Scan shapes in a workbook and return per-sheet shape lists with position info."""
+    """
+    Scan all shapes in each worksheet and collect their positional and metadata information.
+
+    Parameters:
+        workbook (Book): The xlwings workbook to scan.
+        mode (str): Output detail level; "light" skips most shapes, "standard" includes shapes with text or relationships, and "verbose" includes full size/rotation details.
+
+    Returns:
+        dict[str, list[Shape | Arrow | SmartArt]]: Mapping of sheet name to a list of collected shape objects (Shape, Arrow, or SmartArt) containing position (left/top), optional size (width/height), textual content, and other captured metadata (ids, directions, connections, layout/nodes for SmartArt).
+    """
     shape_data: dict[str, list[Shape | Arrow | SmartArt]] = {}
     for sheet in workbook.sheets:
         shapes: list[Shape | Arrow | SmartArt] = []

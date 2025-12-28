@@ -30,7 +30,17 @@ logger = logging.getLogger(__name__)
 
 
 def dict_without_empty_values(obj: object) -> JsonStructure:
-    """Recursively drop empty values from nested structures."""
+    """
+    Remove None, empty string, empty list, and empty dict values from a nested structure or supported model object.
+
+    Recursively processes dicts, lists, and supported model types (WorkbookData, CellRow, Chart, PrintArea, PrintAreaView, Shape, Arrow, SmartArt). Model instances are converted to dictionaries with None fields excluded before recursive cleaning. Values considered empty and removed are: `None`, `""` (empty string), `[]` (empty list), and `{}` (empty dict).
+
+    Parameters:
+        obj (object): A value to clean; may be a dict, list, scalar, or one of the supported model instances.
+
+    Returns:
+        JsonStructure: The input structure with empty values removed, preserving other values and nesting.
+    """
     if isinstance(obj, dict):
         return {
             k: dict_without_empty_values(v)
@@ -173,13 +183,37 @@ def _area_to_px_rect(
 
 
 def _rects_overlap(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> bool:
-    """Return True if rectangles (l, t, r, b) overlap."""
+    """
+    Determine whether two axis-aligned rectangles intersect (overlap in area).
+
+    Parameters:
+        a (tuple[int, int, int, int]): Rectangle A as (left, top, right, bottom).
+        b (tuple[int, int, int, int]): Rectangle B as (left, top, right, bottom).
+
+    Notes:
+        Rectangles are treated as half-open in this context: if they only touch at edges or corners, they do not count as overlapping.
+
+    Returns:
+        bool: `True` if the rectangles have a non-zero-area intersection, `False` otherwise.
+    """
     return not (a[2] <= b[0] or a[0] >= b[2] or a[3] <= b[1] or a[1] >= b[3])
 
 
 def _filter_shapes_to_area(
     shapes: list[Shape | Arrow | SmartArt], area: PrintArea
 ) -> list[Shape | Arrow | SmartArt]:
+    """
+    Filter drawable shapes to those that intersect the given print area.
+
+    Shapes and the print area are compared in approximate pixel coordinates. Shapes that have both width and height are included when their bounding rectangle overlaps the area. Shapes with unknown size (width or height is None) are treated as a point at their left/top coordinates and included only if that point lies inside the area.
+
+    Parameters:
+        shapes (list[Shape | Arrow | SmartArt]): Drawable objects with `l`, `t`, `w`, `h` coordinates.
+        area (PrintArea): Cell-based print area that will be converted to an approximate pixel rectangle.
+
+    Returns:
+        list[Shape | Arrow | SmartArt]: Subset of `shapes` whose geometry intersects the print area.
+    """
     area_rect = _area_to_px_rect(area)
     filtered: list[Shape | Arrow | SmartArt] = []
     for shp in shapes:

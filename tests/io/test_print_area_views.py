@@ -16,6 +16,19 @@ from exstruct.models import (
 
 
 def _workbook_with_print_area() -> WorkbookData:
+    """
+    Create a sample WorkbookData containing a single sheet configured for print-area tests.
+
+    The returned WorkbookData has book_name "book.xlsx" and a single sheet "Sheet1" whose SheetData contains:
+    - three rows with cells and one cell-level hyperlink,
+    - four shapes (two rectangle shapes, one SmartArt, one Arrow) positioned to allow in/out-of-area filtering,
+    - two charts (one inside the print area, one outside),
+    - table_candidates ["A1:B2", "C1:C1"],
+    - a single PrintArea spanning rows 1–2 and columns 0–1.
+
+    Returns:
+        WorkbookData: The constructed workbook suitable for tests of print-area view extraction.
+    """
     shape_inside = Shape(id=1, text="inside", l=10, t=5, w=20, h=10, type="Rect")
     shape_outside = Shape(id=2, text="outside", l=200, t=200, w=30, h=30, type="Rect")
     smartart_inside = SmartArt(
