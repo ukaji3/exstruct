@@ -110,9 +110,16 @@ class FakePdfDocument:
 class FakeImage:
     """Stub of a PIL image with a save method."""
 
-    def save(self, path: Path, image_format: str, dpi: tuple[int, int]) -> None:
+    def save(
+        self,
+        path: Path,
+        image_format: str | None = None,
+        dpi: tuple[int, int] | None = None,
+        **kwargs: object,
+    ) -> None:
         _ = image_format
         _ = dpi
+        _ = kwargs
         path.write_bytes(b"PNG")
 
 
