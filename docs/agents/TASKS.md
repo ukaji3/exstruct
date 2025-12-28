@@ -39,7 +39,7 @@
 
 - [x] core/shapes.py: get_shapes_with_position のフィルタリング動作（ダミー shape）
 - [x] core/charts.py: get_charts の Chart/Series 生成（ダミー chart）
-- [ ] core/backends/com_backend.py: extract_auto_page_breaks の失敗分岐
+- [x] core/backends/com_backend.py: extract_auto_page_breaks の失敗分岐
 
 ## フェーズ 5: 統合テスト（低優先）
 

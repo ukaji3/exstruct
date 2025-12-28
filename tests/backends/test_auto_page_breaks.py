@@ -9,6 +9,7 @@ from exstruct import (
     StructOptions,
     export_auto_page_breaks,
 )
+from exstruct.core.backends.com_backend import ComBackend
 from exstruct.models import PrintArea, SheetData, WorkbookData
 
 
@@ -62,3 +63,20 @@ def test_export_auto_page_breaks_raises_when_empty(tmp_path: Path) -> None:
     raise AssertionError(
         "export_auto_page_breaks should raise when no auto_print_areas"
     )
+
+
+def test_com_backend_extract_auto_page_breaks_handles_failure() -> None:
+    class _FailingSheetApi:
+        @property
+        def DisplayPageBreaks(self) -> bool:
+            raise RuntimeError("boom")
+
+    class _FailingSheet:
+        name = "Sheet1"
+        api = _FailingSheetApi()
+
+    class _DummyWorkbook:
+        sheets = [_FailingSheet()]
+
+    backend = ComBackend(_DummyWorkbook())
+    assert backend.extract_auto_page_breaks() == {}
