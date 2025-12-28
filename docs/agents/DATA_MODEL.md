@@ -25,12 +25,12 @@ BaseShape {
   t: int           // top  (px)
   w: int | null    // width (px)
   h: int | null    // height(px)
-  type: str | null // MSO 図形タイプラベル
   rotation: float | null
 }
 
 Shape extends BaseShape {
   kind: "shape"
+  type: str | null // MSO 図形タイプラベル
 }
 
 Arrow extends BaseShape {

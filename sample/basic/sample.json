@@ -5,66 +5,31 @@
       "rows": [
         {
           "r": 3,
-          "c": {
-            "1": "月",
-            "2": "製品A",
-            "3": "製品B",
-            "4": "製品C"
-          }
+          "c": { "1": "月", "2": "製品A", "3": "製品B", "4": "製品C" }
         },
         {
           "r": 4,
-          "c": {
-            "1": "2025-01-01 00:00:00",
-            "2": 120,
-            "3": 80,
-            "4": 60
-          }
+          "c": { "1": "2025-01-01 00:00:00", "2": 120, "3": 80, "4": 60 }
         },
         {
           "r": 5,
-          "c": {
-            "1": "2025-02-01 00:00:00",
-            "2": 135,
-            "3": 90,
-            "4": 64
-          }
+          "c": { "1": "2025-02-01 00:00:00", "2": 135, "3": 90, "4": 64 }
         },
         {
           "r": 6,
-          "c": {
-            "1": "2025-03-01 00:00:00",
-            "2": 150,
-            "3": 100,
-            "4": 70
-          }
+          "c": { "1": "2025-03-01 00:00:00", "2": 150, "3": 100, "4": 70 }
         },
         {
           "r": 7,
-          "c": {
-            "1": "2025-04-01 00:00:00",
-            "2": 170,
-            "3": 110,
-            "4": 72
-          }
+          "c": { "1": "2025-04-01 00:00:00", "2": 170, "3": 110, "4": 72 }
         },
         {
           "r": 8,
-          "c": {
-            "1": "2025-05-01 00:00:00",
-            "2": 160,
-            "3": 120,
-            "4": 75
-          }
+          "c": { "1": "2025-05-01 00:00:00", "2": 160, "3": 120, "4": 75 }
         },
         {
           "r": 9,
-          "c": {
-            "1": "2025-06-01 00:00:00",
-            "2": 180,
-            "3": 130,
-            "4": 80
-          }
+          "c": { "1": "2025-06-01 00:00:00", "2": 180, "3": 130, "4": 80 }
         }
       ],
       "shapes": [
@@ -73,6 +38,7 @@
           "text": "開始",
           "l": 148,
           "t": 220,
+          "kind": "shape",
           "type": "AutoShape-FlowchartProcess"
         },
         {
@@ -80,12 +46,13 @@
           "text": "入力データ読み込み",
           "l": 132,
           "t": 282,
+          "kind": "shape",
           "type": "AutoShape-FlowchartProcess"
         },
         {
           "l": 193,
           "t": 246,
-          "type": "AutoShape-Mixed",
+          "kind": "arrow",
           "begin_arrow_style": 1,
           "end_arrow_style": 2,
           "begin_id": 1,
@@ -97,6 +64,7 @@
           "text": "形式は正しい？",
           "l": 90,
           "t": 342,
+          "kind": "shape",
           "type": "AutoShape-FlowchartDecision"
         },
         {
@@ -104,6 +72,7 @@
           "text": "1件処理",
           "l": 424,
           "t": 361,
+          "kind": "shape",
           "type": "AutoShape-FlowchartProcess"
         },
         {
@@ -111,12 +80,13 @@
           "text": "残件あり？",
           "l": 365,
           "t": 414,
+          "kind": "shape",
           "type": "AutoShape-FlowchartDecision"
         },
         {
           "l": 192,
           "t": 312,
-          "type": "AutoShape-Mixed",
+          "kind": "arrow",
           "begin_arrow_style": 1,
           "end_arrow_style": 2,
           "begin_id": 2,
@@ -126,7 +96,7 @@
         {
           "l": 295,
           "t": 374,
-          "type": "AutoShape-Mixed",
+          "kind": "arrow",
           "begin_arrow_style": 1,
           "end_arrow_style": 2,
           "begin_id": 3,
@@ -138,12 +108,13 @@
           "text": "はい",
           "l": 340,
           "t": 362,
+          "kind": "shape",
           "type": "TextBox-Rectangle"
         },
         {
           "l": 468,
           "t": 387,
-          "type": "AutoShape-Mixed",
+          "kind": "arrow",
           "begin_arrow_style": 1,
           "end_arrow_style": 2,
           "begin_id": 4,
@@ -155,6 +126,7 @@
           "text": "出力を生成",
           "l": 426,
           "t": 494,
+          "kind": "shape",
           "type": "AutoShape-FlowchartProcess"
         },
         {
@@ -162,6 +134,7 @@
           "text": "メール送信？",
           "l": 366,
           "t": 549,
+          "kind": "shape",
           "type": "AutoShape-FlowchartDecision"
         },
         {
@@ -169,12 +142,13 @@
           "text": "エラー表示",
           "l": 132,
           "t": 463,
+          "kind": "shape",
           "type": "AutoShape-FlowchartProcess"
         },
         {
           "l": 192,
           "t": 406,
-          "type": "AutoShape-Mixed",
+          "kind": "arrow",
           "begin_arrow_style": 1,
           "end_arrow_style": 2,
           "begin_id": 3,
@@ -186,12 +160,13 @@
           "text": "メール送信",
           "l": 426,
           "t": 638,
+          "kind": "shape",
           "type": "AutoShape-FlowchartProcess"
         },
         {
           "l": 468,
           "t": 466,
-          "type": "AutoShape-Mixed",
+          "kind": "arrow",
           "begin_arrow_style": 1,
           "end_arrow_style": 2,
           "begin_id": 5,
@@ -201,7 +176,7 @@
         {
           "l": 468,
           "t": 520,
-          "type": "AutoShape-Mixed",
+          "kind": "arrow",
           "begin_arrow_style": 1,
           "end_arrow_style": 2,
           "begin_id": 7,
@@ -213,12 +188,13 @@
           "text": "終了",
           "l": 273,
           "t": 684,
+          "kind": "shape",
           "type": "AutoShape-FlowchartProcess"
         },
         {
           "l": 194,
           "t": 493,
-          "type": "AutoShape-Mixed",
+          "kind": "arrow",
           "begin_arrow_style": 1,
           "end_arrow_style": 2,
           "begin_id": 9,
@@ -228,7 +204,7 @@
         {
           "l": 363,
           "t": 664,
-          "type": "AutoShape-Mixed",
+          "kind": "arrow",
           "begin_arrow_style": 1,
           "end_arrow_style": 2,
           "begin_id": 10,
@@ -238,7 +214,7 @@
         {
           "l": 468,
           "t": 598,
-          "type": "AutoShape-Mixed",
+          "kind": "arrow",
           "begin_arrow_style": 1,
           "end_arrow_style": 2,
           "begin_id": 8,
@@ -250,12 +226,13 @@
           "text": "はい",
           "l": 448,
           "t": 604,
+          "kind": "shape",
           "type": "TextBox-Rectangle"
         },
         {
           "l": 323,
           "t": 573,
-          "type": "AutoShape-Mixed",
+          "kind": "arrow",
           "begin_arrow_style": 1,
           "end_arrow_style": 2,
           "begin_id": 8,
@@ -266,6 +243,7 @@
           "text": "いいえ",
           "l": 319,
           "t": 600,
+          "kind": "shape",
           "type": "TextBox-Rectangle"
         }
       ],
@@ -274,10 +252,7 @@
           "name": "Chart 1",
           "chart_type": "Line",
           "title": "売上データ",
-          "y_axis_range": [
-            0.0,
-            200.0
-          ],
+          "y_axis_range": [0.0, 200.0],
           "series": [
             {
               "name": "製品A",
@@ -302,9 +277,7 @@
           "t": 25
         }
       ],
-      "table_candidates": [
-        "B3:E9"
-      ]
+      "table_candidates": ["B3:E9"]
     }
   }
 }

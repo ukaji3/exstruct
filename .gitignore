@@ -23,4 +23,3 @@ ruff_report.txt
 mypy_report.txt
 coverage.xml
 htmlcov/
-sample_smartart.py

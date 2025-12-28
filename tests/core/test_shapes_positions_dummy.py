@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from exstruct.core.shapes import get_shapes_with_position
+from exstruct.models import Arrow
 
 
 @dataclass(frozen=True)
@@ -107,7 +108,8 @@ def test_get_shapes_with_position_standard_filters_textless_non_relation() -> No
     assert len(shapes) == 2
     assert {s.text for s in shapes} == {"Hello", ""}
     line_entries = [s for s in shapes if s.text == ""]
-    assert line_entries[0].type == "Line"
+    assert isinstance(line_entries[0], Arrow)
+    assert line_entries[0].direction == "E"
     text_entries = [s for s in shapes if s.text == "Hello"]
     assert text_entries[0].id == 1
 

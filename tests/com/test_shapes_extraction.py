@@ -4,7 +4,7 @@ import pytest
 import xlwings as xw
 
 from exstruct.core.integrate import extract_workbook
-from exstruct.models import Arrow
+from exstruct.models import Arrow, Shape
 
 pytestmark = pytest.mark.com
 
@@ -71,31 +71,22 @@ def test_図形の種別とテキストが抽出される(tmp_path: Path) -> Non
     wb_data = extract_workbook(path)
     shapes = wb_data.sheets["Sheet1"].shapes
 
-    rect = next(s for s in shapes if s.text == "rect")
+    rect = next(s for s in shapes if isinstance(s, Shape) and s.text == "rect")
     assert "AutoShape" in (rect.type or "")
     assert rect.l >= 0 and rect.t >= 0
-    assert rect.id > 0
+    assert rect.id is not None and rect.id > 0
 
-    inner = next(s for s in shapes if s.text == "inner")
+    inner = next(s for s in shapes if isinstance(s, Shape) and s.text == "inner")
     assert "Group" not in (inner.type or "")  # flattened child
-    assert not any((s.type or "") == "Group" for s in shapes)
-    assert inner.id > 0
+    assert not any(isinstance(s, Shape) and (s.type or "") == "Group" for s in shapes)
+    assert inner.id is not None and inner.id > 0
     ids = [s.id for s in shapes if s.id is not None]
     assert len(ids) == len(set(ids))
     # Standard mode should not emit non-relationship AutoShapes without text.
     assert not any(
-        (s.text == "" or s.text is None)
+        isinstance(s, Shape)
+        and (s.text == "" or s.text is None)
         and (s.type or "").startswith("AutoShape")
-        and not (
-            isinstance(s, Arrow)
-            and (
-                s.direction
-                or s.begin_arrow_style is not None
-                or s.end_arrow_style is not None
-                or s.begin_id is not None
-                or s.end_id is not None
-            )
-        )
         for s in shapes
     )
 
@@ -140,6 +131,6 @@ def test_コネクターの接続元と接続先が抽出される(tmp_path: Pat
     assert conn.end_id is not None
     assert conn.begin_id != conn.end_id
     # Connected shape ids should correspond to some emitted shapes' id.
-    shape_ids = {s.id for s in shapes}
+    shape_ids = {s.id for s in shapes if s.id is not None}
     assert conn.begin_id in shape_ids
     assert conn.end_id in shape_ids

@@ -320,7 +320,6 @@ def get_shapes_with_position(  # noqa: C901
                         h=int(shp.height)
                         if mode == "verbose" or shape_type_str == "Group"
                         else None,
-                        type=type_label,
                         layout=_get_smartart_layout_name(smartart_obj),
                         nodes=_extract_smartart_nodes(smartart_obj),
                     )
@@ -336,7 +335,6 @@ def get_shapes_with_position(  # noqa: C901
                         h=int(shp.height)
                         if mode == "verbose" or shape_type_str == "Group"
                         else None,
-                        type=type_label,
                     )
                 else:
                     shape_obj = Shape(

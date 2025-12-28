@@ -20,7 +20,6 @@ class BaseShape(BaseModel):
     t: int = Field(description="Top offset (Excel units).")
     w: int | None = Field(default=None, description="Shape width (None if unknown).")
     h: int | None = Field(default=None, description="Shape height (None if unknown).")
-    type: str | None = Field(default=None, description="Excel shape type name.")
     rotation: float | None = Field(
         default=None, description="Rotation angle in degrees."
     )
@@ -30,6 +29,7 @@ class Shape(BaseShape):
     """Normal shape metadata."""
 
     kind: Literal["shape"] = Field(default="shape", description="Shape kind.")
+    type: str | None = Field(default=None, description="Excel shape type name.")
 
 
 class Arrow(BaseShape):

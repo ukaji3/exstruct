@@ -1,0 +1,93 @@
+{
+  "book_name": "sample_smartart.xlsx",
+  "sheets": {
+    "Sheet1": {
+      "shapes": [
+        {
+          "id": 1,
+          "l": 0,
+          "t": 28,
+          "kind": "smartart",
+          "layout": "基本の循環",
+          "nodes": [
+            { "text": "1", "kids": [{ "text": "要件定義" }] },
+            { "text": "2", "kids": [{ "text": "報連相" }, { "text": "開発" }] },
+            {
+              "text": "3",
+              "kids": [{ "text": "実装確認" }, { "text": "動作確認" }]
+            },
+            { "text": "4", "kids": [{ "text": "対策" }] },
+            { "text": "5", "kids": [{ "text": "最終確認" }] }
+          ]
+        },
+        {
+          "id": 2,
+          "l": 388,
+          "t": 32,
+          "kind": "smartart",
+          "layout": "開始点強調型プロセス",
+          "nodes": [
+            { "text": "企画" },
+            { "text": "執筆" },
+            { "text": "編集" },
+            { "text": "制作" },
+            { "text": "校正" }
+          ]
+        },
+        {
+          "id": 3,
+          "l": 46,
+          "t": 325,
+          "kind": "smartart",
+          "layout": "組織図",
+          "nodes": [
+            {
+              "text": "取締役会",
+              "kids": [
+                {
+                  "text": "社長",
+                  "kids": [
+                    { "text": "企画管理部" },
+                    {
+                      "text": "営業部",
+                      "kids": [
+                        { "text": "第1営業課" },
+                        { "text": "第2営業課" },
+                        { "text": "第3営業課" },
+                        { "text": "海外営業課" }
+                      ]
+                    },
+                    {
+                      "text": "開発部",
+                      "kids": [{ "text": "第1開発課" }, { "text": "第2開発課" }]
+                    },
+                    {
+                      "text": "技術部",
+                      "kids": [{ "text": "第1技術課" }, { "text": "第2技術課" }]
+                    },
+                    {
+                      "text": "生産部",
+                      "kids": [
+                        { "text": "愛知工場" },
+                        { "text": "山形工場" },
+                        { "text": "高知工場" }
+                      ]
+                    },
+                    {
+                      "text": "総務部",
+                      "kids": [
+                        { "text": "総務課" },
+                        { "text": "人事課" },
+                        { "text": "経理課" }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

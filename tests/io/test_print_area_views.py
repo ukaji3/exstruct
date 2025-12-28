@@ -25,11 +25,10 @@ def _workbook_with_print_area() -> WorkbookData:
         t=8,
         w=20,
         h=10,
-        type="SmartArt",
         layout="Layout",
         nodes=[SmartArtNode(text="root", kids=[])],
     )
-    arrow_inside = Arrow(id=None, text="", l=5, t=5, w=20, h=2, type="Line")
+    arrow_inside = Arrow(id=None, text="", l=5, t=5, w=20, h=2)
     chart_inside = Chart(
         name="c1",
         chart_type="Line",
