@@ -159,6 +159,24 @@ def test_resolve_extraction_inputs_defaults(tmp_path: Path) -> None:
     assert inputs.include_merged_cells is True
 
 
+def test_resolve_extraction_inputs_forces_merged_cells_when_excluding_values(
+    tmp_path: Path,
+) -> None:
+    inputs = resolve_extraction_inputs(
+        tmp_path / "book.xlsx",
+        mode="light",
+        include_cell_links=None,
+        include_print_areas=None,
+        include_auto_page_breaks=False,
+        include_colors_map=None,
+        include_default_background=False,
+        ignore_colors=None,
+        include_merged_cells=False,
+        include_merged_values_in_rows=False,
+    )
+    assert inputs.include_merged_cells is True
+
+
 def test_build_cells_tables_workbook_uses_print_areas(
     monkeypatch: MonkeyPatch, tmp_path: Path
 ) -> None:

@@ -225,6 +225,8 @@ def resolve_extraction_inputs(
     resolved_merged_cells = (
         include_merged_cells if include_merged_cells is not None else mode != "light"
     )
+    if not include_merged_values_in_rows:
+        resolved_merged_cells = True
 
     return ExtractionInputs(
         file_path=normalized_file_path,
