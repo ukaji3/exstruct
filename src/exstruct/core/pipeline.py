@@ -19,6 +19,7 @@ from ..models import (
     SmartArt,
     WorkbookData,
 )
+from ..ooxml import get_charts_ooxml, get_shapes_ooxml
 from .backends.com_backend import ComBackend
 from .backends.openpyxl_backend import OpenpyxlBackend
 from .cells import MergedCellRange, WorkbookColorsMap, detect_tables
@@ -820,13 +821,63 @@ def run_extraction_pipeline(inputs: ExtractionInputs) -> PipelineResult:
         )
 
 
+def _extract_shapes_ooxml_fallback(
+    file_path: Path, mode: ExtractionMode
+) -> ShapeData:
+    """Extract shapes using OOXML parser as fallback.
+
+    Args:
+        file_path: Path to the Excel workbook.
+        mode: Extraction mode.
+
+    Returns:
+        Shape data per sheet.
+    """
+    if mode == "light":
+        return {}
+    try:
+        raw_shapes = get_shapes_ooxml(file_path, mode=mode)
+        # Convert dict[str, list[Shape]] to ShapeData (dict[str, list[Shape | Arrow | SmartArt]])
+        result: ShapeData = {}
+        for sheet_name, shapes in raw_shapes.items():
+            result[sheet_name] = list(shapes)
+        return result
+    except Exception as exc:
+        logger.warning("OOXML shape extraction failed: %s", exc)
+        return {}
+
+
+def _extract_charts_ooxml_fallback(
+    file_path: Path, mode: ExtractionMode
+) -> ChartData:
+    """Extract charts using OOXML parser as fallback.
+
+    Args:
+        file_path: Path to the Excel workbook.
+        mode: Extraction mode.
+
+    Returns:
+        Chart data per sheet.
+    """
+    if mode == "light":
+        return {}
+    try:
+        return get_charts_ooxml(file_path, mode=mode)
+    except Exception as exc:
+        logger.warning("OOXML chart extraction failed: %s", exc)
+        return {}
+
+
 def build_cells_tables_workbook(
     *,
     inputs: ExtractionInputs,
     artifacts: ExtractionArtifacts,
     reason: str,
 ) -> WorkbookData:
-    """Build a WorkbookData containing cells + table_candidates (fallback).
+    """Build a WorkbookData with OOXML fallback for shapes/charts.
+
+    When COM is unavailable, this function uses OOXML parsers to extract
+    shapes and charts, enabling cross-platform support (Linux/macOS).
 
     Args:
         inputs: Pipeline inputs.
@@ -834,9 +885,9 @@ def build_cells_tables_workbook(
         reason: Reason to log for fallback.
 
     Returns:
-        WorkbookData constructed from cells and detected tables.
+        WorkbookData constructed from cells, tables, shapes, and charts.
     """
-    logger.debug("Building fallback workbook: %s", reason)
+    logger.debug("Building fallback workbook with OOXML: %s", reason)
     backend = OpenpyxlBackend(inputs.file_path)
     colors_map_data = artifacts.colors_map_data
     if inputs.include_colors_map and colors_map_data is None:
@@ -844,6 +895,11 @@ def build_cells_tables_workbook(
             include_default_background=inputs.include_default_background,
             ignore_colors=inputs.ignore_colors,
         )
+
+    # Extract shapes and charts via OOXML parser (cross-platform fallback)
+    shape_data = _extract_shapes_ooxml_fallback(inputs.file_path, inputs.mode)
+    chart_data = _extract_charts_ooxml_fallback(inputs.file_path, inputs.mode)
+
     sheets: dict[str, SheetRawData] = {}
     for sheet_name, rows in artifacts.cell_data.items():
         sheet_colors = (
@@ -858,8 +914,8 @@ def build_cells_tables_workbook(
         )
         sheets[sheet_name] = SheetRawData(
             rows=filtered_rows,
-            shapes=[],
-            charts=[],
+            shapes=shape_data.get(sheet_name, []),
+            charts=chart_data.get(sheet_name, []),
             table_candidates=tables,
             print_areas=artifacts.print_area_data.get(sheet_name, [])
             if inputs.include_print_areas
