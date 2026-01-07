@@ -4,6 +4,8 @@ theme:
   name: material
 exclude_docs:
   agents/
+  architecture/
+  contributors/
 plugins:
   - search
   - mkdocstrings:
@@ -25,6 +27,10 @@ nav:
   - CLI Guide: cli.md
   - Concept / Why ExStruct?: concept.md
   - Release Notes:
+      - v0.3.5: release-notes/v0.3.5.md
+      - v0.3.2: release-notes/v0.3.2.md
+      - v0.3.1: release-notes/v0.3.1.md
+      - v0.3.0: release-notes/v0.3.0.md
       - v0.2.90: release-notes/v0.2.90.md
       - v0.2.80: release-notes/v0.2.80.md
       - v0.2.71: release-notes/v0.2.71.md

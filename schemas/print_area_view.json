@@ -1,5 +1,166 @@
 {
   "$defs": {
+    "Arrow": {
+      "description": "Connector shape metadata.",
+      "properties": {
+        "begin_arrow_style": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Arrow style enum for the start of a connector.",
+          "title": "Begin Arrow Style"
+        },
+        "begin_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Shape id at the start of a connector (ConnectorFormat.BeginConnectedShape).",
+          "title": "Begin Id"
+        },
+        "direction": {
+          "anyOf": [
+            {
+              "enum": [
+                "E",
+                "SE",
+                "S",
+                "SW",
+                "W",
+                "NW",
+                "N",
+                "NE"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Connector direction (compass heading).",
+          "title": "Direction"
+        },
+        "end_arrow_style": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Arrow style enum for the end of a connector.",
+          "title": "End Arrow Style"
+        },
+        "end_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Shape id at the end of a connector (ConnectorFormat.EndConnectedShape).",
+          "title": "End Id"
+        },
+        "h": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Shape height (None if unknown).",
+          "title": "H"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sequential shape id within the sheet (if applicable).",
+          "title": "Id"
+        },
+        "kind": {
+          "const": "arrow",
+          "default": "arrow",
+          "description": "Shape kind.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "l": {
+          "description": "Left offset (Excel units).",
+          "title": "L",
+          "type": "integer"
+        },
+        "rotation": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Rotation angle in degrees.",
+          "title": "Rotation"
+        },
+        "t": {
+          "description": "Top offset (Excel units).",
+          "title": "T",
+          "type": "integer"
+        },
+        "text": {
+          "description": "Visible text content of the shape.",
+          "title": "Text",
+          "type": "string"
+        },
+        "w": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Shape width (None if unknown).",
+          "title": "W"
+        }
+      },
+      "required": [
+        "text",
+        "l",
+        "t"
+      ],
+      "title": "Arrow",
+      "type": "object"
+    },
     "CellRow": {
       "description": "A single row of cells with optional hyperlinks.",
       "properties": {
@@ -216,12 +377,12 @@
       "description": "Cell coordinate bounds for a print area.",
       "properties": {
         "c1": {
-          "description": "Start column (1-based).",
+          "description": "Start column (0-based).",
           "title": "C1",
           "type": "integer"
         },
         "c2": {
-          "description": "End column (1-based, inclusive).",
+          "description": "End column (0-based, inclusive).",
           "title": "C2",
           "type": "integer"
         },
@@ -246,83 +407,8 @@
       "type": "object"
     },
     "Shape": {
-      "description": "Shape metadata (position, size, text, and styling).",
+      "description": "Normal shape metadata.",
       "properties": {
-        "begin_arrow_style": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Arrow style enum for the start of a connector.",
-          "title": "Begin Arrow Style"
-        },
-        "begin_id": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Shape id at the start of a connector (ConnectorFormat.BeginConnectedShape).",
-          "title": "Begin Id"
-        },
-        "direction": {
-          "anyOf": [
-            {
-              "enum": [
-                "E",
-                "SE",
-                "S",
-                "SW",
-                "W",
-                "NW",
-                "N",
-                "NE"
-              ],
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Connector direction (compass heading).",
-          "title": "Direction"
-        },
-        "end_arrow_style": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Arrow style enum for the end of a connector.",
-          "title": "End Arrow Style"
-        },
-        "end_id": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Shape id at the end of a connector (ConnectorFormat.EndConnectedShape).",
-          "title": "End Id"
-        },
         "h": {
           "anyOf": [
             {
@@ -348,6 +434,13 @@
           "default": null,
           "description": "Sequential shape id within the sheet (if applicable).",
           "title": "Id"
+        },
+        "kind": {
+          "const": "shape",
+          "default": "shape",
+          "description": "Shape kind.",
+          "title": "Kind",
+          "type": "string"
         },
         "l": {
           "description": "Left offset (Excel units).",
@@ -411,6 +504,129 @@
       ],
       "title": "Shape",
       "type": "object"
+    },
+    "SmartArt": {
+      "description": "SmartArt shape metadata with nested nodes.",
+      "properties": {
+        "h": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Shape height (None if unknown).",
+          "title": "H"
+        },
+        "id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sequential shape id within the sheet (if applicable).",
+          "title": "Id"
+        },
+        "kind": {
+          "const": "smartart",
+          "default": "smartart",
+          "description": "Shape kind.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "l": {
+          "description": "Left offset (Excel units).",
+          "title": "L",
+          "type": "integer"
+        },
+        "layout": {
+          "description": "SmartArt layout name.",
+          "title": "Layout",
+          "type": "string"
+        },
+        "nodes": {
+          "description": "Root nodes of SmartArt tree.",
+          "items": {
+            "$ref": "#/$defs/SmartArtNode"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "rotation": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Rotation angle in degrees.",
+          "title": "Rotation"
+        },
+        "t": {
+          "description": "Top offset (Excel units).",
+          "title": "T",
+          "type": "integer"
+        },
+        "text": {
+          "description": "Visible text content of the shape.",
+          "title": "Text",
+          "type": "string"
+        },
+        "w": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Shape width (None if unknown).",
+          "title": "W"
+        }
+      },
+      "required": [
+        "text",
+        "l",
+        "t",
+        "layout"
+      ],
+      "title": "SmartArt",
+      "type": "object"
+    },
+    "SmartArtNode": {
+      "description": "Node of SmartArt hierarchy.",
+      "properties": {
+        "kids": {
+          "description": "Child nodes.",
+          "items": {
+            "$ref": "#/$defs/SmartArtNode"
+          },
+          "title": "Kids",
+          "type": "array"
+        },
+        "text": {
+          "description": "Visible text for the node.",
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "SmartArtNode",
+      "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -444,7 +660,17 @@
     "shapes": {
       "description": "Shapes overlapping the area.",
       "items": {
-        "$ref": "#/$defs/Shape"
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Shape"
+          },
+          {
+            "$ref": "#/$defs/Arrow"
+          },
+          {
+            "$ref": "#/$defs/SmartArt"
+          }
+        ]
       },
       "title": "Shapes",
       "type": "array"

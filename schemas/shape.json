@@ -1,82 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "Shape metadata (position, size, text, and styling).",
+  "description": "Normal shape metadata.",
   "properties": {
-    "begin_arrow_style": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Arrow style enum for the start of a connector.",
-      "title": "Begin Arrow Style"
-    },
-    "begin_id": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Shape id at the start of a connector (ConnectorFormat.BeginConnectedShape).",
-      "title": "Begin Id"
-    },
-    "direction": {
-      "anyOf": [
-        {
-          "enum": [
-            "E",
-            "SE",
-            "S",
-            "SW",
-            "W",
-            "NW",
-            "N",
-            "NE"
-          ],
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Connector direction (compass heading).",
-      "title": "Direction"
-    },
-    "end_arrow_style": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Arrow style enum for the end of a connector.",
-      "title": "End Arrow Style"
-    },
-    "end_id": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Shape id at the end of a connector (ConnectorFormat.EndConnectedShape).",
-      "title": "End Id"
-    },
     "h": {
       "anyOf": [
         {
@@ -102,6 +27,13 @@
       "default": null,
       "description": "Sequential shape id within the sheet (if applicable).",
       "title": "Id"
+    },
+    "kind": {
+      "const": "shape",
+      "default": "shape",
+      "description": "Shape kind.",
+      "title": "Kind",
+      "type": "string"
     },
     "l": {
       "description": "Left offset (Excel units).",

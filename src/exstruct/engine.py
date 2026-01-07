@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, TextIO, TypedDict, cast
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from .core import cells as _cells
 from .core.cells import set_table_detection_params
@@ -70,6 +70,8 @@ class StructOptions:
                       before extraction. Use this to tweak table detection heuristics
                       per engine instance without touching global state.
         include_colors_map: Whether to extract background color maps.
+        include_merged_cells: Whether to extract merged cell ranges.
+        include_merged_values_in_rows: Whether to keep merged values in rows.
         colors: Color extraction options.
     """
 
@@ -79,6 +81,8 @@ class StructOptions:
     )
     include_cell_links: bool | None = None  # None -> auto: verbose=True, others=False
     include_colors_map: bool | None = None  # None -> auto: verbose=True, others=False
+    include_merged_cells: bool | None = None  # None -> auto: light=False, others=True
+    include_merged_values_in_rows: bool = True
     colors: ColorsOptions = field(default_factory=ColorsOptions)
 
 
@@ -121,6 +125,9 @@ class FilterOptions(BaseModel):
     include_auto_print_areas: bool = Field(
         default=False, description="Include COM-computed auto page-break areas."
     )
+    include_merged_cells: bool = Field(
+        default=True, description="Include merged cell ranges."
+    )
 
 
 class DestinationOptions(BaseModel):
@@ -148,10 +155,9 @@ class OutputOptions(BaseModel):
     - format: serialization format/indent.
     - filters: include/exclude flags (rows/shapes/charts/tables/print_areas, size flags).
     - destinations: side outputs (per-sheet, per-print-area, stream override).
-
-    Legacy flat fields (fmt, pretty, indent, include_*, sheets_dir, print_areas_dir, stream)
-    are still accepted and normalized into the nested structures.
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     format: FormatOptions = Field(
         default_factory=FormatOptions, description="Formatting options."
@@ -162,112 +168,6 @@ class OutputOptions(BaseModel):
     destinations: DestinationOptions = Field(
         default_factory=DestinationOptions, description="Side output destinations."
     )
-
-    @model_validator(mode="before")
-    @classmethod
-    def _coerce_legacy(cls, values: dict[str, object]) -> dict[str, object]:
-        if not isinstance(values, dict):
-            return values
-        # Normalize legacy flat fields into nested configs
-        fmt_cfg = {
-            "fmt": values.pop("fmt", None),
-            "pretty": values.pop("pretty", None),
-            "indent": values.pop("indent", None),
-        }
-        filt_cfg = {
-            "include_rows": values.pop("include_rows", None),
-            "include_shapes": values.pop("include_shapes", None),
-            "include_shape_size": values.pop("include_shape_size", None),
-            "include_charts": values.pop("include_charts", None),
-            "include_chart_size": values.pop("include_chart_size", None),
-            "include_tables": values.pop("include_tables", None),
-            "include_print_areas": values.pop("include_print_areas", None),
-        }
-        dest_cfg = {
-            "sheets_dir": values.pop("sheets_dir", None),
-            "print_areas_dir": values.pop("print_areas_dir", None),
-            "auto_page_breaks_dir": values.pop("auto_page_breaks_dir", None),
-            "stream": values.pop("stream", None),
-        }
-        # Drop None to let defaults apply
-        fmt_cfg = {k: v for k, v in fmt_cfg.items() if v is not None}
-        filt_cfg = {k: v for k, v in filt_cfg.items() if v is not None}
-        dest_cfg = {k: v for k, v in dest_cfg.items() if v is not None}
-
-        merged = dict(values)
-        if "format" not in merged and fmt_cfg:
-            merged["format"] = fmt_cfg
-        if "filters" not in merged and filt_cfg:
-            merged["filters"] = filt_cfg
-        if "destinations" not in merged and dest_cfg:
-            merged["destinations"] = dest_cfg
-        return merged
-
-    # Legacy compatibility properties
-    @property
-    def fmt(self) -> Literal["json", "yaml", "yml", "toon"]:
-        return self.format.fmt
-
-    @property
-    def pretty(self) -> bool:
-        return self.format.pretty
-
-    @property
-    def indent(self) -> int | None:
-        return self.format.indent
-
-    @property
-    def include_rows(self) -> bool:
-        return self.filters.include_rows
-
-    @property
-    def include_shapes(self) -> bool:
-        return self.filters.include_shapes
-
-    @property
-    def include_shape_size(self) -> bool | None:
-        return self.filters.include_shape_size
-
-    @property
-    def include_charts(self) -> bool:
-        return self.filters.include_charts
-
-    @property
-    def include_chart_size(self) -> bool | None:
-        return self.filters.include_chart_size
-
-    @property
-    def include_tables(self) -> bool:
-        return self.filters.include_tables
-
-    @property
-    def include_print_areas(self) -> bool | None:
-        return self.filters.include_print_areas
-
-    @property
-    def sheets_dir(self) -> Path | None:
-        resolved = self.destinations.sheets_dir
-        if resolved is None:
-            return None
-        return resolved if isinstance(resolved, Path) else Path(resolved)
-
-    @property
-    def print_areas_dir(self) -> Path | None:
-        resolved = self.destinations.print_areas_dir
-        if resolved is None:
-            return None
-        return resolved if isinstance(resolved, Path) else Path(resolved)
-
-    @property
-    def stream(self) -> TextIO | None:
-        return self.destinations.stream
-
-    @property
-    def auto_page_breaks_dir(self) -> Path | None:
-        resolved = self.destinations.auto_page_breaks_dir
-        if resolved is None:
-            return None
-        return resolved if isinstance(resolved, Path) else Path(resolved)
 
 
 class ExStructEngine:
@@ -349,15 +249,6 @@ class ExStructEngine:
             return self.options.mode != "light"
         return self.output.filters.include_print_areas
 
-    def _include_colors_map(self, *, mode: ExtractionMode) -> bool:
-        """
-        Decide whether to include background color maps in extraction.
-        Auto: verbose -> True, others -> False.
-        """
-        if self.options.include_colors_map is None:
-            return mode == "verbose"
-        return self.options.include_colors_map
-
     def _include_auto_print_areas(self) -> bool:
         """
         Decide whether to include auto page-break areas in output.
@@ -395,6 +286,9 @@ class ExStructEngine:
             colors_map=sheet.colors_map,
             print_areas=sheet.print_areas if include_print_areas else [],
             auto_print_areas=sheet.auto_print_areas if include_auto_print_areas else [],
+            merged_cells=sheet.merged_cells
+            if self.output.filters.include_merged_cells
+            else None,
         )
 
     def _filter_workbook(
@@ -449,38 +343,23 @@ class ExStructEngine:
                 - verbose: All shapes (with size) and charts (with size).
         """
         chosen_mode = mode or self.options.mode
-        if chosen_mode not in ("light", "standard", "verbose"):
-            raise ValueError(f"Unsupported mode: {chosen_mode}")
-        include_links = (
-            self.options.include_cell_links
-            if self.options.include_cell_links is not None
-            else chosen_mode == "verbose"
-        )
-        include_print_areas = True  # Extract print areas even in light mode
         include_auto_page_breaks = (
             self.output.filters.include_auto_print_areas
             or self.output.destinations.auto_page_breaks_dir is not None
-        )
-        include_colors_map = self._include_colors_map(mode=chosen_mode)
-        include_default_background = (
-            self.options.colors.include_default_background
-            if include_colors_map
-            else False
-        )
-        ignore_colors = (
-            self.options.colors.ignore_colors_set() if include_colors_map else set()
         )
         normalized_file_path = self._ensure_path(file_path)
         with self._table_params_scope():
             return extract_workbook(
                 normalized_file_path,
                 mode=chosen_mode,
-                include_cell_links=include_links,
-                include_print_areas=include_print_areas,
+                include_cell_links=self.options.include_cell_links,
+                include_print_areas=None,
                 include_auto_page_breaks=include_auto_page_breaks,
-                include_colors_map=include_colors_map,
-                include_default_background=include_default_background,
-                ignore_colors=ignore_colors,
+                include_colors_map=self.options.include_colors_map,
+                include_default_background=self.options.colors.include_default_background,
+                ignore_colors=self.options.colors.ignore_colors_set(),
+                include_merged_cells=self.options.include_merged_cells,
+                include_merged_values_in_rows=self.options.include_merged_values_in_rows,
             )
 
     def serialize(
@@ -496,7 +375,7 @@ class ExStructEngine:
 
         Args:
             data: Workbook to serialize after filtering.
-            fmt: Serialization format; defaults to OutputOptions.fmt.
+            fmt: Serialization format; defaults to OutputOptions.format.fmt.
             pretty: Whether to pretty-print JSON output.
             indent: Indentation to use when pretty-printing JSON.
         """
@@ -530,7 +409,7 @@ class ExStructEngine:
         Args:
             data: Workbook to serialize and write.
             output_path: Target file path (str or Path); writes to stdout when None.
-            fmt: Serialization format; defaults to OutputOptions.fmt.
+            fmt: Serialization format; defaults to OutputOptions.format.fmt.
             pretty: Whether to pretty-print JSON output.
             indent: Indentation to use when pretty-printing JSON.
             sheets_dir: Directory for per-sheet outputs when provided (str or Path).

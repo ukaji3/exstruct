@@ -6,13 +6,17 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from exstruct.models import (
+    Arrow,
     CellRow,
     Chart,
     ChartSeries,
+    MergedCells,
     PrintArea,
     PrintAreaView,
     Shape,
     SheetData,
+    SmartArt,
+    SmartArtNode,
     WorkbookData,
 )
 
@@ -36,7 +40,14 @@ def _write_schema(name: str, model: type[BaseModel], output_dir: Path) -> Path:
 
 
 def main() -> int:
-    """Generate JSON Schemas for ExStruct public models."""
+    """
+    Generate JSON Schema files for ExStruct's public Pydantic models into the repository 'schemas' directory.
+
+    Writes one JSON Schema file per public model into the 'schemas' folder at the project root.
+
+    Returns:
+        exit_code (int): 0 on success.
+    """
     project_root = Path(__file__).resolve().parent.parent
     output_dir = project_root / "schemas"
     targets: dict[str, type[BaseModel]] = {
@@ -44,8 +55,12 @@ def main() -> int:
         "sheet": SheetData,
         "cell_row": CellRow,
         "shape": Shape,
+        "arrow": Arrow,
+        "smartart": SmartArt,
+        "smartart_node": SmartArtNode,
         "chart": Chart,
         "chart_series": ChartSeries,
+        "merged_cells": MergedCells,
         "print_area": PrintArea,
         "print_area_view": PrintAreaView,
     }

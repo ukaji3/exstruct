@@ -1,44 +1,67 @@
-# ExStruct データモデル仕様
+﻿# ExStruct データモデル仕様
 
-**Version**: 0.10  
-**Status**: Authoritative — 本ドキュメントは ExStruct が返す全モデルの唯一の正準ソースです。  
-core / io / integrate は必ずこの仕様に従うこと。モデルは **pydantic v2** で実装します。
+**Version**: 0.15
+**Status**: Authoritative
+
+本ドキュメントは ExStruct が返す全モデルの唯一の正準ソースです。
+core / io / integrate はこの仕様に従うこと。モデルは **pydantic v2** で実装します。
 
 ---
 
 # 1. Overview
 
-ExStruct は Excel ワークブックを LLM が扱いやすい **意味構造（Semantic Structure）** として JSON 化します。  
+ExStruct は Excel ワークブックを LLM が扱いやすい **意味構造** として JSON 化します。
 特記がない限り、以下のモデルはすべて Pydantic の `BaseModel` です。
 
 ---
 
-# 2. Shape Model
+# 2. Shape / Arrow / SmartArt Model
+
+出力の `shapes` は下記 3 モデルのユニオンです。`kind` で判別します。
 
 ```jsonc
-Shape {
-  id: int | null   // sheet 内での通番 id（線・矢印は null の場合あり）
+BaseShape {
+  id: int | null   // sheet 連番 id（矢印は null の場合あり）
   text: str
   l: int           // left (px)
   t: int           // top  (px)
   w: int | null    // width (px)
-  h: int | null    // height(px)
-  type: str | null // MSO 図形タイプのラベル
+  h: int | null    // height (px)
   rotation: float | null
+}
+
+Shape extends BaseShape {
+  kind: "shape"
+  type: str | null // MSO 図形タイプラベル
+}
+
+Arrow extends BaseShape {
+  kind: "arrow"
   begin_arrow_style: int | null
   end_arrow_style: int | null
-  begin_id: int | null // コネクタ始点の接続先 Shape.id
-  end_id: int | null   // コネクタ終点の接続先 Shape.id
+  begin_id: int | null // コネクタ始点の接続 Shape.id
+  end_id: int | null   // コネクタ終点の接続 Shape.id
   direction: "E"|"SE"|"S"|"SW"|"W"|"NW"|"N"|"NE" | null
+}
+
+SmartArtNode {
+  text: str
+  kids: [SmartArtNode]
+}
+
+SmartArt extends BaseShape {
+  kind: "smartart"
+  layout: str
+  nodes: [SmartArtNode]
 }
 ```
 
 補足:
 
-- `direction` は線や矢印の向きを 8 方位に正規化したもの。
-- 矢印スタイルは Excel の enum に対応。
-- `begin_id` / `end_id` は、コネクタが接続している図形の `id`（Excel の `ConnectorFormat.BeginConnectedShape` / `EndConnectedShape` に対応）。
-- 線や矢印の Shape では `id` が null になる場合があります。
+- `direction` は線や矢印の向きを 8 方位に正規化
+- 矢印スタイルは Excel の enum に対応
+- `begin_id` / `end_id` はコネクタが接続している図形の `id`
+- `SmartArtNode` はネスト構造で表現し、`nodes` がツリーの根
 
 ---
 
@@ -46,9 +69,9 @@ Shape {
 
 ```jsonc
 CellRow {
-  r: int                                // 行番号（Excel 由来、1-based）
-  c: { [colIndex: str]: str | int | float } // 非空セルのみ、列インデックスは文字列 ("0","1",...)
-  links: { [colIndex: str]: url } | null    // ハイパーリンク（有効化時のみ）
+  r: int                                  // 行番号 (1-based)
+  c: { [colIndex: str]: str | int | float } // 非空セルのみ、キーは列インデックス文字列
+  links: { [colIndex: str]: url } | null    // ハイパーリンク有効化時のみ
 }
 ```
 
@@ -93,17 +116,17 @@ Chart {
 
 ```jsonc
 PrintArea {
-  r1: int  // 開始行 (0-based, inclusive)
+  r1: int  // 開始行 (1-based, inclusive)
   c1: int  // 開始列 (0-based, inclusive)
-  r2: int  // 終了行 (0-based, inclusive)
+  r2: int  // 終了行 (1-based, inclusive)
   c2: int  // 終了列 (0-based, inclusive)
 }
 ```
 
 補足:
 
-- シートごとに複数保持可能。
-- `standard` / `verbose` で取得できる場合に含まれる。
+- シートごとに複数保持可能
+- `standard` / `verbose` で取得できる場合に含まれる
 
 ---
 
@@ -114,7 +137,7 @@ PrintAreaView {
   book_name: str
   sheet_name: str
   area: PrintArea
-  shapes: [Shape]
+  shapes: [Shape | Arrow | SmartArt]
   charts: [Chart]
   rows: [CellRow]          // 範囲に交差する行のみ、空列は落とす
   table_candidates: [str]  // 範囲内に収まるテーブル候補
@@ -123,32 +146,50 @@ PrintAreaView {
 
 補足:
 
-- 座標はデフォルトでシート基準。`normalize` 指定時は範囲左上を原点に再基準化。
+- 座標はデフォルトでシート基準。`normalize` 指定時は範囲左上を原点に再基準化
 
 ---
 
-# 8. SheetData Model
+# 8. MergedCells Model
+
+```jsonc
+MergedCells {
+  schema: ["r1", "c1", "r2", "c2", "v"]
+  items: [[int, int, int, int, str]]
+}
+```
+
+- `items` は `(r1, c1, r2, c2, v)` の配列
+- row は 1-based、col は 0-based
+- `v` は結合セルの代表値。値がない場合でも `" "` を出力する
+
+---
+
+# 9. SheetData Model
 
 ```jsonc
 SheetData {
   rows: [CellRow]
-  shapes: [Shape]
+  shapes: [Shape | Arrow | SmartArt]
   charts: [Chart]
   table_candidates: [str]
   print_areas: [PrintArea]
-  auto_print_areas: [PrintArea] // 自動改ページ矩形（COM 前提、デフォルト無効）
-  colors_map: {[colorHex: str]: [[int, int]]} // カラーごとのセルを列挙
+  auto_print_areas: [PrintArea] // 自動改ページ矩形 (COM 前提、デフォルト無効)
+  colors_map: {[colorHex: str]: [[int, int]]} // (row=1-based, col=0-based)
+  merged_cells: MergedCells | null
 }
 ```
 
 補足:
 
-- `table_candidates` はテーブル検出結果。
-- `print_areas` は定義済み印刷範囲。`auto_print_areas` は Excel COM の自動改ページから取得し、明示的に有効化した場合のみ含まれる。
+- `table_candidates` はテーブル検知結果
+- `print_areas` は定義済み印刷範囲
+- `auto_print_areas` は Excel COM の自動改ページから取得
+- `rows` の結合セル値の出力は `include_merged_values_in_rows` フラグで制御（既定: `True`）
 
 ---
 
-# 9. WorkbookData Model (トップレベル)
+# 10. WorkbookData Model (トップレベル)
 
 ```jsonc
 WorkbookData {
@@ -159,48 +200,54 @@ WorkbookData {
 
 補足:
 
-- シート名は Excel の Unicode 名をそのまま保持。
+- シート名は Excel の Unicode 名をそのまま保持
 
 ---
 
-# 10. Export Helpers (SheetData / WorkbookData)
+# 11. Export Helpers (SheetData / WorkbookData)
 
 共通:
 
 - `to_json(pretty=False, indent=None)`
-- `to_yaml()`（`pyyaml` 必須）
-- `to_toon()`（`python-toon` 必須）
-- `save(path, pretty=False, indent=None)` — 拡張子から `.json` / `.yaml` / `.yml` / `.toon` を自動判別。非対応拡張子は `ValueError`。
-- `model_dump(exclude_none=True)` 後に `dict_without_empty_values` で空値を除去。
+- `to_yaml()` (`pyyaml` 必須)
+- `to_toon()` (`python-toon` 必須)
+- `save(path, pretty=False, indent=None)`
+  - 拡張子 `.json` / `.yaml` / `.yml` / `.toon` を自動判別
+  - 非対応拡張子は `ValueError`
+- `model_dump(exclude_none=True)` 後に `dict_without_empty_values` で空値を除去
 
 `SheetData`:
 
-- シリアライズ時に `book_name` は含まない（シート単体）。
+- シリアライズ時に `book_name` は含まない（シート単体）
 
 `WorkbookData`:
 
-- ペイロードに `book_name` と `sheets` を含む。
-- `__getitem__(sheet_name)` で SheetData を取得、`__iter__()` で `(sheet_name, SheetData)` を順序付きで返す。
+- ペイロードに `book_name` と `sheets` を含む
+- `__getitem__(sheet_name)` で SheetData を取得
+- `__iter__()` で `(sheet_name, SheetData)` を順に返す
 
 ---
 
-# 11. Versioning Principles（エージェント向け）
+# 12. Versioning Principles
 
-- モデル変更時は必ず本ファイルを先に更新する。
-- モデルは純粋なデータコンテナとし、副作用を持たせない。
-- core / io / integrate は本仕様に忠実なモデルのみを返し、独自フィールドを追加しない。
+- モデル変更時は本ファイルを先に更新する
+- モデルは純粋なデータコンテナとし、副作用を持たせない
+- core / io / integrate は本仕様に忠実なモデルのみを返し、独自フィールドを追加しない
 
 ---
 
-# 12. Changelog
+# 13. Changelog
 
-- 0.3: serialize/save ヘルパーを追加、`WorkbookData` に `__iter__` / `__getitem__` を定義。
-- 0.4: `CellRow.links` を追加（ハイパーリンクは opt-in、verbose でデフォルト有効）。
-- 0.5: `PrintArea` を追加し、`SheetData.print_areas` で保持。standard / verbose で出力。
-- 0.6: PrintArea をデフォルト抽出。テーブル検出は従来通り。
-- 0.7: Chart にサイズフィールド `w` / `h`（optional）を追加。
-- 0.8: `SheetData.auto_print_areas` を追加（COM の自動改ページ矩形、デフォルト無効）。ヘルパーとデフォルト挙動を明確化。
-- 0.9: Shape に `name` / `begin_connected_shape` / `end_connected_shape` を追加し、コネクタの接続元/接続先を表現（後に `begin_id` / `end_id` に名称変更）。
-- 0.10: Shape に `id` を追加し、コネクタの接続元/接続先を `id` 参照に変更し、`name` をペイロードから除去。
-- 0.11: コネクタのフィールド名を `begin_id` / `end_id` にリネーム。
-- 0.12: SheetData に背景色情報を格納する`colors_map`を追加。
+- 0.3: serialize/save ヘルパー追加、`WorkbookData` に `__iter__` / `__getitem__` を定義
+- 0.4: `CellRow.links` を追加（ハイパーリンクは opt-in）
+- 0.5: `PrintArea` を追加し、`SheetData.print_areas` で保持
+- 0.6: PrintArea をデフォルト抽出。テーブル検知は従来通り
+- 0.7: Chart にサイズ `w` / `h` を追加
+- 0.8: `SheetData.auto_print_areas` を追加（COM 自動改ページ矩形、デフォルト無効）
+- 0.9: Shape に `name` / `begin_connected_shape` / `end_connected_shape` を追加し、後に `begin_id` / `end_id` に変更
+- 0.10: Shape に `id` を追加し、`name` を削除
+- 0.11: コネクタのフィールド名を `begin_id` / `end_id` に統一
+- 0.12: `SheetData.colors_map` を追加
+- 0.13: Shape を `Shape` / `Arrow` / `SmartArt` に分割し、`SmartArtNode` のネスト構造を追加
+- 0.14: `MergedCell` / `SheetData.merged_cells` を追加
+- 0.15: `MergedCells` を schema + items 形式に変更し圧縮形式を導入

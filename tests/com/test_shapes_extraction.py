@@ -4,6 +4,7 @@ import pytest
 import xlwings as xw
 
 from exstruct.core.integrate import extract_workbook
+from exstruct.models import Arrow, Shape
 
 pytestmark = pytest.mark.com
 
@@ -63,6 +64,15 @@ def _make_workbook_with_shapes(path: Path) -> None:
 
 
 def test_図形の種別とテキストが抽出される(tmp_path: Path) -> None:
+    """
+    Verifies extraction of shape types, texts, IDs, and uniqueness from a workbook containing various shapes.
+
+    Creates a workbook with a rectangle, an oval, a line, a nested group, and a connector, then extracts shapes from "Sheet1" and asserts:
+    - a shape with text "rect" is an AutoShape, has non-negative left/top coordinates, and a positive id;
+    - a nested child with text "inner" is not reported as a Group and has a positive id;
+    - all emitted shape ids are unique;
+    - no AutoShape without text is emitted in standard mode.
+    """
     _ensure_excel()
     path = tmp_path / "shapes.xlsx"
     _make_workbook_with_shapes(path)
@@ -70,33 +80,32 @@ def test_図形の種別とテキストが抽出される(tmp_path: Path) -> Non
     wb_data = extract_workbook(path)
     shapes = wb_data.sheets["Sheet1"].shapes
 
-    rect = next(s for s in shapes if s.text == "rect")
+    rect = next(s for s in shapes if isinstance(s, Shape) and s.text == "rect")
     assert "AutoShape" in (rect.type or "")
     assert rect.l >= 0 and rect.t >= 0
-    assert rect.id > 0
+    assert rect.id is not None and rect.id > 0
 
-    inner = next(s for s in shapes if s.text == "inner")
+    inner = next(s for s in shapes if isinstance(s, Shape) and s.text == "inner")
     assert "Group" not in (inner.type or "")  # flattened child
-    assert not any((s.type or "") == "Group" for s in shapes)
-    assert inner.id > 0
+    assert not any(isinstance(s, Shape) and (s.type or "") == "Group" for s in shapes)
+    assert inner.id is not None and inner.id > 0
     ids = [s.id for s in shapes if s.id is not None]
     assert len(ids) == len(set(ids))
     # Standard mode should not emit non-relationship AutoShapes without text.
     assert not any(
-        (s.text == "" or s.text is None)
+        isinstance(s, Shape)
+        and (s.text == "" or s.text is None)
         and (s.type or "").startswith("AutoShape")
-        and not (
-            s.direction
-            or s.begin_arrow_style is not None
-            or s.end_arrow_style is not None
-            or s.begin_id is not None
-            or s.end_id is not None
-        )
         for s in shapes
     )
 
 
 def test_線図形の方向と矢印情報が抽出される(tmp_path: Path) -> None:
+    """
+    Verifies that a line shape's direction and arrow style information is extracted correctly from a workbook.
+
+    Creates a workbook containing shapes, extracts shapes from "Sheet1", finds an Arrow with a begin or end arrow style, and asserts its direction is "E".
+    """
     _ensure_excel()
     path = tmp_path / "lines.xlsx"
     _make_workbook_with_shapes(path)
@@ -107,7 +116,8 @@ def test_線図形の方向と矢印情報が抽出される(tmp_path: Path) -> 
     line = next(
         s
         for s in shapes
-        if s.begin_arrow_style is not None or s.end_arrow_style is not None
+        if isinstance(s, Arrow)
+        and (s.begin_arrow_style is not None or s.end_arrow_style is not None)
     )
     assert line.direction == "E"
 
@@ -121,20 +131,20 @@ def test_コネクターの接続元と接続先が抽出される(tmp_path: Pat
     shapes = wb_data.sheets["Sheet1"].shapes
 
     connectors = [
-        s
-        for s in shapes
-        if s.begin_id is not None or s.end_id is not None
+        s for s in shapes if isinstance(s, Arrow) and (s.begin_id or s.end_id)
     ]
 
     # If the environment could not wire connectors, simply skip the assertion.
     if not connectors:
-        pytest.skip("Excel failed to populate ConnectorFormat.ConnectedShape properties.")
+        pytest.skip(
+            "Excel failed to populate ConnectorFormat.ConnectedShape properties."
+        )
 
     conn = connectors[0]
     assert conn.begin_id is not None
     assert conn.end_id is not None
     assert conn.begin_id != conn.end_id
     # Connected shape ids should correspond to some emitted shapes' id.
-    shape_ids = {s.id for s in shapes}
+    shape_ids = {s.id for s in shapes if s.id is not None}
     assert conn.begin_id in shape_ids
     assert conn.end_id in shape_ids

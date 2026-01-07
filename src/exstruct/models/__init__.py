@@ -5,24 +5,42 @@ import json
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class Shape(BaseModel):
-    """Shape metadata (position, size, text, and styling)."""
+def _default_merged_cells_schema() -> list[Literal["r1", "c1", "r2", "c2", "v"]]:
+    """Return default schema for merged cell items."""
+    return ["r1", "c1", "r2", "c2", "v"]
+
+
+class BaseShape(BaseModel):
+    """Common shape metadata (position, size, text, and styling)."""
 
     id: int | None = Field(
-        default=None, description="Sequential shape id within the sheet (if applicable)."
+        default=None,
+        description="Sequential shape id within the sheet (if applicable).",
     )
     text: str = Field(description="Visible text content of the shape.")
     l: int = Field(description="Left offset (Excel units).")  # noqa: E741
     t: int = Field(description="Top offset (Excel units).")
     w: int | None = Field(default=None, description="Shape width (None if unknown).")
     h: int | None = Field(default=None, description="Shape height (None if unknown).")
-    type: str | None = Field(default=None, description="Excel shape type name.")
     rotation: float | None = Field(
         default=None, description="Rotation angle in degrees."
     )
+
+
+class Shape(BaseShape):
+    """Normal shape metadata."""
+
+    kind: Literal["shape"] = Field(default="shape", description="Shape kind.")
+    type: str | None = Field(default=None, description="Excel shape type name.")
+
+
+class Arrow(BaseShape):
+    """Connector shape metadata."""
+
+    kind: Literal["arrow"] = Field(default="arrow", description="Shape kind.")
     begin_arrow_style: int | None = Field(
         default=None, description="Arrow style enum for the start of a connector."
     )
@@ -43,6 +61,42 @@ class Shape(BaseModel):
     )
     direction: Literal["E", "SE", "S", "SW", "W", "NW", "N", "NE"] | None = Field(
         default=None, description="Connector direction (compass heading)."
+    )
+
+
+class SmartArtNode(BaseModel):
+    """Node of SmartArt hierarchy."""
+
+    text: str = Field(description="Visible text for the node.")
+    kids: list[SmartArtNode] = Field(default_factory=list, description="Child nodes.")
+
+
+class SmartArt(BaseShape):
+    """SmartArt shape metadata with nested nodes."""
+
+    kind: Literal["smartart"] = Field(default="smartart", description="Shape kind.")
+    layout: str = Field(description="SmartArt layout name.")
+    nodes: list[SmartArtNode] = Field(
+        default_factory=list, description="Root nodes of SmartArt tree."
+    )
+
+
+class MergedCells(BaseModel):
+    """Compressed merged cell ranges using schema + items."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    schema_: list[Literal["r1", "c1", "r2", "c2", "v"]] = Field(
+        default_factory=_default_merged_cells_schema,
+        alias="schema",
+        description="Ordered field names for each item.",
+    )
+    items: list[tuple[int, int, int, int, str]] = Field(
+        default_factory=list,
+        description=(
+            "Merged cell items as (r1, c1, r2, c2, v) tuples where rows are 1-based "
+            "and columns are 0-based."
+        ),
     )
 
 
@@ -97,9 +151,9 @@ class PrintArea(BaseModel):
     """Cell coordinate bounds for a print area."""
 
     r1: int = Field(description="Start row (1-based).")
-    c1: int = Field(description="Start column (1-based).")
+    c1: int = Field(description="Start column (0-based).")
     r2: int = Field(description="End row (1-based, inclusive).")
-    c2: int = Field(description="End column (1-based, inclusive).")
+    c2: int = Field(description="End column (0-based, inclusive).")
 
 
 class SheetData(BaseModel):
@@ -108,7 +162,7 @@ class SheetData(BaseModel):
     rows: list[CellRow] = Field(
         default_factory=list, description="Extracted rows with cell values and links."
     )
-    shapes: list[Shape] = Field(
+    shapes: list[Shape | Arrow | SmartArt] = Field(
         default_factory=list, description="Shapes detected on the sheet."
     )
     charts: list[Chart] = Field(
@@ -125,13 +179,21 @@ class SheetData(BaseModel):
     )
     colors_map: dict[str, list[tuple[int, int]]] = Field(
         default_factory=dict,
-        description="Mapping of hex color codes to lists of (row, column) tuples where the background color matches.",
+        description=(
+            "Mapping of hex color codes to lists of (row, column) tuples "
+            "where row is 1-based and column is 0-based."
+        ),
+    )
+    merged_cells: MergedCells | None = Field(
+        default=None, description="Merged cell ranges on the sheet."
     )
 
     def _as_payload(self) -> dict[str, object]:
         from ..io import dict_without_empty_values
 
-        return dict_without_empty_values(self.model_dump(exclude_none=True))  # type: ignore
+        return dict_without_empty_values(
+            self.model_dump(exclude_none=True, by_alias=True)
+        )  # type: ignore
 
     def to_json(self, *, pretty: bool = False, indent: int | None = None) -> str:
         """
@@ -263,7 +325,7 @@ class PrintAreaView(BaseModel):
     book_name: str = Field(description="Workbook name owning the area.")
     sheet_name: str = Field(description="Sheet name owning the area.")
     area: PrintArea = Field(description="Print area bounds.")
-    shapes: list[Shape] = Field(
+    shapes: list[Shape | Arrow | SmartArt] = Field(
         default_factory=list, description="Shapes overlapping the area."
     )
     charts: list[Chart] = Field(
@@ -279,7 +341,9 @@ class PrintAreaView(BaseModel):
     def _as_payload(self) -> dict[str, object]:
         from ..io import dict_without_empty_values
 
-        return dict_without_empty_values(self.model_dump(exclude_none=True))  # type: ignore
+        return dict_without_empty_values(
+            self.model_dump(exclude_none=True, by_alias=True)
+        )  # type: ignore
 
     def to_json(self, *, pretty: bool = False, indent: int | None = None) -> str:
         """
