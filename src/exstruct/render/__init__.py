@@ -187,15 +187,22 @@ def _render_pdf_pages_subprocess(
     )
     process.start()
     process.join()
-    if not queue.empty():
-        result = queue.get()
-    else:
-        result = {"error": "subprocess did not return results"}
+    result = _get_subprocess_result(queue)
     if process.exitcode != 0 or "error" in result:
         message = result.get("error", "subprocess failed")
         raise RenderError(f"Failed to render PDF pages: {message}")
     paths = result.get("paths", [])
     return [Path(path) for path in paths]
+
+
+def _get_subprocess_result(
+    queue: mp.Queue[dict[str, list[str] | str]],
+) -> dict[str, list[str] | str]:
+    """Fetch the worker result from the queue with a timeout."""
+    try:
+        return queue.get(timeout=5)
+    except Exception as exc:
+        return {"error": f"subprocess did not return results ({exc})"}
 
 
 def _render_pdf_pages_worker(

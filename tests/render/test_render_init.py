@@ -386,9 +386,10 @@ class FakeQueue:
     def put(self, payload: dict[str, list[str] | str]) -> None:
         self.payload = payload
 
-    def get(self) -> dict[str, list[str] | str]:
+    def get(self, timeout: float | None = None) -> dict[str, list[str] | str]:
+        _ = timeout
         if self.payload is None:
-            return {"error": "no payload"}
+            raise TimeoutError("timeout")
         return self.payload
 
     def empty(self) -> bool:
@@ -442,6 +443,7 @@ def test_render_pdf_pages_subprocess_success(tmp_path: Path) -> None:
         payload={"paths": [str(tmp_path / "images" / "01_Sheet1.png")]},
     )
     context = FakeContext(queue, process)
+    render_mp = cast(Any, render).mp
 
     def _get_context(_: str) -> FakeContext:
         return context
@@ -451,7 +453,7 @@ def test_render_pdf_pages_subprocess_success(tmp_path: Path) -> None:
     output_dir = tmp_path / "images"
 
     with pytest.MonkeyPatch.context() as monkeypatch:
-        monkeypatch.setattr(render.mp, "get_context", _get_context)
+        monkeypatch.setattr(render_mp, "get_context", _get_context)
         result = render._render_pdf_pages_subprocess(
             pdf_path, output_dir, 0, "Sheet1", 144
         )
@@ -464,6 +466,7 @@ def test_render_pdf_pages_subprocess_error(tmp_path: Path) -> None:
     queue = FakeQueue()
     process = FakeProcess(queue, exitcode=0, payload={"error": "boom"})
     context = FakeContext(queue, process)
+    render_mp = cast(Any, render).mp
 
     def _get_context(_: str) -> FakeContext:
         return context
@@ -473,9 +476,18 @@ def test_render_pdf_pages_subprocess_error(tmp_path: Path) -> None:
     output_dir = tmp_path / "images"
 
     with pytest.MonkeyPatch.context() as monkeypatch:
-        monkeypatch.setattr(render.mp, "get_context", _get_context)
+        monkeypatch.setattr(render_mp, "get_context", _get_context)
         with pytest.raises(RenderError, match="boom"):
             render._render_pdf_pages_subprocess(pdf_path, output_dir, 0, "Sheet1", 144)
+
+
+def test_get_subprocess_result_timeout() -> None:
+    """_get_subprocess_result returns an error payload on timeout."""
+    queue = FakeQueue()
+    result = render._get_subprocess_result(cast(Any, queue))
+
+    error = cast(str, result["error"])
+    assert error.startswith("subprocess did not return results")
 
 
 def test_render_pdf_pages_worker_success(tmp_path: Path) -> None:
@@ -489,7 +501,9 @@ def test_render_pdf_pages_worker_success(tmp_path: Path) -> None:
 
     sys.modules["pypdfium2"] = fake_pdfium
     try:
-        render._render_pdf_pages_worker(pdf_path, output_dir, 0, "Sheet1", 144, queue)
+        render._render_pdf_pages_worker(
+            pdf_path, output_dir, 0, "Sheet1", 144, cast(Any, queue)
+        )
     finally:
         sys.modules.pop("pypdfium2", None)
 
@@ -514,7 +528,9 @@ def test_render_pdf_pages_worker_error(tmp_path: Path) -> None:
     fake_pdfium.PdfDocument = ExplodingPdfDocument
     sys.modules["pypdfium2"] = fake_pdfium
     try:
-        render._render_pdf_pages_worker(pdf_path, output_dir, 0, "Sheet1", 144, queue)
+        render._render_pdf_pages_worker(
+            pdf_path, output_dir, 0, "Sheet1", 144, cast(Any, queue)
+        )
     finally:
         sys.modules.pop("pypdfium2", None)
 
