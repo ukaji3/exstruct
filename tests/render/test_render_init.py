@@ -258,6 +258,7 @@ def test_export_sheet_images_success(
     xlsx = tmp_path / "input.xlsx"
     xlsx.write_bytes(b"dummy")
     out_dir = tmp_path / "images"
+    monkeypatch.setenv("EXSTRUCT_RENDER_SUBPROCESS", "0")
 
     fake_pdfium = SimpleNamespace(PdfDocument=FakePdfDocument)
     monkeypatch.setattr(render, "_require_pdfium", lambda: fake_pdfium)
@@ -280,6 +281,7 @@ def test_export_sheet_images_propagates_render_error(
     xlsx = tmp_path / "input.xlsx"
     xlsx.write_bytes(b"dummy")
     out_dir = tmp_path / "images"
+    monkeypatch.setenv("EXSTRUCT_RENDER_SUBPROCESS", "0")
 
     fake_pdfium = SimpleNamespace(PdfDocument=FakePdfDocument)
     monkeypatch.setattr(render, "_require_pdfium", lambda: fake_pdfium)
@@ -298,6 +300,7 @@ def test_export_sheet_images_wraps_unknown_error(
     xlsx = tmp_path / "input.xlsx"
     xlsx.write_bytes(b"dummy")
     out_dir = tmp_path / "images"
+    monkeypatch.setenv("EXSTRUCT_RENDER_SUBPROCESS", "0")
 
     class ExplodingPdfDocument:
         """PdfDocument stub that raises on enter."""
