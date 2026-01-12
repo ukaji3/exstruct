@@ -84,21 +84,38 @@ def export_sheet_images(
 
     try:
         with tempfile.TemporaryDirectory() as td:
-            tmp_pdf = Path(td) / "book.pdf"
-            sheet_names = export_pdf(normalized_excel_path, tmp_pdf)
-
             scale = dpi / 72.0
             written: list[Path] = []
-            with pdfium.PdfDocument(str(tmp_pdf)) as pdf:
-                for i, sheet_name in enumerate(sheet_names):
-                    page = pdf[i]
-                    bitmap = page.render(scale=scale)
-                    pil_image = bitmap.to_pil()
-                    safe_name = _sanitize_sheet_filename(sheet_name)
-                    img_path = normalized_output_dir / f"{i + 1:02d}_{safe_name}.png"
-                    pil_image.save(img_path, format="PNG", dpi=(dpi, dpi))
-                    written.append(img_path)
-            return written
+            app: xw.App | None = None
+            wb: xw.Book | None = None
+            try:
+                app = _require_excel_app()
+                wb = app.books.open(str(normalized_excel_path))
+                for sheet_index, sheet in enumerate(wb.sheets):
+                    sheet_name = sheet.name
+                    sheet_pdf = Path(td) / f"sheet_{sheet_index + 1:02d}.pdf"
+                    sheet.api.ExportAsFixedFormat(0, str(sheet_pdf))
+                    with pdfium.PdfDocument(str(sheet_pdf)) as pdf:
+                        for page_index in range(len(pdf)):
+                            page = pdf[page_index]
+                            bitmap = page.render(scale=scale)
+                            pil_image = bitmap.to_pil()
+                            safe_name = _sanitize_sheet_filename(sheet_name)
+                            page_suffix = (
+                                f"_p{page_index + 1:02d}" if page_index > 0 else ""
+                            )
+                            img_path = (
+                                normalized_output_dir
+                                / f"{sheet_index + 1:02d}_{safe_name}{page_suffix}.png"
+                            )
+                            pil_image.save(img_path, format="PNG", dpi=(dpi, dpi))
+                            written.append(img_path)
+                return written
+            finally:
+                if wb is not None:
+                    wb.close()
+                if app is not None:
+                    app.quit()
     except RenderError:
         raise
     except Exception as exc:
