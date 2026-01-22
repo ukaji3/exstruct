@@ -70,6 +70,7 @@ class StructOptions:
                       before extraction. Use this to tweak table detection heuristics
                       per engine instance without touching global state.
         include_colors_map: Whether to extract background color maps.
+        include_formulas_map: Whether to extract formulas map.
         include_merged_cells: Whether to extract merged cell ranges.
         include_merged_values_in_rows: Whether to keep merged values in rows.
         colors: Color extraction options.
@@ -81,6 +82,7 @@ class StructOptions:
     )
     include_cell_links: bool | None = None  # None -> auto: verbose=True, others=False
     include_colors_map: bool | None = None  # None -> auto: verbose=True, others=False
+    include_formulas_map: bool | None = None  # None -> auto: verbose=True, others=False
     include_merged_cells: bool | None = None  # None -> auto: light=False, others=True
     include_merged_values_in_rows: bool = True
     colors: ColorsOptions = field(default_factory=ColorsOptions)
@@ -284,6 +286,7 @@ class ExStructEngine:
             if self.output.filters.include_tables
             else [],
             colors_map=sheet.colors_map,
+            formulas_map=sheet.formulas_map,
             print_areas=sheet.print_areas if include_print_areas else [],
             auto_print_areas=sheet.auto_print_areas if include_auto_print_areas else [],
             merged_cells=sheet.merged_cells
@@ -358,6 +361,7 @@ class ExStructEngine:
                 include_colors_map=self.options.include_colors_map,
                 include_default_background=self.options.colors.include_default_background,
                 ignore_colors=self.options.colors.ignore_colors_set(),
+                include_formulas_map=self.options.include_formulas_map,
                 include_merged_cells=self.options.include_merged_cells,
                 include_merged_values_in_rows=self.options.include_merged_values_in_rows,
             )

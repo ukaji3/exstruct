@@ -17,6 +17,7 @@ def extract_workbook(  # noqa: C901
     include_colors_map: bool | None = None,
     include_default_background: bool = False,
     ignore_colors: set[str] | None = None,
+    include_formulas_map: bool | None = None,
     include_merged_cells: bool | None = None,
     include_merged_values_in_rows: bool = True,
 ) -> WorkbookData:
@@ -33,6 +34,7 @@ def extract_workbook(  # noqa: C901
         include_colors_map: Whether to include colors map; None uses mode defaults.
         include_default_background: Whether to include default background color.
         ignore_colors: Optional set of color keys to ignore.
+        include_formulas_map: Whether to include formulas map; None uses mode defaults.
         include_merged_cells: Whether to include merged cell ranges; None uses mode defaults.
         include_merged_values_in_rows: Whether to keep merged values in rows.
 
@@ -51,6 +53,7 @@ def extract_workbook(  # noqa: C901
         include_colors_map=include_colors_map,
         include_default_background=include_default_background,
         ignore_colors=ignore_colors,
+        include_formulas_map=include_formulas_map,
         include_merged_cells=include_merged_cells,
         include_merged_values_in_rows=include_merged_values_in_rows,
     )

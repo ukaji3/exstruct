@@ -27,6 +27,7 @@ def test_extract_passes_auto_page_break_flag(
         include_colors_map: bool = False,
         include_default_background: bool = False,
         ignore_colors: set[str] | None = None,
+        include_formulas_map: bool | None = None,
         include_merged_cells: bool | None = None,
         include_merged_values_in_rows: bool = True,
     ) -> WorkbookData:

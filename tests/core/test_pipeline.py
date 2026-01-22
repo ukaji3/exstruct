@@ -27,6 +27,8 @@ def test_build_pre_com_pipeline_respects_flags(
         include_colors_map=False,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
         include_merged_cells=False,
         include_merged_values_in_rows=True,
     )
@@ -47,6 +49,8 @@ def test_build_pre_com_pipeline_includes_colors_map_for_light(
         include_colors_map=True,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
         include_merged_cells=True,
         include_merged_values_in_rows=True,
     )
@@ -72,6 +76,8 @@ def test_build_pre_com_pipeline_skips_merged_cells_when_disabled(
         include_colors_map=True,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
         include_merged_cells=False,
         include_merged_values_in_rows=True,
     )
@@ -90,6 +96,8 @@ def test_build_com_pipeline_respects_flags(tmp_path: Path) -> None:
         include_colors_map=False,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
         include_merged_cells=False,
         include_merged_values_in_rows=True,
     )
@@ -114,6 +122,8 @@ def test_build_com_pipeline_excludes_auto_page_breaks_when_disabled(
         include_colors_map=False,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
         include_merged_cells=False,
         include_merged_values_in_rows=True,
     )
@@ -132,6 +142,8 @@ def test_build_com_pipeline_empty_for_light(tmp_path: Path) -> None:
         include_colors_map=True,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
         include_merged_cells=False,
         include_merged_values_in_rows=True,
     )
@@ -149,12 +161,14 @@ def test_resolve_extraction_inputs_defaults(tmp_path: Path) -> None:
         include_colors_map=None,
         include_default_background=True,
         ignore_colors=None,
+        include_formulas_map=None,
         include_merged_cells=None,
         include_merged_values_in_rows=True,
     )
     assert inputs.include_cell_links is False
     assert inputs.include_print_areas is True
     assert inputs.include_colors_map is False
+    assert inputs.include_formulas_map is False
     assert inputs.include_default_background is False
     assert inputs.include_merged_cells is True
 
@@ -171,6 +185,7 @@ def test_resolve_extraction_inputs_forces_merged_cells_when_excluding_values(
         include_colors_map=None,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=None,
         include_merged_cells=False,
         include_merged_values_in_rows=False,
     )
@@ -197,6 +212,8 @@ def test_build_cells_tables_workbook_uses_print_areas(
         include_colors_map=False,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
         include_merged_cells=True,
         include_merged_values_in_rows=True,
     )
@@ -228,6 +245,8 @@ def test_build_cells_tables_workbook_excludes_merged_values_in_rows(
         include_colors_map=False,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
         include_merged_cells=True,
         include_merged_values_in_rows=False,
     )

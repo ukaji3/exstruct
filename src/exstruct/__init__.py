@@ -115,11 +115,13 @@ def extract(file_path: str | Path, mode: ExtractionMode = "standard") -> Workboo
     """
     include_links = True if mode == "verbose" else False
     include_colors_map = True if mode == "verbose" else None
+    include_formulas_map = True if mode == "verbose" else None
     engine = ExStructEngine(
         options=StructOptions(
             mode=mode,
             include_cell_links=include_links,
             include_colors_map=include_colors_map,
+            include_formulas_map=include_formulas_map,
         )
     )
     return engine.extract(file_path, mode=mode)

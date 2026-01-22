@@ -4,7 +4,12 @@ from types import SimpleNamespace
 
 from _pytest.monkeypatch import MonkeyPatch
 
-from exstruct.core.cells import SheetColorsMap, WorkbookColorsMap
+from exstruct.core.cells import (
+    SheetColorsMap,
+    SheetFormulasMap,
+    WorkbookColorsMap,
+    WorkbookFormulasMap,
+)
 from exstruct.core.pipeline import collect_sheet_raw_data
 from exstruct.models import CellRow, Chart, ChartSeries, PrintArea, Shape
 
@@ -52,6 +57,13 @@ def test_collect_sheet_raw_data_includes_extracted_fields(
             )
         }
     )
+    formulas_map = WorkbookFormulasMap(
+        sheets={
+            "Sheet1": SheetFormulasMap(
+                sheet_name="Sheet1", formulas_map={"=A1": [(1, 0)]}
+            )
+        }
+    )
     result = collect_sheet_raw_data(
         cell_data={"Sheet1": [CellRow(r=1, c={"0": "A"}, links=None)]},
         shape_data={"Sheet1": [Shape(text="S", l=0, t=0)]},
@@ -62,6 +74,7 @@ def test_collect_sheet_raw_data_includes_extracted_fields(
         include_merged_values_in_rows=True,
         print_area_data={"Sheet1": [PrintArea(r1=1, c1=0, r2=1, c2=0)]},
         auto_page_break_data={"Sheet1": [PrintArea(r1=1, c1=0, r2=1, c2=0)]},
+        formulas_map_data=formulas_map,
         colors_map_data=colors_map,
     )
 
@@ -72,6 +85,7 @@ def test_collect_sheet_raw_data_includes_extracted_fields(
     assert raw.table_candidates == ["A1:B2"]
     assert raw.print_areas
     assert raw.auto_print_areas
+    assert raw.formulas_map == {"=A1": [(1, 0)]}
     assert raw.colors_map == {"#FFFFFF": [(1, 0)]}
 
 
@@ -98,6 +112,7 @@ def test_collect_sheet_raw_data_skips_charts_in_light_mode(
         include_merged_values_in_rows=True,
         print_area_data=None,
         auto_page_break_data=None,
+        formulas_map_data=None,
         colors_map_data=None,
     )
 

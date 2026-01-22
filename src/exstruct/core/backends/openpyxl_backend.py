@@ -9,10 +9,12 @@ from pathlib import Path
 from ...models import PrintArea
 from ..cells import (
     WorkbookColorsMap,
+    WorkbookFormulasMap,
     detect_tables_openpyxl,
     extract_sheet_cells,
     extract_sheet_cells_with_links,
     extract_sheet_colors_map,
+    extract_sheet_formulas_map,
     extract_sheet_merged_cells,
 )
 from ..ranges import parse_range_zero_based
@@ -98,6 +100,20 @@ class OpenpyxlBackend:
             return extract_sheet_merged_cells(self.file_path)
         except Exception:
             return {}
+
+    def extract_formulas_map(self) -> WorkbookFormulasMap | None:
+        """Extract formulas_map using openpyxl.
+
+        Returns:
+            WorkbookFormulasMap or None when extraction fails.
+        """
+        try:
+            return extract_sheet_formulas_map(self.file_path)
+        except Exception as exc:
+            logger.warning(
+                "Formula map extraction failed; skipping formulas_map. (%r)", exc
+            )
+            return None
 
     def detect_tables(self, sheet_name: str) -> list[str]:
         """Detect table candidates for a single sheet.

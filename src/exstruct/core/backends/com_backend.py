@@ -9,7 +9,12 @@ from typing import Any, cast
 import xlwings as xw
 
 from ...models import PrintArea
-from ..cells import WorkbookColorsMap, extract_sheet_colors_map_com
+from ..cells import (
+    WorkbookColorsMap,
+    WorkbookFormulasMap,
+    extract_sheet_colors_map_com,
+    extract_sheet_formulas_map_com,
+)
 from ..ranges import parse_range_zero_based
 from .base import MergedCellData, PrintAreaData
 
@@ -76,6 +81,21 @@ class ComBackend:
         except Exception as exc:
             logger.warning(
                 "COM color map extraction failed; falling back to openpyxl. (%r)",
+                exc,
+            )
+            return None
+
+    def extract_formulas_map(self) -> WorkbookFormulasMap | None:
+        """Extract formulas_map via COM; logs and skips on failure.
+
+        Returns:
+            WorkbookFormulasMap or None when extraction fails.
+        """
+        try:
+            return extract_sheet_formulas_map_com(self.workbook)
+        except Exception as exc:
+            logger.warning(
+                "COM formula map extraction failed; skipping formulas_map. (%r)",
                 exc,
             )
             return None

@@ -177,6 +177,13 @@ class SheetData(BaseModel):
     auto_print_areas: list[PrintArea] = Field(
         default_factory=list, description="COM-computed auto page-break areas."
     )
+    formulas_map: dict[str, list[tuple[int, int]]] = Field(
+        default_factory=dict,
+        description=(
+            "Mapping of formula strings to lists of (row, column) tuples "
+            "where row is 1-based and column is 0-based."
+        ),
+    )
     colors_map: dict[str, list[tuple[int, int]]] = Field(
         default_factory=dict,
         description=(

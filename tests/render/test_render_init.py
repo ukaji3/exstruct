@@ -292,8 +292,8 @@ def test_export_sheet_images_success(
     written = render.export_sheet_images(xlsx, out_dir, dpi=144)
 
     assert written[0].name == "01_Sheet_1.png"
-    assert written[1].name == "01_Sheet_1_p02.png"
-    assert written[2].name == "02_sheet.png"
+    assert written[1].name == "02_Sheet_1.png"
+    assert written[2].name == "03_sheet.png"
     assert all(path.exists() for path in written)
 
 

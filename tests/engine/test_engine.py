@@ -34,6 +34,7 @@ def test_engine_extract_uses_mode(monkeypatch: MonkeyPatch, tmp_path: Path) -> N
         include_colors_map: bool = False,
         include_default_background: bool = False,
         ignore_colors: set[str] | None = None,
+        include_formulas_map: bool | None = None,
         include_merged_cells: bool | None = None,
         include_merged_values_in_rows: bool = True,
     ) -> WorkbookData:

@@ -5,7 +5,11 @@ from openpyxl import Workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
 from exstruct.core import cells
-from exstruct.core.cells import _coerce_numeric_preserve_format, detect_tables_openpyxl
+from exstruct.core.cells import (
+    _coerce_numeric_preserve_format,
+    _normalize_formula_value,
+    detect_tables_openpyxl,
+)
 
 
 def test_coerce_numeric_preserve_format() -> None:
@@ -61,3 +65,11 @@ def test_detect_tables_openpyxl_respects_table_params(
     )
     tables = detect_tables_openpyxl(path, "Sheet1")
     assert "A1:B2" in tables
+
+
+def test_normalize_formula_value_prefers_array_text() -> None:
+    class _ArrayFormulaLike:
+        text = "SUM(A1:A3)"
+
+    assert _normalize_formula_value(_ArrayFormulaLike()) == "=SUM(A1:A3)"
+    assert _normalize_formula_value("") is None

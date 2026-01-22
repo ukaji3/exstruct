@@ -20,6 +20,7 @@
 - データ取得時はformulas_map が ON のときだけ data_only=False で再読込
 - オプションは`StructOptions`にて`include_formulas_map: bool = False`で設定を受け付ける
 - `.xls`形式かつ数式取得ONの時は処理が遅くなるという警告を出しつつ、COMで取得処理をする。
+- cell.value が ArrayFormula の場合に value.text（実際の式文字列）を使う
 
 ---
 

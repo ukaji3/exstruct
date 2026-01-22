@@ -34,6 +34,7 @@ def test_pipeline_fallback_skip_com_tests(
         include_colors_map=False,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=None,
         include_merged_cells=None,
         include_merged_values_in_rows=True,
     )
@@ -68,6 +69,7 @@ def test_pipeline_fallback_com_unavailable(
         include_colors_map=False,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=None,
         include_merged_cells=None,
         include_merged_values_in_rows=True,
     )
@@ -110,6 +112,7 @@ def test_pipeline_fallback_com_pipeline_failed(
         include_colors_map=False,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=None,
         include_merged_cells=None,
         include_merged_values_in_rows=True,
     )

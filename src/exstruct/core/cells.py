@@ -68,6 +68,32 @@ class WorkbookColorsMap:
 
 
 @dataclass(frozen=True)
+class SheetFormulasMap:
+    """Formula map for a single worksheet."""
+
+    sheet_name: str
+    formulas_map: dict[str, list[tuple[int, int]]]
+
+
+@dataclass(frozen=True)
+class WorkbookFormulasMap:
+    """Formula maps for all worksheets in a workbook."""
+
+    sheets: dict[str, SheetFormulasMap]
+
+    def get_sheet(self, sheet_name: str) -> SheetFormulasMap | None:
+        """Return the formulas map for a sheet if available.
+
+        Args:
+            sheet_name: Target worksheet name.
+
+        Returns:
+            SheetFormulasMap for the sheet, or None if missing.
+        """
+        return self.sheets.get(sheet_name)
+
+
+@dataclass(frozen=True)
 class MergedCellRange:
     """Merged cell range with normalized value."""
 
@@ -100,6 +126,61 @@ def extract_sheet_colors_map(
             )
             sheets[ws.title] = sheet_map
     return WorkbookColorsMap(sheets=sheets)
+
+
+def extract_sheet_formulas_map(file_path: Path) -> WorkbookFormulasMap:
+    """Extract formula strings for each worksheet.
+
+    Args:
+        file_path: Excel workbook path.
+
+    Returns:
+        WorkbookFormulasMap containing per-sheet formula maps.
+    """
+    sheets: dict[str, SheetFormulasMap] = {}
+    with openpyxl_workbook(file_path, data_only=False, read_only=False) as wb:
+        for ws in wb.worksheets:
+            sheet_map = _extract_sheet_formulas(ws)
+            sheets[ws.title] = sheet_map
+    return WorkbookFormulasMap(sheets=sheets)
+
+
+def extract_sheet_formulas_map_com(workbook: xw.Book) -> WorkbookFormulasMap:
+    """Extract formula strings for each worksheet via COM.
+
+    Args:
+        workbook: xlwings workbook instance.
+
+    Returns:
+        WorkbookFormulasMap containing per-sheet formula maps.
+    """
+    sheets: dict[str, SheetFormulasMap] = {}
+    for sheet in workbook.sheets:
+        formulas_map: dict[str, list[tuple[int, int]]] = {}
+        used = sheet.used_range
+        start_row = int(getattr(used, "row", 1))
+        start_col = int(getattr(used, "column", 1))
+        max_row = used.last_cell.row
+        max_col = used.last_cell.column
+        if max_row <= 0 or max_col <= 0:
+            sheets[sheet.name] = SheetFormulasMap(
+                sheet_name=sheet.name, formulas_map=formulas_map
+            )
+            continue
+        rng = sheet.range((start_row, start_col), (max_row, max_col))
+        matrix = _normalize_matrix(rng.formula)
+        for r_offset, row in enumerate(matrix):
+            for c_offset, value in enumerate(row):
+                normalized = _normalize_formula_from_com(value)
+                if normalized is None:
+                    continue
+                row_index = start_row + r_offset
+                col_index = start_col + c_offset - 1
+                formulas_map.setdefault(normalized, []).append((row_index, col_index))
+        sheets[sheet.name] = SheetFormulasMap(
+            sheet_name=sheet.name, formulas_map=formulas_map
+        )
+    return WorkbookFormulasMap(sheets=sheets)
 
 
 def extract_sheet_colors_map_com(
@@ -163,6 +244,75 @@ def _extract_sheet_colors(
                 (cell.row, cell.col_idx - 1)
             )
     return SheetColorsMap(sheet_name=ws.title, colors_map=colors_map)
+
+
+def _extract_sheet_formulas(ws: Worksheet) -> SheetFormulasMap:
+    """Extract formula strings for a single worksheet.
+
+    Args:
+        ws: Target worksheet.
+
+    Returns:
+        SheetFormulasMap for the worksheet.
+    """
+    min_row, min_col, max_row, max_col = _get_used_range_bounds(ws)
+    formulas_map: dict[str, list[tuple[int, int]]] = {}
+    if min_row > max_row or min_col > max_col:
+        return SheetFormulasMap(sheet_name=ws.title, formulas_map=formulas_map)
+
+    for row in ws.iter_rows(
+        min_row=min_row, max_row=max_row, min_col=min_col, max_col=max_col
+    ):
+        for cell in row:
+            if getattr(cell, "data_type", None) != "f":
+                continue
+            normalized = _normalize_formula_value(getattr(cell, "value", None))
+            if normalized is None:
+                continue
+            formulas_map.setdefault(normalized, []).append((cell.row, cell.col_idx - 1))
+    return SheetFormulasMap(sheet_name=ws.title, formulas_map=formulas_map)
+
+
+def _normalize_formula_value(value: object) -> str | None:
+    """Normalize a formula string for openpyxl cells.
+
+    Args:
+        value: Raw cell value.
+
+    Returns:
+        Formula string with leading "=", or None when empty.
+    """
+    if value is None:
+        return None
+    array_text = getattr(value, "text", None)
+    if array_text is not None:
+        text = str(array_text)
+    else:
+        text = str(value)
+    if text == "":
+        return None
+    if not text.startswith("="):
+        return f"={text}"
+    return text
+
+
+def _normalize_formula_from_com(value: object) -> str | None:
+    """Normalize a formula string returned by COM.
+
+    Args:
+        value: Raw COM formula value.
+
+    Returns:
+        Formula string with leading "=", or None when not a formula.
+    """
+    if value is None or not isinstance(value, str):
+        return None
+    text = value
+    if text == "":
+        return None
+    if not text.startswith("="):
+        return None
+    return text
 
 
 def _extract_sheet_colors_com(

@@ -9,7 +9,7 @@ ExStruct は Excel ワークブックを読み取り、構造化データ（セ�
 ## 主な特徴
 
 - **Excel → 構造化 JSON**: セル、図形、チャート、SmartArt、テーブル候補、セル結合範囲、印刷範囲/自動改ページ範囲（PrintArea/PrintAreaView）をシート単位・範囲単位で出力。
-- **出力モード**: `light`（セル＋テーブル候補のみ）、`standard`（テキスト付き図形＋矢印、チャート、SmartArt、セル結合範囲）、`verbose`（全図形を幅高さ付きで出力、セルのハイパーリンクも出力）。
+- **出力モード**: `light`（セル＋テーブル候補のみ）、`standard`（テキスト付き図形＋矢印、チャート、SmartArt、セル結合範囲）、`verbose`（全図形を幅高さ付きで出力、セルのハイパーリンク/`colors_map`/`formulas_map`も出力）。
 - **フォーマット**: JSON（デフォルトはコンパクト、`--pretty` で整形）、YAML、TOON（任意依存）。
 - **テーブル検出のチューニング**: API でヒューリスティックを動的に変更可能。
 - **ハイパーリンク抽出**: `verbose` モード（または `include_cell_links=True` 指定）でセルのリンクを `links` に出力。
@@ -131,7 +131,7 @@ set_table_detection_params(
 
 - **light**: セル＋テーブル候補のみ（COM 不要）。
 - **standard**: テキスト付き図形＋矢印、チャート（COM ありで取得）、テーブル候補。セルのハイパーリンクは `include_cell_links=True` を指定したときのみ出力。
-- **verbose**: all shapes, charts, table_candidates, hyperlinks, and `colors_map`.
+- **verbose**: all shapes, charts, table_candidates, hyperlinks, `colors_map`, and `formulas_map`.
 
 ## エラーハンドリング / フォールバック
 
