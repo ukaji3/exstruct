@@ -1,7 +1,11 @@
+import logging
 from pathlib import Path
 
 from _pytest.monkeypatch import MonkeyPatch
+import pytest
 
+from exstruct.core.backends.com_backend import ComBackend
+from exstruct.core.backends.openpyxl_backend import OpenpyxlBackend
 from exstruct.core.cells import MergedCellRange
 from exstruct.core.pipeline import (
     ExtractionArtifacts,
@@ -11,6 +15,8 @@ from exstruct.core.pipeline import (
     build_com_pipeline,
     build_pre_com_pipeline,
     resolve_extraction_inputs,
+    step_extract_formulas_map_com,
+    step_extract_formulas_map_openpyxl,
 )
 from exstruct.models import CellRow, PrintArea
 
@@ -278,3 +284,63 @@ def test_filter_rows_excluding_merged_values_drops_empty_rows() -> None:
     merged_cells = [MergedCellRange(r1=1, c1=0, r2=1, c2=0, v="A")]
     filtered = _filter_rows_excluding_merged_values(rows, merged_cells)
     assert filtered == []
+
+
+def test_step_extract_formulas_map_openpyxl_skips_on_failure(
+    tmp_path: Path, monkeypatch: MonkeyPatch, caplog: "pytest.LogCaptureFixture"
+) -> None:
+    def _raise(_: OpenpyxlBackend) -> object:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(OpenpyxlBackend, "extract_formulas_map", _raise)
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="standard",
+        include_cell_links=False,
+        include_print_areas=False,
+        include_auto_page_breaks=False,
+        include_colors_map=False,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=True,
+        use_com_for_formulas=False,
+        include_merged_cells=False,
+        include_merged_values_in_rows=True,
+    )
+    artifacts = ExtractionArtifacts()
+
+    with caplog.at_level(logging.WARNING):
+        step_extract_formulas_map_openpyxl(inputs, artifacts)
+
+    assert artifacts.formulas_map_data is None
+    assert "Failed to extract formulas_map via openpyxl" in caplog.text
+
+
+def test_step_extract_formulas_map_com_skips_on_failure(
+    tmp_path: Path, monkeypatch: MonkeyPatch, caplog: "pytest.LogCaptureFixture"
+) -> None:
+    def _raise(_: ComBackend) -> object:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(ComBackend, "extract_formulas_map", _raise)
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="standard",
+        include_cell_links=False,
+        include_print_areas=False,
+        include_auto_page_breaks=False,
+        include_colors_map=False,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=True,
+        use_com_for_formulas=True,
+        include_merged_cells=False,
+        include_merged_values_in_rows=True,
+    )
+    artifacts = ExtractionArtifacts()
+
+    with caplog.at_level(logging.WARNING):
+        step_extract_formulas_map_com(inputs, artifacts, object())
+
+    assert artifacts.formulas_map_data is None
+    assert "Failed to extract formulas_map via COM" in caplog.text

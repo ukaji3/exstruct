@@ -520,7 +520,13 @@ def step_extract_formulas_map_openpyxl(
         artifacts: Artifact container to update.
     """
     backend = OpenpyxlBackend(inputs.file_path)
-    artifacts.formulas_map_data = backend.extract_formulas_map()
+    try:
+        artifacts.formulas_map_data = backend.extract_formulas_map()
+    except Exception as exc:
+        logger.warning(
+            "Failed to extract formulas_map via openpyxl. (%r)",
+            exc,
+        )
 
 
 def step_extract_colors_map_openpyxl(
@@ -619,7 +625,13 @@ def step_extract_formulas_map_com(
         artifacts: Artifact container to update.
         workbook: xlwings workbook instance.
     """
-    artifacts.formulas_map_data = ComBackend(workbook).extract_formulas_map()
+    try:
+        artifacts.formulas_map_data = ComBackend(workbook).extract_formulas_map()
+    except Exception as exc:
+        logger.warning(
+            "Failed to extract formulas_map via COM. (%r)",
+            exc,
+        )
 
 
 def step_extract_colors_map_com(

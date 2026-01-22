@@ -60,7 +60,10 @@ omit = [
 [tool.ruff]
 target-version = "py311"
 src = ["exstruct"]
+fix = true
 
+# 静的解析ルール
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -75,43 +78,36 @@ select = [
 ]
 
 ignore = [
-    "E501",   # 行長は許容（Excel JSON は長くなりがち）
-    "B008",   # Pydantic の default_factory を誤検知するため
-    "ANN101", # self に型を要求されてしまうため
-    "ANN102", # cls も同様
+    "E501",   # 長い行は許容（Excel JSON は長くなりがち）
+    "B008",   # Pydantic の default_factory を使用するため
+    "ANN101", # self の型注釈は省略可能
+    "ANN102", # cls の型注釈は省略可能
 ]
 
-fix = true
-
-# 型ヒントのスタイル
-[tool.ruff.lint]
-extend-select = ["ANN"]
-
-# import の並び替え設定
-[tool.ruff.isort]
+# import の並び順
+[tool.ruff.lint.isort]
 combine-as-imports = true
 known-first-party = ["exstruct"]
 force-sort-within-sections = true
 
-# 複雑度チェック（関数の最大複雑度）
-[tool.ruff.mccabe]
+# 複雑度の最大値
+[tool.ruff.lint.mccabe]
 max-complexity = 12
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["N802", "N803", "N806"]
-
 
 [tool.mypy]
 packages = ["exstruct"]
 python_version = "3.11"
 
-# 外部ライブラリは一切チェックしない
+# 外部ライブラリの型情報がない場合は無視
 ignore_missing_imports = true
 
-# 自作コードは厳密にチェックする
+# 厳格モードを有効化
 strict = true
 
-# Pydantic v2 向け
+# Pydantic v2 対応
 plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]

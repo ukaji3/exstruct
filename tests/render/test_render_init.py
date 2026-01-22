@@ -541,3 +541,50 @@ def test_sanitize_sheet_filename() -> None:
     """_sanitize_sheet_filename replaces invalid characters and defaults."""
     assert render._sanitize_sheet_filename("Sheet/1") == "Sheet_1"
     assert render._sanitize_sheet_filename("  ") == "sheet"
+
+
+def test_page_index_from_suffix_handles_multi_digits() -> None:
+    assert render._page_index_from_suffix("sheet_01") == 0
+    assert render._page_index_from_suffix("sheet_01_p01") == 0
+    assert render._page_index_from_suffix("sheet_01_p10") == 9
+    assert render._page_index_from_suffix("sheet_01_p100") == 99
+    assert render._page_index_from_suffix("sheet_01_p0") == 0
+
+
+def test_export_sheet_pdf_does_not_swallow_export_errors(tmp_path: Path) -> None:
+    class _FlakyPageSetup(render._PageSetupProtocol):
+        def __init__(self) -> None:
+            self._print_area: object = "A1"
+            self._set_calls = 0
+
+        @property
+        def PrintArea(self) -> object:
+            return self._print_area
+
+        @PrintArea.setter
+        def PrintArea(self, value: object) -> None:
+            if self._set_calls >= 1:
+                raise RuntimeError("restore failed")
+            self._print_area = value
+            self._set_calls += 1
+
+    class _ExplodingSheetApi:
+        PageSetup: render._PageSetupProtocol = _FlakyPageSetup()
+
+        def ExportAsFixedFormat(
+            self, file_format: int, output_path: str, *args: object, **kwargs: object
+        ) -> None:
+            _ = file_format
+            _ = output_path
+            _ = args
+            _ = kwargs
+            raise RuntimeError("export failed")
+
+    pdf_path = tmp_path / "out.pdf"
+    with pytest.raises(RuntimeError, match="export failed"):
+        render._export_sheet_pdf(
+            _ExplodingSheetApi(),
+            pdf_path,
+            ignore_print_areas=False,
+            print_area="A1:B2",
+        )

@@ -7,8 +7,10 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from exstruct.core import cells
 from exstruct.core.cells import (
     _coerce_numeric_preserve_format,
+    _normalize_formula_from_com,
     _normalize_formula_value,
     detect_tables_openpyxl,
+    extract_sheet_formulas_map,
 )
 
 
@@ -73,3 +75,27 @@ def test_normalize_formula_value_prefers_array_text() -> None:
 
     assert _normalize_formula_value(_ArrayFormulaLike()) == "=SUM(A1:A3)"
     assert _normalize_formula_value("") is None
+
+
+def test_extract_sheet_formulas_map_collects_formulas(tmp_path: Path) -> None:
+    path = tmp_path / "formulas.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+    ws["A1"] = 1
+    ws["A2"] = 2
+    ws["B1"] = "=SUM(A1:A2)"
+    wb.save(path)
+    wb.close()
+
+    result = extract_sheet_formulas_map(path)
+    sheet = result.get_sheet("Sheet1")
+    assert sheet is not None
+    assert sheet.formulas_map == {"=SUM(A1:A2)": [(1, 1)]}
+
+
+def test_normalize_formula_from_com() -> None:
+    assert _normalize_formula_from_com("=A1") == "=A1"
+    assert _normalize_formula_from_com("A1") is None
+    assert _normalize_formula_from_com("") is None
+    assert _normalize_formula_from_com(None) is None

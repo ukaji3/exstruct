@@ -75,6 +75,21 @@ def test_openpyxl_backend_extract_colors_map_returns_none_on_failure(
     )
 
 
+def test_openpyxl_backend_extract_formulas_map_returns_none_on_failure(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    def fake_formulas_map(file_path: Path) -> object:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        "exstruct.core.backends.openpyxl_backend.extract_sheet_formulas_map",
+        fake_formulas_map,
+    )
+
+    backend = OpenpyxlBackend(tmp_path / "book.xlsx")
+    assert backend.extract_formulas_map() is None
+
+
 def test_com_backend_extract_colors_map_returns_none_on_failure(
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -99,6 +114,24 @@ def test_com_backend_extract_colors_map_returns_none_on_failure(
         backend.extract_colors_map(include_default_background=False, ignore_colors=None)
         is None
     )
+
+
+def test_com_backend_extract_formulas_map_returns_none_on_failure(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    def fake_formulas_map(workbook: object) -> object:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        "exstruct.core.backends.com_backend.extract_sheet_formulas_map_com",
+        fake_formulas_map,
+    )
+
+    class DummyWorkbook:
+        pass
+
+    backend = ComBackend(DummyWorkbook())
+    assert backend.extract_formulas_map() is None
 
 
 def test_com_backend_extract_print_areas_handles_sheet_error(

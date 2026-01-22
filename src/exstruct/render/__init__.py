@@ -230,8 +230,11 @@ def _page_index_from_suffix(stem: str) -> int:
         return 0
     base, suffix = stem.rsplit("_p", 1)
     _ = base
-    if len(suffix) == 2 and suffix.isdigit():
-        return int(suffix) - 1
+    if suffix.isdigit():
+        page_number = int(suffix)
+        if page_number <= 0:
+            return 0
+        return page_number - 1
     return 0
 
 
@@ -270,8 +273,8 @@ def _export_sheet_pdf(
         if page_setup is not None and print_area is not None:
             try:
                 page_setup.PrintArea = original_print_area
-            except Exception:
-                return
+            except Exception as exc:
+                logger.debug("Failed to restore PrintArea. (%r)", exc)
 
 
 def _ensure_pdfium(use_subprocess: bool) -> ModuleType | None:

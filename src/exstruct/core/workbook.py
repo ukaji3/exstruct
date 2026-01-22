@@ -12,6 +12,8 @@ import xlwings as xw
 
 logger = logging.getLogger(__name__)
 
+__all__ = ["openpyxl_workbook", "xlwings_workbook", "_find_open_workbook", "xw"]
+
 
 @contextmanager
 def openpyxl_workbook(
