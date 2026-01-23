@@ -156,7 +156,7 @@ def extract_sheet_formulas_map_com(workbook: xw.Book) -> WorkbookFormulasMap:
         workbook: xlwings Book instance whose sheets will be scanned for formulas.
 
     Returns:
-        WorkbookFormulasMap: maps sheet names to SheetFormulasMap objects. Each SheetFormulasMap.formulas_map maps a normalized formula string (consistent representation, e.g., beginning with "=") to a list of (row, column) tuples representing cell locations using Excel 1-based indices.
+        WorkbookFormulasMap: maps sheet names to SheetFormulasMap objects. Each SheetFormulasMap.formulas_map maps a normalized formula string (consistent representation, e.g., beginning with "=") to a list of (row, column) tuples where row is 1-based and column is 0-based.
     """
     sheets: dict[str, SheetFormulasMap] = {}
     for sheet in workbook.sheets:
