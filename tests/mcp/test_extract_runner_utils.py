@@ -15,6 +15,13 @@ def test_resolve_input_path_missing(tmp_path: Path) -> None:
         extract_runner._resolve_input_path(tmp_path / "missing.xlsx", policy=None)
 
 
+def test_resolve_input_path_rejects_directory(tmp_path: Path) -> None:
+    path = tmp_path / "input.xlsx"
+    path.mkdir()
+    with pytest.raises(ValueError):
+        extract_runner._resolve_input_path(path, policy=None)
+
+
 def test_format_suffix() -> None:
     assert extract_runner._format_suffix("yml") == ".yml"
     assert extract_runner._format_suffix("json") == ".json"
@@ -104,6 +111,38 @@ def test_run_extract_creates_output_dir(
     )
     extract_runner.run_extract(request)
     assert out_dir.exists()
+
+
+def test_run_extract_applies_options(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    input_path = tmp_path / "input.xlsx"
+    input_path.write_text("x", encoding="utf-8")
+    capture: dict[str, object] = {}
+
+    def _capture(*_args: object, **kwargs: object) -> None:
+        capture.update(kwargs)
+
+    monkeypatch.setattr(extract_runner, "process_excel", _capture)
+    monkeypatch.setattr(extract_runner, "_try_read_workbook_meta", lambda _: (None, []))
+
+    options = extract_runner.ExtractOptions(
+        pretty=True,
+        indent=2,
+        sheets_dir=tmp_path / "sheets",
+        print_areas_dir=tmp_path / "print_areas",
+    )
+    request = extract_runner.ExtractRequest(
+        xlsx_path=input_path,
+        out_dir=tmp_path,
+        format="json",
+        options=options,
+    )
+    extract_runner.run_extract(request)
+    assert capture["pretty"] is True
+    assert capture["indent"] == 2
+    assert capture["sheets_dir"] == options.sheets_dir
+    assert capture["print_areas_dir"] == options.print_areas_dir
 
 
 def test_try_read_workbook_meta_import_error(

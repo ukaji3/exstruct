@@ -109,6 +109,14 @@ def test_read_json_chunk_cursor_beyond_rows(tmp_path: Path) -> None:
         read_json_chunk(request)
 
 
+def test_read_json_chunk_rejects_directory(tmp_path: Path) -> None:
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    request = ReadJsonChunkRequest(out_path=out_dir, sheet="Sheet1")
+    with pytest.raises(ValueError):
+        read_json_chunk(request)
+
+
 def test_read_json_chunk_rejects_non_object_root(tmp_path: Path) -> None:
     out = tmp_path / "out.json"
     out.write_text(json.dumps([1, 2, 3]), encoding="utf-8")

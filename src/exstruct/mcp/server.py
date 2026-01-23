@@ -195,7 +195,7 @@ def _register_tools(
         policy: Path policy for filesystem access.
     """
 
-    async def _extract_tool(
+    async def _extract_tool(  # pylint: disable=redefined-builtin
         xlsx_path: str,
         mode: ExtractionMode = "standard",
         format: Literal["json", "yaml", "yml", "toon"] = "json",  # noqa: A002
@@ -239,7 +239,7 @@ def _register_tools(
     tool = app.tool(name="exstruct.extract")
     tool(_extract_tool)
 
-    def _read_json_chunk_tool(
+    async def _read_json_chunk_tool(  # pylint: disable=redefined-builtin
         out_path: str,
         sheet: str | None = None,
         max_bytes: int = 50_000,
@@ -265,12 +265,18 @@ def _register_tools(
             filter=_coerce_filter(filter),
             cursor=cursor,
         )
-        return run_read_json_chunk_tool(payload, policy=policy)
+        work = functools.partial(
+            run_read_json_chunk_tool,
+            payload,
+            policy=policy,
+        )
+        result = cast(ReadJsonChunkToolOutput, await anyio.to_thread.run_sync(work))
+        return result
 
     chunk_tool = app.tool(name="exstruct.read_json_chunk")
     chunk_tool(_read_json_chunk_tool)
 
-    def _validate_input_tool(xlsx_path: str) -> ValidateInputToolOutput:
+    async def _validate_input_tool(xlsx_path: str) -> ValidateInputToolOutput:
         """Handle input validation tool call.
 
         Args:
@@ -280,7 +286,13 @@ def _register_tools(
             Validation result payload.
         """
         payload = ValidateInputToolInput(xlsx_path=xlsx_path)
-        return run_validate_input_tool(payload, policy=policy)
+        work = functools.partial(
+            run_validate_input_tool,
+            payload,
+            policy=policy,
+        )
+        result = cast(ValidateInputToolOutput, await anyio.to_thread.run_sync(work))
+        return result
 
     validate_tool = app.tool(name="exstruct.validate_input")
     validate_tool(_validate_input_tool)

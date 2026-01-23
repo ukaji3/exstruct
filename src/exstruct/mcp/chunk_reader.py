@@ -92,11 +92,13 @@ def _resolve_output_path(path: Path, *, policy: PathPolicy | None) -> Path:
 
     Raises:
         FileNotFoundError: If the output file does not exist.
-        ValueError: If the path violates the policy.
+        ValueError: If the path violates the policy or is not a file.
     """
     resolved = policy.ensure_allowed(path) if policy else path.resolve()
     if not resolved.exists():
         raise FileNotFoundError(f"Output file not found: {resolved}")
+    if not resolved.is_file():
+        raise ValueError(f"Output path is not a file: {resolved}")
     return resolved
 
 

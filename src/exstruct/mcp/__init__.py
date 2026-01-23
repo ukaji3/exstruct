@@ -8,7 +8,13 @@ from .chunk_reader import (
     ReadJsonChunkResult,
     read_json_chunk,
 )
-from .extract_runner import ExtractRequest, ExtractResult, WorkbookMeta, run_extract
+from .extract_runner import (
+    ExtractOptions,
+    ExtractRequest,
+    ExtractResult,
+    WorkbookMeta,
+    run_extract,
+)
 from .io import PathPolicy
 from .tools import (
     ExtractToolInput,
@@ -30,6 +36,7 @@ from .validate_input import (
 __all__ = [
     "ExtractRequest",
     "ExtractResult",
+    "ExtractOptions",
     "ExtractToolInput",
     "ExtractToolOutput",
     "PathPolicy",

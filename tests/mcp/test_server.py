@@ -140,12 +140,18 @@ def test_register_tools_uses_default_on_conflict(
 
     extract_tool = cast(Callable[..., Awaitable[object]], app.tools["exstruct.extract"])
     anyio.run(_call_async, extract_tool, {"xlsx_path": "in.xlsx"})
-    cast(Callable[..., object], app.tools["exstruct.read_json_chunk"])(
-        out_path="out.json", filter={"rows": [1, 2]}
+    read_chunk_tool = cast(
+        Callable[..., Awaitable[object]], app.tools["exstruct.read_json_chunk"]
     )
-    cast(Callable[..., object], app.tools["exstruct.validate_input"])(
-        xlsx_path="in.xlsx"
+    anyio.run(
+        _call_async,
+        read_chunk_tool,
+        {"out_path": "out.json", "filter": {"rows": [1, 2]}},
     )
+    validate_tool = cast(
+        Callable[..., Awaitable[object]], app.tools["exstruct.validate_input"]
+    )
+    anyio.run(_call_async, validate_tool, {"xlsx_path": "in.xlsx"})
 
     assert calls["extract"][2] == "rename"
     chunk_call = cast(tuple[ReadJsonChunkToolInput, PathPolicy], calls["chunk"])

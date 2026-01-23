@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -14,6 +14,7 @@ from .chunk_reader import (
     read_json_chunk,
 )
 from .extract_runner import (
+    ExtractOptions,
     ExtractRequest,
     ExtractResult,
     OnConflictPolicy,
@@ -37,7 +38,7 @@ class ExtractToolInput(BaseModel):
     out_dir: str | None = None
     out_name: str | None = None
     on_conflict: OnConflictPolicy | None = None
-    options: dict[str, Any] = Field(default_factory=dict)
+    options: ExtractOptions = Field(default_factory=ExtractOptions)
 
 
 class ExtractToolOutput(BaseModel):
