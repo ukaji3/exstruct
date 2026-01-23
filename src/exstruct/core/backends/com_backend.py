@@ -65,11 +65,11 @@ class ComBackend:
     ) -> WorkbookColorsMap | None:
         """
         Extract a workbook colors map using the Excel COM API.
-        
+
         Parameters:
             include_default_background (bool): Include the workbook's default background color in the resulting map.
             ignore_colors (set[str] | None): Optional set of color keys to exclude from the map.
-        
+
         Returns:
             WorkbookColorsMap | None: A mapping of workbook color definitions when extraction succeeds, or `None` if COM extraction fails.
         """
@@ -89,7 +89,7 @@ class ComBackend:
     def extract_formulas_map(self) -> WorkbookFormulasMap | None:
         """
         Extracts the workbook's formulas map using COM.
-        
+
         Returns:
             WorkbookFormulasMap or None: The extracted formulas map, or `None` if extraction failed.
         """
@@ -105,9 +105,9 @@ class ComBackend:
     def extract_auto_page_breaks(self) -> PrintAreaData:
         """
         Compute auto page-break rectangles for each worksheet using Excel COM.
-        
+
         For each sheet, determine the sheet's print area (PageSetup.PrintArea or the used range) and split it into sub-rectangles along Excel's horizontal and vertical page breaks; parts that reference a different sheet are ignored. If extraction for a sheet fails, the sheet is skipped and a warning is logged.
-        
+
         Returns:
             Mapping from sheet name to a list of PrintArea entries. Each PrintArea describes a rectangular region with `r1` and `r2` as 1-based row indices and `c1` and `c2` as 0-based column indices.
         """

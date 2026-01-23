@@ -24,7 +24,7 @@ _SkipIf = Callable[[Callable[..., Any]], Callable[..., Any]]
 def _sheet() -> SheetData:
     """
     Create a sample SheetData containing one row, no shapes or charts, and a single table candidate.
-    
+
     Returns:
         SheetData: A SheetData instance with one CellRow (r=1, c={"0": "A"}), empty shapes and charts lists, and table_candidates set to ["A1:B2"].
     """

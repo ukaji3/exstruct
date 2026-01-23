@@ -53,7 +53,7 @@ def test_pipeline_fallback_com_unavailable(
 ) -> None:
     """
     Verifies that the extraction pipeline falls back when COM access is unavailable.
-    
+
     Creates a basic workbook, forces the COM-access entry point to raise, runs the extraction pipeline, and asserts that the pipeline records a fallback due to COM being unavailable (`FallbackReason.COM_UNAVAILABLE`), did not attempt COM (`com_attempted is False`), and that the resulting sheet "Sheet1" exists, contains rows, and has no shapes or charts.
     """
     path = tmp_path / "book.xlsx"

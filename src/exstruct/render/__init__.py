@@ -81,12 +81,12 @@ def export_sheet_images(
 ) -> list[Path]:
     """
     Export each worksheet in the given Excel workbook to PNG files and return the image paths in workbook order.
-    
+
     Returns:
-    	paths (list[Path]): Paths to the generated PNG files, ordered by the corresponding worksheets.
-    
+        paths (list[Path]): Paths to the generated PNG files, ordered by the corresponding worksheets.
+
     Raises:
-    	RenderError: If export or rendering fails.
+        RenderError: If export or rendering fails.
     """
     normalized_excel_path = Path(excel_path)
     normalized_output_dir = Path(output_dir)
@@ -114,14 +114,14 @@ def export_sheet_images(
 
 
 def _sanitize_sheet_filename(name: str) -> str:
-    """
+    r"""
     Create a filesystem-safe filename derived from an Excel sheet name.
-    
+
     Replaces characters that are not allowed in filenames (\/:*?"<>|) with underscores, trims surrounding whitespace, and returns "sheet" if the result is empty.
-    
+
     Parameters:
         name (str): Original sheet name.
-    
+
     Returns:
         safe_name (str): Filename-safe string derived from `name`.
     """
@@ -141,9 +141,9 @@ class _SheetApiProtocol(Protocol):
 
     def ExportAsFixedFormat(  # noqa: N802
         self, file_format: int, output_path: str, *args: object, **kwargs: object
-    ) -> None: """
-        Export the sheet or workbook to a fixed-format file (for example, PDF or XPS).
-        
+    ) -> None:
+        """Export the sheet or workbook to a fixed-format file (for example, PDF or XPS).
+
         Parameters:
             file_format (int): Excel XlFixedFormatType enum value indicating the output format (e.g., the constant for PDF).
             output_path (str): Filesystem path where the fixed-format file will be written.
@@ -156,9 +156,9 @@ class _SheetApiProtocol(Protocol):
 def _iter_sheet_apis(wb: xw.Book) -> list[tuple[int, str, _SheetApiProtocol]]:
     """
     Enumerate workbook sheets and return each sheet's zero-based index, display name, and COM API handle in workbook order.
-    
+
     If direct COM access to Worksheets is unavailable, falls back to iterating wb.sheets to build the same list.
-    
+
     Returns:
         List[tuple[int, str, _SheetApiProtocol]]: Tuples of (zero-based sheet index, sheet name, sheet COM API handle) in workbook order.
     """
@@ -189,7 +189,7 @@ def _build_sheet_export_plan(
 ) -> list[tuple[str, _SheetApiProtocol, str | None]]:
     """
     Build an ordered export plan mapping each worksheet to its print areas.
-    
+
     Each returned tuple is (sheet_name, sheet_api, print_area). The list preserves workbook sheet order; for sheets with no defined print areas `print_area` is `None`, and for sheets with multiple print areas there is one tuple per area.
     """
     plan: list[tuple[str, _SheetApiProtocol, str | None]] = []
@@ -206,12 +206,12 @@ def _build_sheet_export_plan(
 def _extract_print_areas(sheet_api: _SheetApiProtocol) -> list[str]:
     """
     Extract the sheet's print-area ranges as a list of strings.
-    
+
     Retrieves the PageSetup.PrintArea value from the provided sheet API, splits it by commas while respecting single-quoted sections, and returns each range as a separate string. If the sheet has no print area or the property is inaccessible, an empty list is returned.
-    
+
     Parameters:
         sheet_api (_SheetApiProtocol): Excel sheet API object exposing a `PageSetup.PrintArea` attribute.
-    
+
     Returns:
         list[str]: List of print-area range strings in the order they appear, or an empty list if none are defined or on access failure.
     """
@@ -230,12 +230,12 @@ def _extract_print_areas(sheet_api: _SheetApiProtocol) -> list[str]:
 def _split_csv_respecting_quotes(raw: str) -> list[str]:
     """
     Split a comma-separated string into parts while treating single-quoted sections as atomic.
-    
+
     This function splits raw on commas that are not inside single quotes. Text enclosed in single quotes is preserved (including internal commas). Two consecutive single quotes inside a quoted section are treated as an escaped single-quote pair. Leading and trailing whitespace is trimmed from each part and empty parts are removed.
-    
+
     Parameters:
         raw (str): The input CSV-like string that may contain single-quoted segments.
-    
+
     Returns:
         list[str]: A list of non-empty tokens obtained from splitting `raw` by unquoted commas,
                    with surrounding whitespace removed and quoted segments preserved.
@@ -275,13 +275,13 @@ def _rename_pages_for_print_area(
 ) -> list[Path]:
     """
     Rename the given image files so each gets a unique numeric prefix based on a base index and a safe sheet name.
-    
+
     Parameters:
         paths (list[Path]): Existing image files for a single sheet or print area (may include per-page suffixes).
         output_dir (Path): Directory where renamed files will reside.
         base_index (int): Zero-based starting index used to compute the numeric prefix for each output file.
         safe_name (str): Filesystem-safe base name to use after the numeric prefix.
-    
+
     Returns:
         list[Path]: Paths to the renamed files in the same order as input, each named "{index:02d}_{safe_name}.png".
     """
@@ -299,12 +299,12 @@ def _rename_pages_for_print_area(
 def _page_index_from_suffix(stem: str) -> int:
     """
     Extracts a zero-based page index from a filename stem ending with a "_pNN" numeric suffix.
-    
+
     If the stem ends with "_p" followed by digits, returns that number minus one. If the suffix is missing, non-numeric, or less than 1, returns 0.
-    
+
     Parameters:
         stem (str): Filename stem to parse.
-    
+
     Returns:
         int: Zero-based page index derived from the "_pNN" suffix, or 0 when no valid suffix is present.
     """
@@ -329,9 +329,9 @@ def _export_sheet_pdf(
 ) -> None:
     """
     Export the given worksheet to a PDF file, optionally applying a temporary print area.
-    
+
     If `print_area` is provided, it is applied to the sheet's PageSetup.PrintArea before exporting and restored afterwards. The function attempts to call ExportAsFixedFormat with an IgnorePrintAreas keyword; if that call fails due to an unexpected COM signature, it retries with a minimal argument set.
-    
+
     Args:
         sheet_api: COM-like worksheet API exposing `PageSetup` and `ExportAsFixedFormat`.
         pdf_path (Path): Filesystem path to write the PDF to.
@@ -346,13 +346,21 @@ def _export_sheet_pdf(
             if page_setup is not None:
                 original_print_area = getattr(page_setup, "PrintArea", None)
                 page_setup.PrintArea = print_area
-        except Exception:
+        except Exception as exc:
+            logger.debug("Failed to set PrintArea. (%r)", exc)
             page_setup = None
     try:
         sheet_api.ExportAsFixedFormat(
             0, str(pdf_path), IgnorePrintAreas=ignore_print_areas
         )
     except TypeError:
+        if ignore_print_areas and page_setup is None:
+            try:
+                page_setup = getattr(sheet_api, "PageSetup", None)
+                if page_setup is not None:
+                    page_setup.PrintArea = ""
+            except Exception as exc:
+                logger.debug("Failed to clear PrintArea for ignore. (%r)", exc)
         sheet_api.ExportAsFixedFormat(0, str(pdf_path))
     finally:
         if page_setup is not None and print_area is not None:
@@ -365,13 +373,13 @@ def _export_sheet_pdf(
 def _ensure_pdfium(use_subprocess: bool) -> ModuleType | None:
     """
     Ensure the pypdfium2 dependency is available and return the pdfium module for in-process rendering.
-    
+
     Parameters:
         use_subprocess (bool): When True, confirm pypdfium2 is installed for subprocess rendering but do not keep the module in-process; when False, import and return the pdfium module for direct use.
-    
+
     Returns:
         ModuleType | None: The imported `pdfium` module when `use_subprocess` is False, or `None` when `use_subprocess` is True.
-    
+
     Raises:
         MissingDependencyError: If pypdfium2 (and required extras) is not installed.
     """
@@ -391,7 +399,7 @@ def _export_sheet_images_with_app(
 ) -> list[Path]:
     """
     Export each worksheet of an Excel workbook to PNG images by exporting sheets to per-sheet PDFs and rendering those PDFs.
-    
+
     Parameters:
         excel_path (Path): Path to the source Excel workbook.
         output_dir (Path): Directory where generated PNGs will be written.
@@ -399,7 +407,7 @@ def _export_sheet_images_with_app(
         dpi (int): Dots per inch used when rasterizing PDF pages.
         use_subprocess (bool): If True, render PDF pages in a subprocess; otherwise render in-process.
         pdfium (ModuleType | None): In-process pypdfium2 module when rendering in-process, or None when subprocess rendering is used.
-    
+
     Returns:
         list[Path]: Paths to generated PNG images in the order corresponding to the workbook's sheets and print-area splits.
     """
@@ -471,12 +479,12 @@ def _render_sheet_images(
 ) -> list[Path]:
     """
     Render a sheet PDF to one or more PNG files using either a subprocess or in-process renderer.
-    
+
     Returns:
-    	paths (list[Path]): Paths to the generated PNG files in output order.
-    
+        paths (list[Path]): Paths to the generated PNG files in output order.
+
     Raises:
-    	RenderError: If in-process rendering is requested but the `pypdfium2` module (`pdfium`) is not provided.
+        RenderError: If in-process rendering is requested but the `pypdfium2` module (`pdfium`) is not provided.
     """
     if use_subprocess:
         return _render_pdf_pages_subprocess(
@@ -506,15 +514,15 @@ def _normalize_multipage_paths(
 ) -> list[Path]:
     """
     Assign distinct, ordered filenames for multi-page sheet outputs.
-    
+
     If `paths` contains a single file, the list is returned unchanged. If `paths` contains multiple files, each file is given a unique, numbered filename in `output_dir` using `base_index` and `safe_name` so pages are ordered and do not collide.
-    
+
     Parameters:
         paths (list[Path]): Existing file paths for a sheet's rendered pages.
         output_dir (Path): Directory containing or intended to contain the output files.
         base_index (int): Zero-based starting index used to compute numeric prefixes for filenames.
         safe_name (str): Filesystem-safe base name included in the generated filenames.
-    
+
     Returns:
         list[Path]: Paths to the resulting files in `output_dir`. When multiple input paths are provided, returned paths reflect the new, uniquely prefixed filenames.
     """
@@ -526,9 +534,9 @@ def _normalize_multipage_paths(
 def _use_render_subprocess() -> bool:
     """
     Decide whether PDF-to-PNG rendering should be performed in a subprocess.
-    
+
     Reads the environment variable EXSTRUCT_RENDER_SUBPROCESS (case-insensitive). Subprocess rendering is disabled when the variable is set to "0" or "false"; if the variable is unset or set to any other value, subprocess rendering is enabled.
-    
+
     Returns:
         `true` if subprocess rendering is enabled, `false` otherwise.
     """

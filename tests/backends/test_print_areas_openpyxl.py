@@ -16,7 +16,7 @@ from exstruct.core.backends.openpyxl_backend import (
 def _make_book_with_print_area(path: Path) -> None:
     """
     Create a simple Excel workbook with a single sheet named "Sheet1", set its print area to "A1:B2", write "x" to cell A1, save it to the given path, and close the file.
-    
+
     Parameters:
         path (Path): Filesystem path where the workbook will be saved.
     """
@@ -69,7 +69,7 @@ def test_extract_print_areas_from_defined_names_filters_unknown_sheets() -> None
         def get(self, _name: str) -> _DefinedArea:
             """
             Create a default defined area object.
-            
+
             Returns:
                 _DefinedArea: A new, empty/default defined-area instance.
             """

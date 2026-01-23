@@ -585,7 +585,7 @@ def test_extract_print_areas_handles_exception() -> None:
         def PrintArea(self) -> str:
             """
             Simulate accessing a worksheet's PrintArea and always raise an error to emulate a failure.
-            
+
             Raises:
                 RuntimeError: Always raised to simulate an error when retrieving the PrintArea.
             """
@@ -606,7 +606,7 @@ def test_iter_sheet_apis_prefers_worksheets_collection() -> None:
         def __init__(self, name: str) -> None:
             """
             Initialize the FakeSheet with the given Excel sheet name.
-            
+
             Parameters:
                 name (str): The sheet's name to assign to the object's `Name` attribute.
             """
@@ -616,7 +616,7 @@ def test_iter_sheet_apis_prefers_worksheets_collection() -> None:
         def __init__(self) -> None:
             """
             Initialize the fake PDF document stub.
-            
+
             Sets the `Count` attribute to 2 to emulate a document with two pages.
             """
             self.Count = 2
@@ -624,10 +624,10 @@ def test_iter_sheet_apis_prefers_worksheets_collection() -> None:
         def Item(self, index: int) -> _WsApi:
             """
             Return a worksheet API stub for the sheet at the given index.
-            
+
             Parameters:
                 index (int): One-based index of the worksheet within the workbook.
-            
+
             Returns:
                 _WsApi: A worksheet API stub corresponding to the sheet at `index`.
             """
@@ -651,7 +651,7 @@ def test_export_pdf_propagates_render_error(
     def _raise() -> xw.App:
         """
         Always raises a RenderError to simulate failure when obtaining an Excel application.
-        
+
         Raises:
             RenderError: Always raised with the message "boom".
         """
@@ -683,7 +683,7 @@ def test_build_sheet_export_plan_handles_multiple_areas(
     def _fake_iter(_: xw.Book) -> list[tuple[int, str, _SheetApi]]:
         """
         Return a single-item list that mimics iterating workbook sheets for tests.
-        
+
         Returns:
             A list with one tuple (index, sheet name, sheet API stub): (0, "Sheet1", _SheetApi()).
         """
@@ -692,10 +692,10 @@ def test_build_sheet_export_plan_handles_multiple_areas(
     def _fake_extract(_: _SheetApi) -> list[str]:
         """
         Provide two fake print-area ranges for testing.
-        
+
         Parameters:
             _ (_SheetApi): Ignored sheet API placeholder.
-        
+
         Returns:
             list[str]: Two print-area ranges: "A1:B2" and "C3:D4".
         """
@@ -727,7 +727,7 @@ def test_export_sheet_pdf_skips_invalid_print_area(tmp_path: Path) -> None:
         def PrintArea(self) -> str:
             """
             Represents the worksheet's PrintArea setting as an Excel range string.
-            
+
             Returns:
                 str: The PrintArea range (e.g., "A1:B2").
             """
@@ -737,10 +737,10 @@ def test_export_sheet_pdf_skips_invalid_print_area(tmp_path: Path) -> None:
         def PrintArea(self, _value: object) -> None:
             """
             Simulated setter for PrintArea that always fails.
-            
+
             Parameters:
                 _value (object): Ignored; the provided value is not used because the setter always raises.
-            
+
             Raises:
                 RuntimeError: Always raised with the message "bad".
             """
@@ -754,7 +754,7 @@ def test_export_sheet_pdf_skips_invalid_print_area(tmp_path: Path) -> None:
         ) -> None:
             """
             Simulate exporting a workbook/sheet to a fixed-format file by writing a minimal fake PDF header to the given path.
-            
+
             Parameters:
                 _file_format (int): Ignored numeric format indicator.
                 _output_path (str): Filesystem path where the fake export file will be written.
@@ -802,9 +802,9 @@ def test_export_sheet_images_with_app_retries_on_empty(
     ) -> list[Path]:
         """
         Simulates rendering a PDF sheet to image files for tests.
-        
+
         On the first invocation this function returns an empty list to simulate a transient empty render result; on subsequent invocations it returns a single Path inside output_dir named "{sheet_index+1:02d}_{safe_name}.png".
-        
+
         Parameters:
             _pdfium: Ignored in the fake implementation (kept for signature compatibility).
             _pdf_path: Ignored in the fake implementation (kept for signature compatibility).
@@ -813,7 +813,7 @@ def test_export_sheet_images_with_app_retries_on_empty(
             safe_name (str): Sanitized sheet name used in the filename.
             _dpi: Ignored in the fake implementation (kept for signature compatibility).
             _use_subprocess: Ignored in the fake implementation (kept for signature compatibility).
-        
+
         Returns:
             list[Path]: Empty list on the first call, otherwise a list containing one Path pointing to the fake PNG file.
         """
@@ -861,7 +861,7 @@ def test_export_sheet_pdf_does_not_swallow_export_errors(tmp_path: Path) -> None
         def __init__(self) -> None:
             """
             Initialize a PageSetup-like test stub with a default print area and a setter call counter.
-            
+
             The instance starts with `_print_area` set to "A1" and `_set_calls` set to 0 to track how many times the print area setter has been invoked.
             """
             self._print_area: object = "A1"
@@ -871,7 +871,7 @@ def test_export_sheet_pdf_does_not_swallow_export_errors(tmp_path: Path) -> None
         def PrintArea(self) -> object:
             """
             Retrieve the current PrintArea value from the PageSetup stub.
-            
+
             Returns:
                 print_area (object): The stored PrintArea value (typically a string) or whatever was set on the stub.
             """
@@ -881,12 +881,12 @@ def test_export_sheet_pdf_does_not_swallow_export_errors(tmp_path: Path) -> None
         def PrintArea(self, value: object) -> None:
             """
             Set the PrintArea value on this stub PageSetup instance.
-            
+
             Parameters:
-            	value (object): The print area value to assign.
-            
+                value (object): The print area value to assign.
+
             Raises:
-            	RuntimeError: If the setter is invoked more than once (simulates a restore failure).
+                RuntimeError: If the setter is invoked more than once (simulates a restore failure).
             """
             if self._set_calls >= 1:
                 raise RuntimeError("restore failed")
@@ -903,7 +903,7 @@ def test_export_sheet_pdf_does_not_swallow_export_errors(tmp_path: Path) -> None
         ) -> None:
             """
             Simulate exporting to a fixed format; this stub always raises an export error.
-            
+
             Raises:
                 RuntimeError: with message "export failed" when invoked.
             """

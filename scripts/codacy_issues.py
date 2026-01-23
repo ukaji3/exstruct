@@ -65,10 +65,10 @@ def get_level_priority(level: str | None) -> int | None:
 def normalize_provider(value: str) -> str | None:
     """
     Normalize a provider identifier to a supported short code.
-    
+
     Parameters:
         value (str): Provider identifier to normalize (expected 'gh', 'gl', or 'bb').
-    
+
     Returns:
         str | None: The provider code ('gh', 'gl', or 'bb') if valid, `None` otherwise.
     """
@@ -116,7 +116,7 @@ def assert_valid_choice(name: str, value: str, choices: list[str]) -> str:
 def encode_segment(value: str) -> str:
     """
     URL-encode a URL path segment so it is safe for inclusion in a path.
-    
+
     Returns:
         encoded (str): The percent-encoded representation of the input string.
     """
@@ -126,11 +126,11 @@ def encode_segment(value: str) -> str:
 def build_codacy_url(pathname: str, query: dict[str, str] | None = None) -> str:
     """
     Constructs a full Codacy API URL using the configured base origin and base path.
-    
+
     Parameters:
         pathname (str): Pathname to append to the base path (should begin with a forward slash).
         query (dict[str, str] | None): Optional mapping of query parameter names to values; values are URL-encoded.
-    
+
     Returns:
         url (str): The complete URL including query string if `query` is provided.
     """
@@ -144,13 +144,13 @@ def build_codacy_url(pathname: str, query: dict[str, str] | None = None) -> str:
 def assert_codacy_url(url: str) -> str:
     """
     Validate that `url` targets the configured Codacy API origin and begins with the `/analysis/` path.
-    
+
     Parameters:
         url (str): The full URL to validate.
-    
+
     Returns:
         str: The original URL when it is confirmed to target the configured Codacy API origin and start with the `/analysis/` path.
-    
+
     Raises:
         ValueError: If the URL does not use the configured Codacy API origin or does not start with the expected `/analysis/` path.
     """
@@ -167,13 +167,13 @@ def assert_codacy_url(url: str) -> str:
 def build_repo_issues_url(provider: str, org: str, repo: str, limit: int) -> str:
     """
     Constructs the Codacy API URL to search repository issues for a given provider, organization, repository, and result limit.
-    
+
     Parameters:
         provider (str): Provider code (e.g., "gh", "gl", "bb").
         org (str): Organization or owner name.
         repo (str): Repository name.
         limit (int): Maximum number of results to request.
-    
+
     Returns:
         str: A Codacy API URL for the repository issues search endpoint with the `limit` query parameter set.
     """
@@ -189,7 +189,7 @@ def build_pr_issues_url(
 ) -> str:
     """
     Constructs the Codacy API URL for fetching issues of a pull request.
-    
+
     Parameters:
         provider (str): Provider code (e.g., "gh", "gl", "bb").
         org (str): Organization or owner name.
@@ -197,7 +197,7 @@ def build_pr_issues_url(
         pr (str): Pull request identifier.
         limit (int): Maximum number of issues to request.
         status (str): Issue status filter (e.g., "all", "open", "closed").
-    
+
     Returns:
         str: The Codacy API URL for the pull-request issues endpoint including `status` and `limit` query parameters.
     """
@@ -211,7 +211,7 @@ def build_pr_issues_url(
 def get_git_origin_url() -> str | None:
     """
     Get the Git remote "origin" URL for the current repository, or None when it cannot be determined.
-    
+
     Returns:
         origin_url (str | None): The remote URL configured for 'origin' if the current directory is inside a Git work tree and the origin URL is available; `None` if not inside a Git repository, if the origin is not set, or on error.
     """
@@ -250,13 +250,13 @@ class GitRemoteInfo:
 def parse_git_remote(url: str) -> GitRemoteInfo | None:
     """
     Extract provider, organization, and repository from a Git remote URL.
-    
+
     Accepts HTTPS (https://host/org/repo[.git]) and SSH (git@host:org/repo[.git]) remote formats.
     Provider is one of: "gh" for GitHub, "gl" for GitLab, "bb" for Bitbucket, or "unknown" for other hosts.
-    
+
     Parameters:
         url (str): Git remote URL to parse.
-    
+
     Returns:
         GitRemoteInfo | None: Parsed GitRemoteInfo with fields `provider`, `org`, and `repo`, or `None` if the URL could not be parsed.
     """
@@ -274,11 +274,11 @@ def parse_git_remote(url: str) -> GitRemoteInfo | None:
     def is_same_or_subdomain(hostname: str, base_domain: str) -> bool:
         """
         Check whether a hostname is equal to a base domain or is a subdomain of that base domain.
-        
+
         Parameters:
             hostname (str): Hostname to test (e.g., "api.example.com").
             base_domain (str): Base domain to compare against (e.g., "example.com").
-        
+
         Returns:
             `true` if `hostname` equals `base_domain` or ends with `.` followed by `base_domain`, `false` otherwise.
         """
@@ -301,15 +301,15 @@ def fetch_json(
 ) -> dict[str, Any]:
     """
     Fetch and return a JSON object from a validated Codacy API URL.
-    
+
     Parameters:
         url (str): Codacy API URL; must target the configured Codacy origin and start with the /analysis/ path.
         method (str): HTTP method to use (e.g., "GET", "POST").
         body (dict[str, Any] | None): Optional JSON body for non-GET requests.
-    
+
     Returns:
         dict[str, Any]: The parsed JSON response as a dictionary.
-    
+
     Raises:
         RuntimeError: On HTTP errors, network errors, invalid JSON, or when the JSON root value is not an object.
     """
@@ -358,13 +358,13 @@ def fetch_json(
 def fetch_repo_issues(provider: str, org: str, repo: str, limit: int) -> dict[str, Any]:
     """
     Request Codacy for issues belonging to a repository.
-    
+
     Parameters:
         provider (str): Provider code ('gh', 'gl', 'bb') indicating GitHub, GitLab, or Bitbucket.
         org (str): Organization or owner name.
         repo (str): Repository name.
         limit (int): Maximum number of issues to return.
-    
+
     Returns:
         dict[str, Any]: Parsed JSON response from the Codacy API containing issue data.
     """
@@ -377,7 +377,7 @@ def fetch_pr_issues(
 ) -> dict[str, Any]:
     """
     Retrieve Codacy issues for a specific pull request.
-    
+
     Parameters:
         provider (str): Provider code ("gh", "gl", "bb").
         org (str): Organization or user name.
@@ -385,7 +385,7 @@ def fetch_pr_issues(
         pr (str): Pull request number or identifier.
         limit (int): Maximum number of issues to request.
         status (str): Issue status filter (for example "all", "open", "closed").
-    
+
     Returns:
         dict: Parsed JSON response from the Codacy API.
     """
@@ -399,17 +399,17 @@ def fetch_pr_issues(
 def format_for_ai(raw_issues: list[dict[str, Any]], min_level: str) -> list[str]:
     """
     Format Codacy issue records into compact AI-friendly lines filtered by minimum severity.
-    
+
     Each returned string has the form:
     "<level> | <file_path>:<line_no> | <rule> | <category> | <message>".
-    
+
     Parameters:
         raw_issues: List of issue objects returned by the Codacy API (each item may be an issue or contain a `commitIssue` key).
         min_level: Minimum severity level to include; must be one of the values in LEVELS.
-    
+
     Returns:
         A list of formatted issue strings matching the format above, including only issues whose severity is at or above `min_level`.
-    
+
     Raises:
         ValueError: If `min_level` is not a valid severity level.
     """
@@ -477,13 +477,13 @@ def apply_git_defaults(args: argparse.Namespace) -> None:
 def resolve_segments(args: argparse.Namespace) -> tuple[str, str, str | None]:
     """
     Validate CLI org, repo, and optional pr segments and return them.
-    
+
     Parameters:
         args (argparse.Namespace): Parsed CLI arguments with attributes `org`, `repo`, and optional `pr`.
-    
+
     Returns:
         tuple[str, str, str | None]: A tuple (org, repo, pr) where `pr` is None if not supplied.
-    
+
     Raises:
         ValueError: If any segment is empty or contains invalid characters.
     """
@@ -506,7 +506,7 @@ def build_payload(
 ) -> dict[str, object]:
     """
     Create a JSON-serializable payload describing the fetched issues and their scope.
-    
+
     The returned dictionary contains:
     - scope: "pull_request" when `pr` is set, otherwise "repository".
     - organization: organization/owner name.
@@ -515,7 +515,7 @@ def build_payload(
     - minLevel: the minimum severity level used to filter issues.
     - total: the number of issues in `issues`.
     - issues: list of formatted issue strings.
-    
+
     Returns:
         dict[str, object]: Payload ready for JSON serialization with the keys described above.
     """
@@ -533,9 +533,9 @@ def build_payload(
 def main() -> int:
     """
     Run the CLI: parse arguments, fetch Codacy issues (repository or pull request), format them for AI consumption, and write a JSON payload to stdout.
-    
+
     Writes error messages to stderr when validation or fetching fails and prints the final JSON payload to stdout.
-    
+
     Returns:
         int: 0 on success, 1 on error.
     """

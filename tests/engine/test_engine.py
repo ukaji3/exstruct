@@ -40,14 +40,14 @@ def test_engine_extract_uses_mode(monkeypatch: MonkeyPatch, tmp_path: Path) -> N
     ) -> WorkbookData:
         """
         Test helper that simulates workbook extraction for unit tests.
-        
+
         Records the received `mode` and `include_print_areas` into the outer `called` mapping and returns a minimal WorkbookData whose `book_name` is the input path's filename and whose `sheets` is empty.
-        
+
         Parameters:
             path (Path): Path to the workbook; its filename is used for the returned WorkbookData.book_name.
             mode (str): Extraction mode passed through and recorded.
             include_print_areas (bool): Whether print areas were requested; the value is recorded in `called`.
-        
+
         Returns:
             WorkbookData: A WorkbookData instance with `book_name` set to path.name and an empty `sheets` mapping.
         """

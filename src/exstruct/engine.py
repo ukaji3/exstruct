@@ -263,11 +263,11 @@ class ExStructEngine:
     ) -> SheetData:
         """
         Return a filtered copy of a SheetData according to the engine's output filters and resolved size/print-area flags.
-        
+
         Parameters:
             sheet: The original SheetData to filter.
             include_auto_override: If not None, overrides the engine's automatic decision for including auto page-break areas; if None, the engine's auto rule is used.
-        
+
         Returns:
             A new SheetData where:
               - rows are kept only if include_rows is enabled; otherwise an empty list.
@@ -354,12 +354,12 @@ class ExStructEngine:
     ) -> WorkbookData:
         """
         Produce a normalized WorkbookData extracted from the given workbook file.
-        
+
         Parameters:
             file_path (str | Path): Path to the .xlsx/.xlsm/.xls file to extract.
             mode (ExtractionMode | None): Extraction mode to use; if None the engine's configured mode is used.
                 Modes: "light", "standard", "verbose".
-        
+
         Returns:
             WorkbookData: Normalized workbook data extracted from the file.
         """

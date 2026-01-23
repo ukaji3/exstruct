@@ -23,9 +23,9 @@ def extract_workbook(  # noqa: C901
 ) -> WorkbookData:
     """
     Extract a workbook into a structured WorkbookData representation.
-    
+
     May fall back to cells+tables extraction if Excel COM automation is unavailable.
-    
+
     Parameters:
         file_path (str | Path): Path to the workbook file.
         mode (Literal['light', 'standard', 'verbose']): Extraction mode that controls detail level.
@@ -38,10 +38,10 @@ def extract_workbook(  # noqa: C901
         include_formulas_map (bool | None): Include a map of cell formulas; `None` uses mode defaults.
         include_merged_cells (bool | None): Include merged cell ranges; `None` uses mode defaults.
         include_merged_values_in_rows (bool): Preserve merged cell values in row-wise output.
-    
+
     Returns:
         WorkbookData: The extracted workbook representation.
-    
+
     Raises:
         ValueError: If `mode` is not one of "light", "standard", or "verbose".
     """

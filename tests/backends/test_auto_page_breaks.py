@@ -18,7 +18,7 @@ def test_extract_passes_auto_page_break_flag(
 ) -> None:
     """
     Verify that extract_workbook is invoked with include_auto_page_breaks set to True.
-    
+
     Creates a fake extractor that captures the include_auto_page_breaks argument, replaces
     exstruct.engine.extract_workbook with it, runs ExStructEngine.extract against a dummy
     workbook path configured to export auto page breaks, and asserts the captured flag is True.
@@ -40,15 +40,15 @@ def test_extract_passes_auto_page_break_flag(
     ) -> WorkbookData:
         """
         Test stub for workbook extraction that records the auto page breaks flag.
-        
+
         This fake extractor captures the value of `include_auto_page_breaks` in the outer
         `called` mapping and returns a minimal `WorkbookData` with `book_name` set to
         the provided path's filename and an empty `sheets` mapping.
-        
+
         Parameters:
             path (Path): Filesystem path used to derive the returned `WorkbookData.book_name`.
             include_auto_page_breaks (bool): Flag whose value is written to `called["include_auto_page_breaks"]`.
-        
+
         Returns:
             WorkbookData: A minimal workbook data object with `book_name` set to `path.name` and no sheets.
         """

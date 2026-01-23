@@ -274,10 +274,10 @@ def resolve_extraction_inputs(
 def build_pipeline_plan(inputs: ExtractionInputs) -> PipelinePlan:
     """
     Builds a pipeline plan describing which pre-COM and COM extraction steps to run for the given resolved inputs.
-    
+
     Parameters:
         inputs (ExtractionInputs): Resolved extraction configuration (including mode and COM/formulas flags).
-    
+
     Returns:
         PipelinePlan: Plan containing ordered `pre_com_steps`, ordered `com_steps`, and `use_com` set to true when the pipeline should use COM (when `mode` is not "light" or `use_com_for_formulas` is true).
     """
@@ -503,7 +503,7 @@ def step_extract_print_areas_openpyxl(
 ) -> None:
     """
     Extract print areas from the workbook and populate artifacts.print_area_data.
-    
+
     Parameters:
         inputs (ExtractionInputs): Pipeline inputs containing the file path and extraction options.
         artifacts (ExtractionArtifacts): Mutable artifact container; `artifacts.print_area_data` will be set to the extracted print area mapping.
@@ -517,9 +517,9 @@ def step_extract_formulas_map_openpyxl(
 ) -> None:
     """
     Populate artifacts.formulas_map_data by extracting workbook formulas using openpyxl.
-    
+
     Attempts to extract a WorkbookFormulasMap from the file at inputs.file_path and stores it on artifacts.formulas_map_data. If extraction fails, a warning is logged and artifacts.formulas_map_data is left unchanged.
-    
+
     Parameters:
         inputs (ExtractionInputs): Resolved pipeline inputs (provides file_path).
         artifacts (ExtractionArtifacts): Mutable container to receive the extracted formulas map.
@@ -539,7 +539,7 @@ def step_extract_colors_map_openpyxl(
 ) -> None:
     """
     Extract the workbook colors map using openpyxl and store it on the artifacts.
-    
+
     Sets artifacts.colors_map_data to the colors map extracted from inputs.file_path,
     respecting inputs.include_default_background and inputs.ignore_colors.
     """
@@ -612,7 +612,7 @@ def step_extract_auto_page_breaks_com(
 ) -> None:
     """
     Extract auto page break information from a COM workbook and store it in the artifacts.
-    
+
     Parameters:
         inputs (ExtractionInputs): Pipeline inputs that may influence extraction behavior.
         artifacts (ExtractionArtifacts): Mutable artifact container; updated with extracted data.
@@ -626,10 +626,10 @@ def step_extract_formulas_map_com(
 ) -> None:
     """
     Extract the workbook's formulas map via COM and store it into the artifacts.
-    
+
     On success assigns the extracted WorkbookFormulasMap to artifacts.formulas_map_data.
     On failure leaves artifacts.formulas_map_data unchanged and logs a warning.
-    
+
     Parameters:
         workbook (xlwings.Book): COM workbook to extract formulas from.
     """
@@ -673,11 +673,11 @@ def _resolve_sheet_colors_map(
 ) -> dict[str, list[tuple[int, int]]]:
     """
     Resolve the colors map for a given sheet.
-    
+
     Parameters:
         colors_map_data (WorkbookColorsMap | None): Optional workbook-level colors map container.
         sheet_name (str): Name of the sheet to resolve.
-    
+
     Returns:
         dict[str, list[tuple[int, int]]]: Mapping of color keys to lists of (start_col, end_col) intervals for the sheet; empty dict if no colors map is available for the workbook or sheet.
     """
@@ -694,11 +694,11 @@ def _resolve_sheet_formulas_map(
 ) -> dict[str, list[tuple[int, int]]]:
     """
     Get the formulas map for a named sheet from a workbook formulas container.
-    
+
     Parameters:
         formulas_map_data: Optional workbook formulas map container; may be None.
         sheet_name: Name of the sheet to resolve formulas for.
-    
+
     Returns:
         A mapping for the sheet (str -> list of (row, column) tuples) representing formula locations, or an empty dict if no data is available.
     """
@@ -716,11 +716,11 @@ def _filter_rows_excluding_merged_values(
 ) -> list[CellRow]:
     """
     Filter out cell values that originate from merged-cell ranges.
-    
+
     Parameters:
         rows (list[CellRow]): Extracted rows to filter.
         merged_cells (list[MergedCellRange]): Merged cell ranges to exclude values from.
-    
+
     Returns:
         list[CellRow]: Rows where any cell whose column index falls inside a merged range has been removed.
         - Rows with no remaining cells are omitted.
@@ -832,9 +832,9 @@ def collect_sheet_raw_data(
 ) -> dict[str, SheetRawData]:
     """
     Collect per-sheet raw extraction data and assemble SheetRawData for each sheet.
-    
+
     For each sheet in cell_data this returns a SheetRawData containing rows (optionally excluding values contributed by merged cells), shapes, charts (omitted in "light" mode), detected table candidates, print/auto-print areas, per-sheet formulas map, per-sheet colors map, and merged cell ranges.
-    
+
     Parameters:
         cell_data (CellData): Extracted cell rows keyed by sheet name.
         shape_data (ShapeData): Extracted shapes keyed by sheet name.
@@ -847,7 +847,7 @@ def collect_sheet_raw_data(
         auto_page_break_data (PrintAreaData | None): Optional auto page-break areas keyed by sheet name.
         formulas_map_data (WorkbookFormulasMap | None): Optional per-sheet formulas map to include in SheetRawData.
         colors_map_data (WorkbookColorsMap | None): Optional per-sheet colors map to include in SheetRawData.
-    
+
     Returns:
         dict[str, SheetRawData]: Mapping from sheet name to the assembled SheetRawData.
     """
@@ -880,10 +880,10 @@ def collect_sheet_raw_data(
 def run_extraction_pipeline(inputs: ExtractionInputs) -> PipelineResult:
     """
     Execute the configured extraction pipeline and produce the extraction result.
-    
+
     Parameters:
         inputs (ExtractionInputs): Resolved pipeline inputs controlling which extraction steps run.
-    
+
     Returns:
         PipelineResult: Contains the constructed workbook data, collected artifacts, and pipeline execution state (including COM attempt/success and any fallback reason).
     """
@@ -961,12 +961,12 @@ def build_cells_tables_workbook(
 ) -> WorkbookData:
     """
     Builds a WorkbookData from available cell rows and detected table candidates to use as a fallback when COM-based extraction is not used or has failed.
-    
+
     Parameters:
         inputs (ExtractionInputs): Resolved extraction inputs that control which extra maps and merged-value handling to include.
         artifacts (ExtractionArtifacts): Collected artifacts produced by pre-COM extraction steps; cell rows and any existing maps are consumed from here.
         reason (str): Short description of why the fallback is being used (logged for debugging).
-    
+
     Returns:
         WorkbookData: A workbook composed from the available per-sheet cell rows, detected table candidates, merged-cell information, and any resolved formulas and colors maps. Shapes and charts are empty in this fallback path; formulas and colors maps are extracted from artifacts or from the Openpyxl backend when requested and not already present.
     """

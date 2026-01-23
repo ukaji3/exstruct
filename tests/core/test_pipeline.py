@@ -225,7 +225,7 @@ def test_resolve_extraction_inputs_warns_on_xls_formulas(
     def _warn_once(key: str, message: str) -> None:
         """
         Record a warning key in the shared `calls` list while ignoring the message.
-        
+
         Parameters:
             key (str): Identifier for the warning; appended to the module-level `calls` list.
             message (str): Ignored placeholder kept for compatibility with expected callback signature.
@@ -402,11 +402,11 @@ def test_step_extract_colors_map_openpyxl_sets_data(
     ) -> object:
         """
         Provide a placeholder colors map for testing that is always empty.
-        
+
         Parameters:
             include_default_background (bool): Accepted for signature compatibility; has no effect on the returned value.
             ignore_colors (set[str] | None): Accepted for signature compatibility; has no effect on the returned value.
-        
+
         Returns:
             WorkbookColorsMap: An empty colors map with no sheets.
         """
@@ -446,7 +446,7 @@ def test_step_extract_colors_map_com_falls_back(
     ) -> None:
         """
         No-op placeholder that simulates a COM backend extraction step without producing any side effects.
-        
+
         This function accepts a COM backend and related flags but intentionally performs no operations; it is used in tests as a stub implementation.
         """
         _ = _backend
@@ -462,11 +462,11 @@ def test_step_extract_colors_map_com_falls_back(
     ) -> object:
         """
         Return an empty WorkbookColorsMap regardless of inputs.
-        
+
         Parameters:
             include_default_background (bool): Ignored; present for signature compatibility.
             ignore_colors (set[str] | None): Ignored; present for signature compatibility.
-        
+
         Returns:
             WorkbookColorsMap: A colors map with no sheets.
         """
@@ -502,7 +502,7 @@ def test_step_extract_auto_page_breaks_com_sets_data(
     def _fake(_: ComBackend) -> dict[str, list[PrintArea]]:
         """
         Return a stub mapping of sheet names to print areas containing a single 1x1 print area for "Sheet1".
-        
+
         Returns:
             dict[str, list[PrintArea]]: Mapping where "Sheet1" maps to a list with one PrintArea covering row 1, column 0 to row 1, column 0.
         """
@@ -542,12 +542,12 @@ def test_build_cells_tables_workbook_fetches_missing_maps(
     ) -> object:
         """
         Return a fake workbook colors map used by tests.
-        
+
         Parameters:
             _backend (OpenpyxlBackend): Ignored backend parameter retained for signature compatibility.
             include_default_background (bool): Whether the default background color would be included (ignored).
             ignore_colors (set[str] | None): Set of color names to ignore (ignored).
-        
+
         Returns:
             object: A preconstructed colors map object used by tests.
         """
@@ -559,7 +559,7 @@ def test_build_cells_tables_workbook_fetches_missing_maps(
     def _fake_formulas(_: OpenpyxlBackend) -> object:
         """
         Return the pre-captured formulas_map object.
-        
+
         Returns:
             The pre-captured `formulas_map` object.
         """
@@ -596,7 +596,7 @@ def test_step_extract_formulas_map_openpyxl_skips_on_failure(
     def _raise(_: OpenpyxlBackend) -> object:
         """
         Always raises a RuntimeError with the message "boom".
-        
+
         Raises:
             RuntimeError: always raised with message "boom".
         """
@@ -632,7 +632,7 @@ def test_step_extract_formulas_map_com_skips_on_failure(
     def _raise(_: ComBackend) -> object:
         """
         Always raises a RuntimeError with message "boom".
-        
+
         Raises:
             RuntimeError: Always raised by this helper.
         """
@@ -700,11 +700,11 @@ def test_step_extract_shapes_com_sets_data(
     def _fake(_: object, *, mode: str) -> dict[str, list[object]]:
         """
         Provide a stub that supplies the module-level `shapes_data` mapping.
-        
+
         Parameters:
             _ (object): Placeholder positional argument; ignored.
             mode (str): Mode selector; ignored.
-        
+
         Returns:
             dict[str, list[object]]: Mapping of sheet names to lists of shape objects from `shapes_data`.
         """
@@ -739,10 +739,10 @@ def test_step_extract_charts_com_sets_data(
     def _fake(_: object, *, mode: str) -> list[object]:
         """
         Return the captured charts list.
-        
+
         Parameters:
             mode (str): Ignored; accepted for compatibility with callers.
-        
+
         Returns:
             list[object]: The charts list captured from the enclosing scope.
         """
@@ -753,7 +753,7 @@ def test_step_extract_charts_com_sets_data(
         def __init__(self, name: str) -> None:
             """
             Initialize the instance with a display name.
-            
+
             Parameters:
                 name (str): The name to assign to the instance.
             """
@@ -788,7 +788,7 @@ def test_step_extract_print_areas_com_skips_when_present(
     def _raise(_: ComBackend) -> object:
         """
         Raise a RuntimeError indicating this code path must not be invoked.
-        
+
         This function always raises RuntimeError("should not be called").
         """
         raise RuntimeError("should not be called")
@@ -820,7 +820,7 @@ def test_step_extract_print_areas_com_sets_data(
     def _fake(_: ComBackend) -> dict[str, list[PrintArea]]:
         """
         Return a stub mapping of sheet names to print areas containing a single 1x1 print area for "Sheet1".
-        
+
         Returns:
             dict[str, list[PrintArea]]: Mapping where "Sheet1" maps to a list with one PrintArea covering row 1, column 0 to row 1, column 0.
         """
@@ -859,11 +859,11 @@ def test_step_extract_colors_map_com_sets_data(
     ) -> object:
         """
         Return a colors map object suitable for use as a COM backend response.
-        
+
         Parameters:
             include_default_background (bool): If true, the returned colors map should include the default background color.
             ignore_colors (set[str] | None): Optional set of color identifiers to exclude from the returned map; `None` means no colors are excluded.
-        
+
         Returns:
             object: A colors map representing workbook-level color mappings.
         """
@@ -880,7 +880,7 @@ def test_step_extract_colors_map_com_sets_data(
     ) -> object:
         """
         Placeholder backend sentinel that always raises a RuntimeError when invoked.
-        
+
         Raises:
             RuntimeError: Always raised with message "should not be called".
         """
@@ -916,13 +916,13 @@ def test_run_com_pipeline_executes_steps(tmp_path: Path) -> None:
     def _step(_: ExtractionInputs, artifacts: ExtractionArtifacts, __: object) -> None:
         """
         Test pipeline step that simulates shape extraction.
-        
+
         Sets artifacts.shape_data to a mapping for "Sheet1" containing a single Shape and records invocation by appending "called" to the outer `calls` list.
-        
+
         Parameters:
-        	_ (ExtractionInputs): Unused extraction inputs placeholder.
-        	artifacts (ExtractionArtifacts): Artifacts object to populate with shape data.
-        	__ (object): Unused context placeholder.
+            _ (ExtractionInputs): Unused extraction inputs placeholder.
+            artifacts (ExtractionArtifacts): Artifacts object to populate with shape data.
+            __ (object): Unused context placeholder.
         """
         calls.append("called")
         artifacts.shape_data = {"Sheet1": [Shape(id=1, text="", l=0, t=0)]}
@@ -954,7 +954,7 @@ def test_run_extraction_pipeline_com_success(
         def __init__(self, name: str) -> None:
             """
             Initialize the instance with a display name.
-            
+
             Parameters:
                 name (str): The name to assign to the instance.
             """
@@ -964,7 +964,7 @@ def test_run_extraction_pipeline_com_success(
         def __init__(self) -> None:
             """
             Initialize the object with a single default sheet named "Sheet1".
-            
+
             Creates the internal mapping `self._sheets` and populates it with one `_Sheet` instance keyed by "Sheet1".
             """
             self._sheets = {"Sheet1": _Sheet("Sheet1")}
@@ -972,13 +972,13 @@ def test_run_extraction_pipeline_com_success(
         def __getitem__(self, name: str) -> _Sheet:
             """
             Access a worksheet by its name.
-            
+
             Parameters:
                 name (str): The name of the sheet to retrieve.
-            
+
             Returns:
                 _Sheet: The sheet object associated with `name`.
-            
+
             Raises:
                 KeyError: If no sheet with the given name exists.
             """
@@ -990,7 +990,7 @@ def test_run_extraction_pipeline_com_success(
     def _pre_step(_: ExtractionInputs, artifacts: ExtractionArtifacts) -> None:
         """
         Populate artifacts with default minimal cell and merged-cell data for a single sheet.
-        
+
         Parameters:
             _ (ExtractionInputs): Unused extraction inputs placeholder.
             artifacts (ExtractionArtifacts): Mutable extraction artifacts that will be updated with
@@ -1003,10 +1003,10 @@ def test_run_extraction_pipeline_com_success(
     def _fake_plan(_: ExtractionInputs) -> PipelinePlan:
         """
         Create a fixed PipelinePlan for tests that forces COM usage and provides a single pre-COM step.
-        
+
         Parameters:
             _ (ExtractionInputs): Ignored input; present to match the PipelinePlan factory signature.
-        
+
         Returns:
             PipelinePlan: A plan with `pre_com_steps` set to a list containing `_pre_step`, `com_steps` empty, and `use_com` set to `True`.
         """
@@ -1015,9 +1015,9 @@ def test_run_extraction_pipeline_com_success(
     def _fake_detect_tables(_: object) -> list[str]:
         """
         Provide a detector that always reports no table ranges.
-        
+
         The input workbook-like object is ignored.
-        
+
         Returns:
             list[str]: An empty list of table range identifiers.
         """
@@ -1026,13 +1026,14 @@ def test_run_extraction_pipeline_com_success(
     def _fake_workbook(_: Path) -> object:
         """
         Provide a context manager that yields a lightweight fake workbook for tests.
-        
+
         Parameters:
             _ (Path): Ignored file path parameter retained to match the real backend signature.
-        
+
         Returns:
             object: A context manager whose `__enter__` returns a new `_Workbook` instance and whose `__exit__` does not suppress exceptions (returns `None`).
         """
+
         class _Context:
             def __enter__(self) -> _Workbook:
                 return _Workbook()

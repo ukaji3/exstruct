@@ -21,12 +21,12 @@ def openpyxl_workbook(
 ) -> Iterator[Any]:
     """
     Open an openpyxl Workbook for temporary use and ensure it is closed on exit.
-    
+
     Parameters:
         file_path (Path): Path to the workbook file.
         data_only (bool): If True, read stored cell values instead of formulas.
         read_only (bool): If True, open the workbook in optimized read-only mode.
-    
+
     Yields:
         openpyxl.workbook.workbook.Workbook: The opened workbook instance.
     """
