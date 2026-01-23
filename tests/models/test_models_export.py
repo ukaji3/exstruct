@@ -1,6 +1,8 @@
+from collections.abc import Callable
 from importlib import util
 import json
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -16,9 +18,16 @@ from exstruct.models import (
 
 HAS_PYYAML = util.find_spec("yaml") is not None
 HAS_TOON = util.find_spec("toon") is not None
+_SkipIf = Callable[[Callable[..., Any]], Callable[..., Any]]
 
 
 def _sheet() -> SheetData:
+    """
+    Create a sample SheetData containing one row, no shapes or charts, and a single table candidate.
+
+    Returns:
+        SheetData: A SheetData instance with one CellRow (r=1, c={"0": "A"}), empty shapes and charts lists, and table_candidates set to ["A1:B2"].
+    """
     return SheetData(
         rows=[CellRow(r=1, c={"0": "A"})],
         shapes=[],
@@ -67,8 +76,8 @@ def test_save_unsupported_format_raises(tmp_path: Path) -> None:
         wb.save(bad)
 
 
-# pytest.skipif is typed; no ignore needed
-@pytest.mark.skipif(not HAS_PYYAML, reason="pyyaml not installed")  # type: ignore[misc]
+# cast to _SkipIf satisfies mypy strict mode for decorator typing
+@cast(_SkipIf, pytest.mark.skipif(not HAS_PYYAML, reason="pyyaml not installed"))
 def test_sheet_to_yaml_roundtrip() -> None:
     sheet = _sheet()
     text = sheet.to_yaml()
@@ -76,7 +85,7 @@ def test_sheet_to_yaml_roundtrip() -> None:
     assert "SheetData" not in text  # not a repr
 
 
-@pytest.mark.skipif(not HAS_PYYAML, reason="pyyaml not installed")  # type: ignore[misc]
+@cast(_SkipIf, pytest.mark.skipif(not HAS_PYYAML, reason="pyyaml not installed"))
 def test_workbook_to_yaml() -> None:
     wb = _workbook()
     text = wb.to_yaml()

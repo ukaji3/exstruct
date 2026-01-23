@@ -25,6 +25,7 @@ def test_build_workbook_data_from_raw() -> None:
         table_candidates=["A1:A1"],
         print_areas=[PrintArea(r1=1, c1=0, r2=1, c2=0)],
         auto_print_areas=[],
+        formulas_map={"=A1": [(1, 0)]},
         colors_map={"#FFFFFF": [(1, 0)]},
         merged_cells=[MergedCellRange(r1=1, c1=0, r2=1, c2=0, v=" ")],
     )

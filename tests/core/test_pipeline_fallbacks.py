@@ -34,6 +34,7 @@ def test_pipeline_fallback_skip_com_tests(
         include_colors_map=False,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=None,
         include_merged_cells=None,
         include_merged_values_in_rows=True,
     )
@@ -50,6 +51,11 @@ def test_pipeline_fallback_skip_com_tests(
 def test_pipeline_fallback_com_unavailable(
     monkeypatch: MonkeyPatch, tmp_path: Path
 ) -> None:
+    """
+    Verifies that the extraction pipeline falls back when COM access is unavailable.
+
+    Creates a basic workbook, forces the COM-access entry point to raise, runs the extraction pipeline, and asserts that the pipeline records a fallback due to COM being unavailable (`FallbackReason.COM_UNAVAILABLE`), did not attempt COM (`com_attempted is False`), and that the resulting sheet "Sheet1" exists, contains rows, and has no shapes or charts.
+    """
     path = tmp_path / "book.xlsx"
     _make_basic_book(path)
     monkeypatch.delenv("SKIP_COM_TESTS", raising=False)
@@ -68,6 +74,7 @@ def test_pipeline_fallback_com_unavailable(
         include_colors_map=False,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=None,
         include_merged_cells=None,
         include_merged_values_in_rows=True,
     )
@@ -110,6 +117,7 @@ def test_pipeline_fallback_com_pipeline_failed(
         include_colors_map=False,
         include_default_background=False,
         ignore_colors=None,
+        include_formulas_map=None,
         include_merged_cells=None,
         include_merged_values_in_rows=True,
     )

@@ -1,6 +1,6 @@
 ﻿# ExStruct データモデル仕様
 
-**Version**: 0.15
+**Version**: 0.16
 **Status**: Authoritative
 
 本ドキュメントは ExStruct が返す全モデルの唯一の正準ソースです。
@@ -175,6 +175,7 @@ SheetData {
   table_candidates: [str]
   print_areas: [PrintArea]
   auto_print_areas: [PrintArea] // 自動改ページ矩形 (COM 前提、デフォルト無効)
+  formulas_map: {[formula: str]: [[int, int]]} // (row=1-based, col=0-based)
   colors_map: {[colorHex: str]: [[int, int]]} // (row=1-based, col=0-based)
   merged_cells: MergedCells | null
 }
@@ -251,3 +252,4 @@ WorkbookData {
 - 0.13: Shape を `Shape` / `Arrow` / `SmartArt` に分割し、`SmartArtNode` のネスト構造を追加
 - 0.14: `MergedCell` / `SheetData.merged_cells` を追加
 - 0.15: `MergedCells` を schema + items 形式に変更し圧縮形式を導入
+- 0.16: `SheetData.formulas_map` を追加

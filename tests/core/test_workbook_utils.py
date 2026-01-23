@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -87,7 +88,7 @@ def test_find_open_workbook_handles_resolve_error(
     monkeypatch.setattr(workbook.xw, "apps", [_DummyApp()])
 
     file_path = _DummyPath("good")
-    assert workbook._find_open_workbook(file_path) is None
+    assert workbook._find_open_workbook(cast(Path, file_path)) is None
 
 
 def test_find_open_workbook_returns_none_on_iter_error(

@@ -56,13 +56,41 @@ class WorkbookColorsMap:
     sheets: dict[str, SheetColorsMap]
 
     def get_sheet(self, sheet_name: str) -> SheetColorsMap | None:
-        """Return the colors map for a sheet if available.
+        """
+        Retrieve the SheetColorsMap for a worksheet by name.
 
-        Args:
-            sheet_name: Target worksheet name.
+        Parameters:
+            sheet_name (str): Name of the worksheet to retrieve.
 
         Returns:
-            SheetColorsMap for the sheet, or None if missing.
+            SheetColorsMap | None: The sheet's color map if present, `None` otherwise.
+        """
+        return self.sheets.get(sheet_name)
+
+
+@dataclass(frozen=True)
+class SheetFormulasMap:
+    """Formula map for a single worksheet."""
+
+    sheet_name: str
+    formulas_map: dict[str, list[tuple[int, int]]]
+
+
+@dataclass(frozen=True)
+class WorkbookFormulasMap:
+    """Formula maps for all worksheets in a workbook."""
+
+    sheets: dict[str, SheetFormulasMap]
+
+    def get_sheet(self, sheet_name: str) -> SheetFormulasMap | None:
+        """
+        Retrieve the formulas map for a worksheet.
+
+        Parameters:
+            sheet_name (str): Name of the worksheet to look up.
+
+        Returns:
+            SheetFormulasMap | None: The sheet's formulas map if present, `None` if the worksheet is not found.
         """
         return self.sheets.get(sheet_name)
 
@@ -102,22 +130,79 @@ def extract_sheet_colors_map(
     return WorkbookColorsMap(sheets=sheets)
 
 
+def extract_sheet_formulas_map(file_path: Path) -> WorkbookFormulasMap:
+    """
+    Extract normalized formula strings from every worksheet in the workbook.
+
+    Parameters:
+        file_path (Path): Path to the Excel workbook to read.
+
+    Returns:
+        WorkbookFormulasMap: Mapping of sheet names to SheetFormulasMap objects. Each SheetFormulasMap contains a mapping from normalized formula strings (each beginning with "=") to a list of cell coordinates (row, column) where that formula occurs.
+    """
+    sheets: dict[str, SheetFormulasMap] = {}
+    with openpyxl_workbook(file_path, data_only=False, read_only=False) as wb:
+        for ws in wb.worksheets:
+            sheet_map = _extract_sheet_formulas(ws)
+            sheets[ws.title] = sheet_map
+    return WorkbookFormulasMap(sheets=sheets)
+
+
+def extract_sheet_formulas_map_com(workbook: xw.Book) -> WorkbookFormulasMap:
+    """
+    Collects and normalizes formulas from every worksheet in an xlwings workbook into per-sheet mappings.
+
+    Parameters:
+        workbook: xlwings Book instance whose sheets will be scanned for formulas.
+
+    Returns:
+        WorkbookFormulasMap: maps sheet names to SheetFormulasMap objects. Each SheetFormulasMap.formulas_map maps a normalized formula string (consistent representation, e.g., beginning with "=") to a list of (row, column) tuples where row is 1-based and column is 0-based.
+    """
+    sheets: dict[str, SheetFormulasMap] = {}
+    for sheet in workbook.sheets:
+        formulas_map: dict[str, list[tuple[int, int]]] = {}
+        used = sheet.used_range
+        start_row = int(getattr(used, "row", 1))
+        start_col = int(getattr(used, "column", 1))
+        max_row = used.last_cell.row
+        max_col = used.last_cell.column
+        if max_row <= 0 or max_col <= 0:
+            sheets[sheet.name] = SheetFormulasMap(
+                sheet_name=sheet.name, formulas_map=formulas_map
+            )
+            continue
+        rng = sheet.range((start_row, start_col), (max_row, max_col))
+        matrix = _normalize_matrix(rng.formula)
+        for r_offset, row in enumerate(matrix):
+            for c_offset, value in enumerate(row):
+                normalized = _normalize_formula_from_com(value)
+                if normalized is None:
+                    continue
+                row_index = start_row + r_offset
+                col_index = start_col + c_offset - 1
+                formulas_map.setdefault(normalized, []).append((row_index, col_index))
+        sheets[sheet.name] = SheetFormulasMap(
+            sheet_name=sheet.name, formulas_map=formulas_map
+        )
+    return WorkbookFormulasMap(sheets=sheets)
+
+
 def extract_sheet_colors_map_com(
     workbook: xw.Book,
     *,
     include_default_background: bool,
     ignore_colors: set[str] | None,
 ) -> WorkbookColorsMap:
-    """Extract background colors for each worksheet via COM display formats.
+    """
+    Extract per-sheet background color maps using the workbook's COM/display-format interfaces.
 
-    Args:
-        workbook: xlwings workbook instance.
-        include_default_background: Whether to include default (white) backgrounds
-            within the used range.
-        ignore_colors: Optional set of color keys to ignore.
+    Parameters:
+        workbook (xw.Book): xlwings workbook whose sheets will be inspected.
+        include_default_background (bool): If true, include default background colors (e.g., white) for cells inside each sheet's used range.
+        ignore_colors (set[str] | None): Optional set of normalized color keys to exclude from results.
 
     Returns:
-        WorkbookColorsMap containing per-sheet color maps.
+        WorkbookColorsMap: Mapping of sheet names to SheetColorsMap containing detected background color positions for each worksheet.
     """
     _prepare_workbook_for_display_format(workbook)
     sheets: dict[str, SheetColorsMap] = {}
@@ -133,15 +218,16 @@ def extract_sheet_colors_map_com(
 def _extract_sheet_colors(
     ws: Worksheet, include_default_background: bool, ignore_colors: set[str] | None
 ) -> SheetColorsMap:
-    """Extract background colors for a single worksheet.
+    """
+    Extract the background color locations present on a single worksheet.
 
-    Args:
-        ws: Target worksheet.
-        include_default_background: Whether to include default (white) backgrounds.
-        ignore_colors: Optional set of color keys to ignore.
+    Parameters:
+        ws (Worksheet): Worksheet to scan.
+        include_default_background (bool): If true, treat cells with the workbook default/background color as having a color key.
+        ignore_colors (set[str] | None): Optional set of color keys to ignore (keys are normalized before comparison).
 
     Returns:
-        SheetColorsMap for the worksheet.
+        SheetColorsMap: Mapping from normalized color key to a list of cell coordinates where that color appears. Coordinates are tuples (row, col) where `row` is 1-based and `col` is 0-based.
     """
     min_row, min_col, max_row, max_col = _get_used_range_bounds(ws)
     colors_map: dict[str, list[tuple[int, int]]] = {}
@@ -165,18 +251,90 @@ def _extract_sheet_colors(
     return SheetColorsMap(sheet_name=ws.title, colors_map=colors_map)
 
 
+def _extract_sheet_formulas(ws: Worksheet) -> SheetFormulasMap:
+    """
+    Collect normalized formula strings from a worksheet and group their cell coordinates.
+
+    Parameters:
+        ws (Worksheet): Worksheet to scan for formulas.
+
+    Returns:
+        SheetFormulasMap: container with the sheet's name and a mapping from each normalized formula string (prefixed with "=") to a list of cell coordinates as (row, zero-based-column).
+    """
+    min_row, min_col, max_row, max_col = _get_used_range_bounds(ws)
+    formulas_map: dict[str, list[tuple[int, int]]] = {}
+    if min_row > max_row or min_col > max_col:
+        return SheetFormulasMap(sheet_name=ws.title, formulas_map=formulas_map)
+
+    for row in ws.iter_rows(
+        min_row=min_row, max_row=max_row, min_col=min_col, max_col=max_col
+    ):
+        for cell in row:
+            if getattr(cell, "data_type", None) != "f":
+                continue
+            normalized = _normalize_formula_value(getattr(cell, "value", None))
+            if normalized is None:
+                continue
+            formulas_map.setdefault(normalized, []).append((cell.row, cell.col_idx - 1))
+    return SheetFormulasMap(sheet_name=ws.title, formulas_map=formulas_map)
+
+
+def _normalize_formula_value(value: object) -> str | None:
+    """Normalize a formula string for openpyxl cells.
+
+    Args:
+        value: Raw cell value.
+
+    Returns:
+        Formula string with leading "=", or None when empty.
+    """
+    if value is None:
+        return None
+    array_text = getattr(value, "text", None)
+    if array_text is not None:
+        text = str(array_text)
+    else:
+        text = str(value)
+    if text == "":
+        return None
+    if not text.startswith("="):
+        return f"={text}"
+    return text
+
+
+def _normalize_formula_from_com(value: object) -> str | None:
+    """
+    Normalize a COM-returned cell formula into a string that begins with '='.
+
+    Parameters:
+        value (object): Raw value returned from COM for a cell's formula.
+
+    Returns:
+        str | None: The input string if it is non-empty and starts with '=', `None` otherwise.
+    """
+    if value is None or not isinstance(value, str):
+        return None
+    text = value
+    if text == "":
+        return None
+    if not text.startswith("="):
+        return None
+    return text
+
+
 def _extract_sheet_colors_com(
     sheet: xw.Sheet, include_default_background: bool, ignore_colors: set[str] | None
 ) -> SheetColorsMap:
-    """Extract background colors for a single worksheet via COM.
+    """
+    Extract per-sheet background color mapping using COM/DisplayFormat.
 
-    Args:
-        sheet: Target worksheet.
-        include_default_background: Whether to include default (white) backgrounds.
-        ignore_colors: Optional set of color keys to ignore.
+    Parameters:
+        sheet (xw.Sheet): xlwings sheet object to inspect.
+        include_default_background (bool): If True, include cells whose background is the workbook default color.
+        ignore_colors (set[str] | None): Optional set of normalized color keys to exclude from the result.
 
     Returns:
-        SheetColorsMap for the worksheet.
+        SheetColorsMap: Mapping from normalized color key (hex/theme/index canonical form) to a list of cell coordinates where that color appears. Each coordinate is a tuple (row, col) where `row` is the worksheet row number (1-based) and `col` is the zero-based column index.
     """
     colors_map: dict[str, list[tuple[int, int]]] = {}
     used = sheet.used_range

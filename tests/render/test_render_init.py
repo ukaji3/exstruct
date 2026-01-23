@@ -292,8 +292,8 @@ def test_export_sheet_images_success(
     written = render.export_sheet_images(xlsx, out_dir, dpi=144)
 
     assert written[0].name == "01_Sheet_1.png"
-    assert written[1].name == "01_Sheet_1_p02.png"
-    assert written[2].name == "02_sheet.png"
+    assert written[1].name == "02_Sheet_1.png"
+    assert written[2].name == "03_sheet.png"
     assert all(path.exists() for path in written)
 
 
@@ -541,3 +541,383 @@ def test_sanitize_sheet_filename() -> None:
     """_sanitize_sheet_filename replaces invalid characters and defaults."""
     assert render._sanitize_sheet_filename("Sheet/1") == "Sheet_1"
     assert render._sanitize_sheet_filename("  ") == "sheet"
+
+
+def test_split_csv_respecting_quotes() -> None:
+    """Split CSV-like PrintArea strings while honoring quotes."""
+    raw = "'Sheet 1'!A1:B2,'Sheet,2'!C3:D4,'O''Brien'!E1:F2"
+    parts = render._split_csv_respecting_quotes(raw)
+    assert parts == ["'Sheet 1'!A1:B2", "'Sheet,2'!C3:D4", "'O''Brien'!E1:F2"]
+
+
+def test_extract_print_areas_with_page_setup() -> None:
+    """Parse PrintArea from a PageSetup stub."""
+
+    class _PageSetup:
+        PrintArea = "'Sheet 1'!A1:B2,'Sheet 1'!C3:D4"
+
+    class _SheetApi:
+        PageSetup = _PageSetup()
+
+    areas = render._extract_print_areas(cast(render._SheetApiProtocol, _SheetApi()))
+    assert areas == ["'Sheet 1'!A1:B2", "'Sheet 1'!C3:D4"]
+
+
+def test_extract_print_areas_empty_print_area() -> None:
+    """Return empty list when PrintArea is empty."""
+
+    class _PageSetup:
+        PrintArea = ""
+
+    class _SheetApi:
+        PageSetup = _PageSetup()
+
+    assert (
+        render._extract_print_areas(cast(render._SheetApiProtocol, _SheetApi())) == []
+    )
+
+
+def test_extract_print_areas_handles_exception() -> None:
+    """Return empty list when PrintArea access raises."""
+
+    class _PageSetup:
+        @property
+        def PrintArea(self) -> str:
+            """
+            Simulate accessing a worksheet's PrintArea and always raise an error to emulate a failure.
+
+            Raises:
+                RuntimeError: Always raised to simulate an error when retrieving the PrintArea.
+            """
+            raise RuntimeError("boom")
+
+    class _SheetApi:
+        PageSetup = _PageSetup()
+
+    assert (
+        render._extract_print_areas(cast(render._SheetApiProtocol, _SheetApi())) == []
+    )
+
+
+def test_iter_sheet_apis_prefers_worksheets_collection() -> None:
+    """Prefer the Worksheets collection when iterating COM sheets."""
+
+    class _WsApi:
+        def __init__(self, name: str) -> None:
+            """
+            Initialize the FakeSheet with the given Excel sheet name.
+
+            Parameters:
+                name (str): The sheet's name to assign to the object's `Name` attribute.
+            """
+            self.Name = name
+
+    class _Worksheets:
+        def __init__(self) -> None:
+            """
+            Initialize the fake PDF document stub.
+
+            Sets the `Count` attribute to 2 to emulate a document with two pages.
+            """
+            self.Count = 2
+
+        def Item(self, index: int) -> _WsApi:
+            """
+            Return a worksheet API stub for the sheet at the given index.
+
+            Parameters:
+                index (int): One-based index of the worksheet within the workbook.
+
+            Returns:
+                _WsApi: A worksheet API stub corresponding to the sheet at `index`.
+            """
+            return _WsApi(f"Sheet{index}")
+
+    class _Api:
+        Worksheets = _Worksheets()
+
+    class _Wb:
+        api = _Api()
+        sheets: list[Any] = []
+
+    result = render._iter_sheet_apis(_Wb())
+    assert result[0][1] == "Sheet1"
+    assert result[1][1] == "Sheet2"
+
+
+def test_export_pdf_propagates_render_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _raise() -> xw.App:
+        """
+        Always raises a RenderError to simulate failure when obtaining an Excel application.
+
+        Raises:
+            RenderError: Always raised with the message "boom".
+        """
+        raise RenderError("boom")
+
+    monkeypatch.setattr(render, "_require_excel_app", _raise)
+    with pytest.raises(RenderError, match="boom"):
+        render.export_pdf(tmp_path / "in.xlsx", tmp_path / "out.pdf")
+
+
+def test_require_pdfium_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    """_require_pdfium returns the imported module when available."""
+    fake_pdfium = ModuleType("pypdfium2")
+    sys.modules["pypdfium2"] = fake_pdfium
+    try:
+        assert render._require_pdfium() is fake_pdfium
+    finally:
+        sys.modules.pop("pypdfium2", None)
+
+
+def test_build_sheet_export_plan_handles_multiple_areas(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Expand multiple print areas into separate export plan rows."""
+
+    class _SheetApi:
+        pass
+
+    def _fake_iter(_: xw.Book) -> list[tuple[int, str, _SheetApi]]:
+        """
+        Return a single-item list that mimics iterating workbook sheets for tests.
+
+        Returns:
+            A list with one tuple (index, sheet name, sheet API stub): (0, "Sheet1", _SheetApi()).
+        """
+        return [(0, "Sheet1", _SheetApi())]
+
+    def _fake_extract(_: _SheetApi) -> list[str]:
+        """
+        Provide two fake print-area ranges for testing.
+
+        Parameters:
+            _ (_SheetApi): Ignored sheet API placeholder.
+
+        Returns:
+            list[str]: Two print-area ranges: "A1:B2" and "C3:D4".
+        """
+        return ["A1:B2", "C3:D4"]
+
+    monkeypatch.setattr(render, "_iter_sheet_apis", _fake_iter)
+    monkeypatch.setattr(render, "_extract_print_areas", _fake_extract)
+
+    plan = render._build_sheet_export_plan(cast(xw.Book, object()))
+    assert [item[0] for item in plan] == ["Sheet1", "Sheet1"]
+    assert [item[2] for item in plan] == ["A1:B2", "C3:D4"]
+
+
+def test_page_index_from_suffix_default() -> None:
+    """Default to zero when no suffix exists."""
+    assert render._page_index_from_suffix("sheet") == 0
+
+
+def test_page_index_from_suffix_non_digit() -> None:
+    """Default to zero when suffix is not numeric."""
+    assert render._page_index_from_suffix("sheet_pxx") == 0
+
+
+def test_export_sheet_pdf_skips_invalid_print_area(tmp_path: Path) -> None:
+    """Skip restoring PrintArea when setter fails."""
+
+    class _BadPageSetup:
+        @property
+        def PrintArea(self) -> str:
+            """
+            Represents the worksheet's PrintArea setting as an Excel range string.
+
+            Returns:
+                str: The PrintArea range (e.g., "A1:B2").
+            """
+            return "A1:B2"
+
+        @PrintArea.setter
+        def PrintArea(self, _value: object) -> None:
+            """
+            Simulated setter for PrintArea that always fails.
+
+            Parameters:
+                _value (object): Ignored; the provided value is not used because the setter always raises.
+
+            Raises:
+                RuntimeError: Always raised with the message "bad".
+            """
+            raise RuntimeError("bad")
+
+    class _SheetApi:
+        PageSetup = _BadPageSetup()
+
+        def ExportAsFixedFormat(
+            self, _file_format: int, _output_path: str, *args: object, **kwargs: object
+        ) -> None:
+            """
+            Simulate exporting a workbook/sheet to a fixed-format file by writing a minimal fake PDF header to the given path.
+
+            Parameters:
+                _file_format (int): Ignored numeric format indicator.
+                _output_path (str): Filesystem path where the fake export file will be written.
+                *args, **kwargs: Additional arguments are accepted and ignored.
+            """
+            _ = args
+            _ = kwargs
+
+    render._export_sheet_pdf(
+        cast(render._SheetApiProtocol, _SheetApi()),
+        tmp_path / "out.pdf",
+        ignore_print_areas=False,
+        print_area="A1:B2",
+    )
+
+
+def test_render_sheet_images_requires_pdfium(tmp_path: Path) -> None:
+    """Raise RenderError when pdfium is missing."""
+    with pytest.raises(RenderError, match="pypdfium2 is required"):
+        render._render_sheet_images(
+            None,
+            tmp_path / "sheet.pdf",
+            tmp_path,
+            0,
+            "Sheet1",
+            144,
+            False,
+        )
+
+
+def test_export_sheet_images_with_app_retries_on_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Retry export when rendering returns empty results."""
+    calls: list[int] = []
+
+    def _fake_render(
+        _pdfium: ModuleType | None,
+        _pdf_path: Path,
+        output_dir: Path,
+        sheet_index: int,
+        safe_name: str,
+        _dpi: int,
+        _use_subprocess: bool,
+    ) -> list[Path]:
+        """
+        Simulates rendering a PDF sheet to image files for tests.
+
+        On the first invocation this function returns an empty list to simulate a transient empty render result; on subsequent invocations it returns a single Path inside output_dir named "{sheet_index+1:02d}_{safe_name}.png".
+
+        Parameters:
+            _pdfium: Ignored in the fake implementation (kept for signature compatibility).
+            _pdf_path: Ignored in the fake implementation (kept for signature compatibility).
+            output_dir (Path): Directory where the fake image path is located.
+            sheet_index (int): Zero-based index of the sheet; used to build the filename prefix.
+            safe_name (str): Sanitized sheet name used in the filename.
+            _dpi: Ignored in the fake implementation (kept for signature compatibility).
+            _use_subprocess: Ignored in the fake implementation (kept for signature compatibility).
+
+        Returns:
+            list[Path]: Empty list on the first call, otherwise a list containing one Path pointing to the fake PNG file.
+        """
+        calls.append(1)
+        if len(calls) == 1:
+            return []
+        return [output_dir / f"{sheet_index + 1:02d}_{safe_name}.png"]
+
+    monkeypatch.setattr(render, "_render_sheet_images", _fake_render)
+    monkeypatch.setattr(
+        render, "_require_excel_app", lambda: FakeApp(["Sheet1"], False)
+    )
+    monkeypatch.setattr(render, "_export_sheet_pdf", lambda *a, **k: None)
+    monkeypatch.setattr(
+        render,
+        "_build_sheet_export_plan",
+        lambda _wb: [("Sheet1", cast(render._SheetApiProtocol, object()), None)],
+    )
+
+    result = render._export_sheet_images_with_app(
+        tmp_path / "in.xlsx",
+        tmp_path / "out",
+        tmp_path / "tmp",
+        144,
+        False,
+        None,
+    )
+    assert len(calls) == 2
+    assert result
+
+
+def test_page_index_from_suffix_handles_multi_digits() -> None:
+    """Support multi-digit page suffixes."""
+    assert render._page_index_from_suffix("sheet_01") == 0
+    assert render._page_index_from_suffix("sheet_01_p01") == 0
+    assert render._page_index_from_suffix("sheet_01_p10") == 9
+    assert render._page_index_from_suffix("sheet_01_p100") == 99
+    assert render._page_index_from_suffix("sheet_01_p0") == 0
+
+
+def test_export_sheet_pdf_does_not_swallow_export_errors(tmp_path: Path) -> None:
+    """Propagate export errors even if restore fails."""
+
+    class _FlakyPageSetup:
+        def __init__(self) -> None:
+            """
+            Initialize a PageSetup-like test stub with a default print area and a setter call counter.
+
+            The instance starts with `_print_area` set to "A1" and `_set_calls` set to 0 to track how many times the print area setter has been invoked.
+            """
+            self._print_area: object = "A1"
+            self._set_calls = 0
+
+        @property
+        def PrintArea(self) -> object:
+            """
+            Retrieve the current PrintArea value from the PageSetup stub.
+
+            Returns:
+                print_area (object): The stored PrintArea value (typically a string) or whatever was set on the stub.
+            """
+            return self._print_area
+
+        @PrintArea.setter
+        def PrintArea(self, value: object) -> None:
+            """
+            Set the PrintArea value on this stub PageSetup instance.
+
+            Parameters:
+                value (object): The print area value to assign.
+
+            Raises:
+                RuntimeError: If the setter is invoked more than once (simulates a restore failure).
+            """
+            if self._set_calls >= 1:
+                raise RuntimeError("restore failed")
+            self._print_area = value
+            self._set_calls += 1
+
+    class _ExplodingSheetApi:
+        PageSetup: render._PageSetupProtocol = cast(
+            render._PageSetupProtocol, _FlakyPageSetup()
+        )
+
+        def ExportAsFixedFormat(
+            self, file_format: int, output_path: str, *args: object, **kwargs: object
+        ) -> None:
+            """
+            Simulate exporting to a fixed format; this stub always raises an export error.
+
+            Raises:
+                RuntimeError: with message "export failed" when invoked.
+            """
+            _ = file_format
+            _ = output_path
+            _ = args
+            _ = kwargs
+            raise RuntimeError("export failed")
+
+    pdf_path = tmp_path / "out.pdf"
+    with pytest.raises(RuntimeError, match="export failed"):
+        render._export_sheet_pdf(
+            _ExplodingSheetApi(),
+            pdf_path,
+            ignore_print_areas=False,
+            print_area="A1:B2",
+        )

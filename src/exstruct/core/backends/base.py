@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from ...models import CellRow, PrintArea
-from ..cells import MergedCellRange, WorkbookColorsMap
+from ..cells import MergedCellRange, WorkbookColorsMap, WorkbookFormulasMap
 
 CellData = dict[str, list[CellRow]]
 PrintAreaData = dict[str, list[PrintArea]]
@@ -40,3 +40,11 @@ class Backend(Protocol):
 
     def extract_merged_cells(self) -> MergedCellData:
         """Extract merged cell ranges from the workbook."""
+
+    def extract_formulas_map(self) -> WorkbookFormulasMap | None:
+        """
+        Retrieve the workbook's formulas organized by worksheet.
+
+        Returns:
+            WorkbookFormulasMap | None: A mapping of worksheet identifiers to their formulas, or `None` if the backend cannot provide a formulas map.
+        """

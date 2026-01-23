@@ -5,7 +5,14 @@ from openpyxl import Workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
 from exstruct.core import cells
-from exstruct.core.cells import _coerce_numeric_preserve_format, detect_tables_openpyxl
+from exstruct.core.cells import (
+    _coerce_numeric_preserve_format,
+    _normalize_formula_from_com,
+    _normalize_formula_value,
+    detect_tables_openpyxl,
+    extract_sheet_formulas_map,
+    extract_sheet_formulas_map_com,
+)
 
 
 def test_coerce_numeric_preserve_format() -> None:
@@ -61,3 +68,106 @@ def test_detect_tables_openpyxl_respects_table_params(
     )
     tables = detect_tables_openpyxl(path, "Sheet1")
     assert "A1:B2" in tables
+
+
+def test_normalize_formula_value_prefers_array_text() -> None:
+    """
+    Verify that _normalize_formula_value prefers an array-like object's text and treats an empty string as no formula.
+
+    Asserts that an object with a `text` attribute is converted to a formula string prefixed with '=' (e.g., "=SUM(A1:A3)"), and that an empty string is normalized to None.
+    """
+
+    class _ArrayFormulaLike:
+        text = "SUM(A1:A3)"
+
+    assert _normalize_formula_value(_ArrayFormulaLike()) == "=SUM(A1:A3)"
+    assert _normalize_formula_value("") is None
+
+
+def test_extract_sheet_formulas_map_collects_formulas(tmp_path: Path) -> None:
+    path = tmp_path / "formulas.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+    ws["A1"] = 1
+    ws["A2"] = 2
+    ws["B1"] = "=SUM(A1:A2)"
+    wb.save(path)
+    wb.close()
+
+    result = extract_sheet_formulas_map(path)
+    sheet = result.get_sheet("Sheet1")
+    assert sheet is not None
+    assert sheet.formulas_map == {"=SUM(A1:A2)": [(1, 1)]}
+
+
+def test_normalize_formula_from_com() -> None:
+    assert _normalize_formula_from_com("=A1") == "=A1"
+    assert _normalize_formula_from_com("A1") is None
+    assert _normalize_formula_from_com("") is None
+    assert _normalize_formula_from_com(None) is None
+
+
+def test_extract_sheet_formulas_map_com_empty_range() -> None:
+    class _DummyLastCell:
+        row = 0
+        column = 0
+
+    class _DummyUsedRange:
+        row = 1
+        column = 1
+        last_cell = _DummyLastCell()
+
+    class _DummySheet:
+        name = "Sheet1"
+        used_range = _DummyUsedRange()
+
+    class _DummyWorkbook:
+        sheets = [_DummySheet()]
+
+    result = extract_sheet_formulas_map_com(_DummyWorkbook())
+    sheet = result.get_sheet("Sheet1")
+    assert sheet is not None
+    assert sheet.formulas_map == {}
+
+
+def test_extract_sheet_formulas_map_com_collects_formulas() -> None:
+    class _DummyLastCell:
+        row = 2
+        column = 2
+
+    class _DummyUsedRange:
+        row = 1
+        column = 1
+        last_cell = _DummyLastCell()
+
+    class _DummyRange:
+        formula = [["=A1", "B1"], ["=SUM(A1)", ""]]
+
+    class _DummySheet:
+        name = "Sheet1"
+        used_range = _DummyUsedRange()
+
+        def range(self, _start: object, _end: object) -> _DummyRange:
+            """
+            Return a new _DummyRange representing a requested cell range.
+
+            Parameters:
+                _start (object): Start coordinate or cell reference for the range request (ignored by this dummy implementation).
+                _end (object): End coordinate or cell reference for the range request (ignored by this dummy implementation).
+
+            Returns:
+                _DummyRange: A fresh _DummyRange instance corresponding to the requested range.
+            """
+            return _DummyRange()
+
+    class _DummyWorkbook:
+        sheets = [_DummySheet()]
+
+    result = extract_sheet_formulas_map_com(_DummyWorkbook())
+    sheet = result.get_sheet("Sheet1")
+    assert sheet is not None
+    assert sheet.formulas_map == {
+        "=A1": [(1, 0)],
+        "=SUM(A1)": [(2, 0)],
+    }
