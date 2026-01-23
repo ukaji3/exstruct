@@ -37,7 +37,7 @@ from exstruct.core.pipeline import (
     step_extract_print_areas_com,
     step_extract_shapes_com,
 )
-from exstruct.models import CellRow, PrintArea
+from exstruct.models import CellRow, PrintArea, Shape
 
 
 def test_build_pre_com_pipeline_respects_flags(
@@ -388,11 +388,12 @@ def test_step_extract_colors_map_openpyxl_sets_data(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     def _fake(
-        _: OpenpyxlBackend,
+        _backend: OpenpyxlBackend,
         *,
         include_default_background: bool,
         ignore_colors: set[str] | None,
     ) -> object:
+        _ = _backend
         _ = include_default_background
         _ = ignore_colors
         return WorkbookColorsMap(sheets={})
@@ -421,21 +422,23 @@ def test_step_extract_colors_map_com_falls_back(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     def _fake_com(
-        _: ComBackend,
+        _backend: ComBackend,
         *,
         include_default_background: bool,
         ignore_colors: set[str] | None,
     ) -> None:
+        _ = _backend
         _ = include_default_background
         _ = ignore_colors
         return None
 
     def _fake_openpyxl(
-        _: OpenpyxlBackend,
+        _backend: OpenpyxlBackend,
         *,
         include_default_background: bool,
         ignore_colors: set[str] | None,
     ) -> object:
+        _ = _backend
         _ = include_default_background
         _ = ignore_colors
         return WorkbookColorsMap(sheets={})
@@ -494,11 +497,12 @@ def test_build_cells_tables_workbook_fetches_missing_maps(
     formulas_map = WorkbookFormulasMap(sheets={})
 
     def _fake_colors(
-        _: OpenpyxlBackend,
+        _backend: OpenpyxlBackend,
         *,
         include_default_background: bool,
         ignore_colors: set[str] | None,
     ) -> object:
+        _ = _backend
         _ = include_default_background
         _ = ignore_colors
         return colors_map
@@ -595,7 +599,7 @@ def test_filter_rows_excluding_merged_values_returns_rows_when_intervals_empty()
     None
 ):
     rows = [CellRow(r=1, c={"0": "A"})]
-    merged_cells = [MergedCellRange(r1=2, c1=0, r2=1, c2=1, v="A")]
+    merged_cells = [MergedCellRange(r1=3, c1=0, r2=4, c2=1, v="A")]
     assert _filter_rows_excluding_merged_values(rows, merged_cells) == rows
 
 
@@ -745,21 +749,23 @@ def test_step_extract_colors_map_com_sets_data(
     colors_map = WorkbookColorsMap(sheets={})
 
     def _fake_com(
-        _: ComBackend,
+        _backend: ComBackend,
         *,
         include_default_background: bool,
         ignore_colors: set[str] | None,
     ) -> object:
+        _ = _backend
         _ = include_default_background
         _ = ignore_colors
         return colors_map
 
     def _raise(
-        _: OpenpyxlBackend,
+        _backend: OpenpyxlBackend,
         *,
         include_default_background: bool,
         ignore_colors: set[str] | None,
     ) -> object:
+        _ = _backend
         _ = include_default_background
         _ = ignore_colors
         raise RuntimeError("should not be called")
@@ -790,7 +796,7 @@ def test_run_com_pipeline_executes_steps(tmp_path: Path) -> None:
 
     def _step(_: ExtractionInputs, artifacts: ExtractionArtifacts, __: object) -> None:
         calls.append("called")
-        artifacts.shape_data = {"Sheet1": [object()]}
+        artifacts.shape_data = {"Sheet1": [Shape(id=1, text="", l=0, t=0)]}
 
     inputs = ExtractionInputs(
         file_path=tmp_path / "book.xlsx",

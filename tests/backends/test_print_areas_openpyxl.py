@@ -3,6 +3,7 @@ from pathlib import Path
 from openpyxl import Workbook
 
 from exstruct import extract
+from exstruct.core.backends.base import PrintAreaData
 from exstruct.core.backends.openpyxl_backend import (
     OpenpyxlBackend,
     _append_print_areas,
@@ -53,6 +54,8 @@ def test_openpyxl_backend_multiple_print_areas(tmp_path: Path) -> None:
 
 
 def test_extract_print_areas_from_defined_names_filters_unknown_sheets() -> None:
+    """Ignore defined-name destinations for sheets that do not exist."""
+
     class _DefinedArea:
         destinations = [("Sheet1", "A1:B2"), ("Unknown", "C1:D2")]
 
@@ -70,6 +73,8 @@ def test_extract_print_areas_from_defined_names_filters_unknown_sheets() -> None
 
 
 def test_extract_print_areas_from_defined_names_without_defined_names() -> None:
+    """Return an empty mapping when defined_names is missing."""
+
     class _DummyWorkbook:
         defined_names = None
 
@@ -77,6 +82,8 @@ def test_extract_print_areas_from_defined_names_without_defined_names() -> None:
 
 
 def test_extract_print_areas_from_sheet_props_skips_empty() -> None:
+    """Skip sheet print areas when the property is empty."""
+
     class _SheetEmpty:
         title = "Sheet1"
         _print_area = None
@@ -93,11 +100,13 @@ def test_extract_print_areas_from_sheet_props_skips_empty() -> None:
 
 
 def test_parse_print_area_range_invalid() -> None:
+    """Return None for invalid range strings."""
     assert _parse_print_area_range("INVALID") is None
 
 
 def test_append_print_areas_skips_invalid_ranges() -> None:
-    areas: dict[str, list[object]] = {}
+    """Append only valid print areas and skip invalid ranges."""
+    areas: PrintAreaData = {}
     _append_print_areas(areas, "Sheet1", "A1:B2,INVALID")
     assert "Sheet1" in areas
     assert len(areas["Sheet1"]) == 1

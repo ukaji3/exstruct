@@ -70,7 +70,7 @@ def test_save_unsupported_format_raises(tmp_path: Path) -> None:
         wb.save(bad)
 
 
-# pytest.skipif is typed; no ignore needed
+# cast to _SkipIf satisfies mypy strict mode for decorator typing
 @cast(_SkipIf, pytest.mark.skipif(not HAS_PYYAML, reason="pyyaml not installed"))
 def test_sheet_to_yaml_roundtrip() -> None:
     sheet = _sheet()

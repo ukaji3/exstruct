@@ -544,33 +544,42 @@ def test_sanitize_sheet_filename() -> None:
 
 
 def test_split_csv_respecting_quotes() -> None:
+    """Split CSV-like PrintArea strings while honoring quotes."""
     raw = "'Sheet 1'!A1:B2,'Sheet,2'!C3:D4,'O''Brien'!E1:F2"
     parts = render._split_csv_respecting_quotes(raw)
     assert parts == ["'Sheet 1'!A1:B2", "'Sheet,2'!C3:D4", "'O''Brien'!E1:F2"]
 
 
 def test_extract_print_areas_with_page_setup() -> None:
+    """Parse PrintArea from a PageSetup stub."""
+
     class _PageSetup:
         PrintArea = "'Sheet 1'!A1:B2,'Sheet 1'!C3:D4"
 
     class _SheetApi:
         PageSetup = _PageSetup()
 
-    areas = render._extract_print_areas(_SheetApi())
+    areas = render._extract_print_areas(cast(render._SheetApiProtocol, _SheetApi()))
     assert areas == ["'Sheet 1'!A1:B2", "'Sheet 1'!C3:D4"]
 
 
 def test_extract_print_areas_empty_print_area() -> None:
+    """Return empty list when PrintArea is empty."""
+
     class _PageSetup:
         PrintArea = ""
 
     class _SheetApi:
         PageSetup = _PageSetup()
 
-    assert render._extract_print_areas(_SheetApi()) == []
+    assert (
+        render._extract_print_areas(cast(render._SheetApiProtocol, _SheetApi())) == []
+    )
 
 
 def test_extract_print_areas_handles_exception() -> None:
+    """Return empty list when PrintArea access raises."""
+
     class _PageSetup:
         @property
         def PrintArea(self) -> str:
@@ -579,10 +588,14 @@ def test_extract_print_areas_handles_exception() -> None:
     class _SheetApi:
         PageSetup = _PageSetup()
 
-    assert render._extract_print_areas(_SheetApi()) == []
+    assert (
+        render._extract_print_areas(cast(render._SheetApiProtocol, _SheetApi())) == []
+    )
 
 
 def test_iter_sheet_apis_prefers_worksheets_collection() -> None:
+    """Prefer the Worksheets collection when iterating COM sheets."""
+
     class _WsApi:
         def __init__(self, name: str) -> None:
             self.Name = name
@@ -618,6 +631,7 @@ def test_export_pdf_propagates_render_error(
 
 
 def test_require_pdfium_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    """_require_pdfium returns the imported module when available."""
     fake_pdfium = ModuleType("pypdfium2")
     sys.modules["pypdfium2"] = fake_pdfium
     try:
@@ -629,6 +643,8 @@ def test_require_pdfium_success(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_build_sheet_export_plan_handles_multiple_areas(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Expand multiple print areas into separate export plan rows."""
+
     class _SheetApi:
         pass
 
@@ -647,14 +663,18 @@ def test_build_sheet_export_plan_handles_multiple_areas(
 
 
 def test_page_index_from_suffix_default() -> None:
+    """Default to zero when no suffix exists."""
     assert render._page_index_from_suffix("sheet") == 0
 
 
 def test_page_index_from_suffix_non_digit() -> None:
+    """Default to zero when suffix is not numeric."""
     assert render._page_index_from_suffix("sheet_pxx") == 0
 
 
 def test_export_sheet_pdf_skips_invalid_print_area(tmp_path: Path) -> None:
+    """Skip restoring PrintArea when setter fails."""
+
     class _BadPageSetup:
         @property
         def PrintArea(self) -> str:
@@ -674,7 +694,7 @@ def test_export_sheet_pdf_skips_invalid_print_area(tmp_path: Path) -> None:
             _ = kwargs
 
     render._export_sheet_pdf(
-        _SheetApi(),
+        cast(render._SheetApiProtocol, _SheetApi()),
         tmp_path / "out.pdf",
         ignore_print_areas=False,
         print_area="A1:B2",
@@ -682,6 +702,7 @@ def test_export_sheet_pdf_skips_invalid_print_area(tmp_path: Path) -> None:
 
 
 def test_render_sheet_images_requires_pdfium(tmp_path: Path) -> None:
+    """Raise RenderError when pdfium is missing."""
     with pytest.raises(RenderError, match="pypdfium2 is required"):
         render._render_sheet_images(
             None,
@@ -697,6 +718,7 @@ def test_render_sheet_images_requires_pdfium(tmp_path: Path) -> None:
 def test_export_sheet_images_with_app_retries_on_empty(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Retry export when rendering returns empty results."""
     calls: list[int] = []
 
     def _fake_render(
@@ -737,6 +759,7 @@ def test_export_sheet_images_with_app_retries_on_empty(
 
 
 def test_page_index_from_suffix_handles_multi_digits() -> None:
+    """Support multi-digit page suffixes."""
     assert render._page_index_from_suffix("sheet_01") == 0
     assert render._page_index_from_suffix("sheet_01_p01") == 0
     assert render._page_index_from_suffix("sheet_01_p10") == 9
@@ -745,6 +768,8 @@ def test_page_index_from_suffix_handles_multi_digits() -> None:
 
 
 def test_export_sheet_pdf_does_not_swallow_export_errors(tmp_path: Path) -> None:
+    """Propagate export errors even if restore fails."""
+
     class _FlakyPageSetup:
         def __init__(self) -> None:
             self._print_area: object = "A1"

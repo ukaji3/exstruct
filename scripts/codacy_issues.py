@@ -19,12 +19,21 @@ import urllib.request
 BASE = "https://api.codacy.com/api/v3"
 BASE_URL = urllib.parse.urlparse(BASE)
 BASE_PATH = BASE_URL.path.rstrip("/")  # "/api/v3"
-TOKEN = os.environ.get("CODACY_API_TOKEN")
 
-if TOKEN is None:
-    print("CODACY_API_TOKEN is not set", file=sys.stderr)
-    sys.exit(1)
-TOKEN_STR = TOKEN
+
+def get_token() -> str:
+    """Return the Codacy API token or raise if missing.
+
+    Returns:
+        Codacy API token string from the environment.
+
+    Raises:
+        ValueError: If CODACY_API_TOKEN is not set.
+    """
+    token = os.environ.get("CODACY_API_TOKEN")
+    if token is None:
+        raise ValueError("CODACY_API_TOKEN is not set")
+    return token
 
 
 # ================================
@@ -34,6 +43,14 @@ LEVELS = ["Error", "High", "Warning", "Info"]
 
 
 def get_level_priority(level: str | None) -> int | None:
+    """Convert a severity level name to a priority number.
+
+    Args:
+        level: Severity level string.
+
+    Returns:
+        Priority number or None if unknown.
+    """
     if level == "Error":
         return 4
     if level == "High":
@@ -46,31 +63,62 @@ def get_level_priority(level: str | None) -> int | None:
 
 
 def normalize_provider(value: str) -> str | None:
+    """Normalize provider short code.
+
+    Args:
+        value: Provider identifier.
+
+    Returns:
+        Provider code if valid, otherwise None.
+    """
     return value if value in ("gh", "gl", "bb") else None
 
 
 def assert_valid_segment(name: str, value: str, pattern: re.Pattern[str]) -> str:
+    """Validate an identifier segment against a regex.
+
+    Args:
+        name: Segment name for error reporting.
+        value: Segment value.
+        pattern: Compiled regex pattern for allowed values.
+
+    Returns:
+        The validated value.
+
+    Raises:
+        ValueError: If the value is empty or invalid.
+    """
     if (not value) or (pattern.match(value) is None):
-        print(f"Invalid {name}: {value}", file=sys.stderr)
-        sys.exit(1)
+        raise ValueError(f"Invalid {name}: {value}")
     return value
 
 
 def assert_valid_choice(name: str, value: str, choices: list[str]) -> str:
+    """Validate that a value is in a list of choices.
+
+    Args:
+        name: Parameter name for error reporting.
+        value: Input value.
+        choices: Allowed values.
+
+    Returns:
+        The validated value.
+
+    Raises:
+        ValueError: If the value is not allowed.
+    """
     if value not in choices:
-        print(
-            f"Invalid {name}: {value}. Valid values: {', '.join(choices)}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        raise ValueError(f"Invalid {name}: {value}. Valid values: {', '.join(choices)}")
     return value
 
 
 def encode_segment(value: str) -> str:
+    """URL-encode a path segment."""
     return urllib.parse.quote(value, safe="")
 
 
 def build_codacy_url(pathname: str, query: dict[str, str] | None = None) -> str:
+    """Build a Codacy API URL from a path and query parameters."""
     # Ensure we keep origin and base path
     url = f"{BASE_URL.scheme}://{BASE_URL.netloc}{BASE_PATH}{pathname}"
     if query:
@@ -79,18 +127,29 @@ def build_codacy_url(pathname: str, query: dict[str, str] | None = None) -> str:
 
 
 def assert_codacy_url(url: str) -> str:
+    """Ensure the URL targets the Codacy API origin and analysis path.
+
+    Args:
+        url: URL to validate.
+
+    Returns:
+        The original URL when valid.
+
+    Raises:
+        ValueError: If the URL is not within the expected origin/path.
+    """
     # Basic safety: must be same origin and start with /api/v3/analysis/
     parsed = urllib.parse.urlparse(url)
     expected_origin = f"{BASE_URL.scheme}://{BASE_URL.netloc}"
     origin = f"{parsed.scheme}://{parsed.netloc}"
     expected_prefix = f"{BASE_PATH}/analysis/"
     if origin != expected_origin or not parsed.path.startswith(expected_prefix):
-        print(f"Invalid URL: {url}", file=sys.stderr)
-        sys.exit(1)
+        raise ValueError(f"Invalid URL: {url}")
     return url
 
 
 def build_repo_issues_url(provider: str, org: str, repo: str, limit: int) -> str:
+    """Build a repository issues API URL."""
     return build_codacy_url(
         f"/analysis/organizations/{encode_segment(provider)}/{encode_segment(org)}"
         f"/repositories/{encode_segment(repo)}/issues/search",
@@ -101,6 +160,7 @@ def build_repo_issues_url(provider: str, org: str, repo: str, limit: int) -> str
 def build_pr_issues_url(
     provider: str, org: str, repo: str, pr: str, limit: int, status: str
 ) -> str:
+    """Build a pull request issues API URL."""
     return build_codacy_url(
         f"/analysis/organizations/{encode_segment(provider)}/{encode_segment(org)}"
         f"/repositories/{encode_segment(repo)}/pull-requests/{encode_segment(pr)}/issues",
@@ -109,6 +169,7 @@ def build_pr_issues_url(
 
 
 def get_git_origin_url() -> str | None:
+    """Return the git origin URL if available."""
     # git repo check
     try:
         result = subprocess.run(
@@ -128,18 +189,21 @@ def get_git_origin_url() -> str | None:
         if result.returncode != 0:
             return None
         return result.stdout.strip()
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
         return None
 
 
 @dataclass
 class GitRemoteInfo:
+    """Parsed git remote information."""
+
     provider: str
     org: str
     repo: str
 
 
 def parse_git_remote(url: str) -> GitRemoteInfo | None:
+    """Parse a git remote URL into provider/org/repo info."""
     # HTTPS
     m = re.match(r"^https?://([^/]+)/([^/]+)/([^/]+?)(?:\.git)?$", url)
     # SSH
@@ -169,11 +233,21 @@ def parse_git_remote(url: str) -> GitRemoteInfo | None:
 def fetch_json(
     url: str, method: str = "GET", body: dict[str, Any] | None = None
 ) -> dict[str, Any]:
+    """Fetch JSON from the Codacy API.
+
+    Args:
+        url: Codacy API URL.
+        method: HTTP method.
+        body: Optional JSON body for non-GET requests.
+
+    Returns:
+        Parsed JSON dictionary.
+    """
     safe_url = assert_codacy_url(url)
 
     headers = {
         "Accept": "application/json",
-        "api-token": TOKEN_STR,
+        "api-token": get_token(),
     }
 
     data: bytes | None = None
@@ -190,9 +264,6 @@ def fetch_json(
     try:
         with urllib.request.urlopen(req, timeout=60) as res:  # nosec B310 - validated https origin
             raw = res.read().decode("utf-8", errors="replace")
-            status = getattr(res, "status", 0) or 0
-            if status < 200 or status >= 300:
-                raise RuntimeError(f"HTTP {status}: {raw}")
             try:
                 parsed = json.loads(raw)
             except json.JSONDecodeError as exc:
@@ -215,6 +286,7 @@ def fetch_json(
 # API
 # ================================
 def fetch_repo_issues(provider: str, org: str, repo: str, limit: int) -> dict[str, Any]:
+    """Fetch issues for a repository."""
     url = build_repo_issues_url(provider, org, repo, limit)
     return fetch_json(url, method="POST", body={})
 
@@ -222,6 +294,7 @@ def fetch_repo_issues(provider: str, org: str, repo: str, limit: int) -> dict[st
 def fetch_pr_issues(
     provider: str, org: str, repo: str, pr: str, limit: int, status: str = "all"
 ) -> dict[str, Any]:
+    """Fetch issues for a pull request."""
     url = build_pr_issues_url(provider, org, repo, pr, limit, status)
     return fetch_json(url, method="GET")
 
@@ -230,13 +303,23 @@ def fetch_pr_issues(
 # AI Output Formatter
 # ================================
 def format_for_ai(raw_issues: list[dict[str, Any]], min_level: str) -> list[str]:
+    """Format raw Codacy issues for AI output.
+
+    Args:
+        raw_issues: Issue dictionaries from Codacy API.
+        min_level: Minimum severity level to include.
+
+    Returns:
+        Formatted issue strings.
+
+    Raises:
+        ValueError: If min_level is invalid.
+    """
     min_priority = get_level_priority(min_level)
     if min_priority is None:
-        print(
-            f"Invalid --min-level: {min_level}. Valid values: {', '.join(LEVELS)}",
-            file=sys.stderr,
+        raise ValueError(
+            f"Invalid min_level: {min_level}. Valid values: {', '.join(LEVELS)}"
         )
-        sys.exit(1)
 
     out: list[str] = []
 
@@ -264,6 +347,7 @@ def format_for_ai(raw_issues: list[dict[str, Any]], min_level: str) -> list[str]
 # CLI
 # ================================
 def parse_args(argv: list[str]) -> argparse.Namespace:
+    """Parse command-line arguments."""
     p = argparse.ArgumentParser(add_help=False)
     p.add_argument("org", nargs="?", default=None)
     p.add_argument("repo", nargs="?", default=None)
@@ -274,21 +358,68 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+def apply_git_defaults(args: argparse.Namespace) -> None:
+    """Populate missing org/repo/provider from git origin when possible."""
+    if args.org and args.repo:
+        return
+    origin_url = get_git_origin_url()
+    if not origin_url:
+        return
+    parsed = parse_git_remote(origin_url)
+    if not parsed:
+        return
+    if args.provider is None:
+        args.provider = parsed.provider
+    if args.org is None:
+        args.org = parsed.org
+    if args.repo is None:
+        args.repo = parsed.repo
+
+
+def resolve_segments(args: argparse.Namespace) -> tuple[str, str, str | None]:
+    """Validate and return org/repo/pr segments.
+
+    Args:
+        args: Parsed CLI arguments.
+
+    Returns:
+        Tuple of (org, repo, pr).
+    """
+    segment_pattern = re.compile(r"^[A-Za-z0-9_.-]+$")
+    org = assert_valid_segment("org", args.org, segment_pattern)
+    repo = assert_valid_segment("repo", args.repo, segment_pattern)
+    pr = args.pr
+    if pr is not None:
+        pr = assert_valid_segment("pr", pr, re.compile(r"^[0-9]+$"))
+    return org, repo, pr
+
+
+def build_payload(
+    *,
+    pr: str | None,
+    org: str,
+    repo: str,
+    min_level: str,
+    issues: list[str],
+) -> dict[str, object]:
+    """Build the output payload for JSON serialization."""
+    return {
+        "scope": "pull_request" if pr else "repository",
+        "organization": org,
+        "repository": repo,
+        "pullRequest": pr if pr else None,
+        "minLevel": min_level,
+        "total": len(issues),
+        "issues": issues,
+    }
+
+
 def main() -> int:
+    """Run the Codacy issues fetcher."""
     args = parse_args(sys.argv[1:])
 
     # --- Git auto-detect ---
-    if not args.org or not args.repo:
-        origin_url = get_git_origin_url()
-        if origin_url:
-            parsed = parse_git_remote(origin_url)
-            if parsed:
-                if args.provider is None:
-                    args.provider = parsed.provider
-                if args.org is None:
-                    args.org = parsed.org
-                if args.repo is None:
-                    args.repo = parsed.repo
+    apply_git_defaults(args)
 
     if args.provider is None:
         args.provider = "gh"
@@ -306,14 +437,13 @@ def main() -> int:
         )
         return 1
 
-    segment_pattern = re.compile(r"^[A-Za-z0-9_.-]+$")
-    org = assert_valid_segment("org", args.org, segment_pattern)
-    repo = assert_valid_segment("repo", args.repo, segment_pattern)
-    pr = args.pr
-    if pr is not None:
-        pr = assert_valid_segment("pr", pr, re.compile(r"^[0-9]+$"))
+    try:
+        org, repo, pr = resolve_segments(args)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
 
-    status = assert_valid_choice("status", "all", ["all", "open", "closed"])
+    status = "all"
     limit = 100
 
     result = (
@@ -325,17 +455,15 @@ def main() -> int:
     )
 
     issues = result.get("data") or []
-    formatted = format_for_ai(issues, args.min_level)
+    try:
+        formatted = format_for_ai(issues, args.min_level)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
 
-    payload = {
-        "scope": "pull_request" if pr else "repository",
-        "organization": org,
-        "repository": repo,
-        "pullRequest": pr if pr else None,
-        "minLevel": args.min_level,
-        "total": len(formatted),
-        "issues": formatted,
-    }
+    payload = build_payload(
+        pr=pr, org=org, repo=repo, min_level=args.min_level, issues=formatted
+    )
 
     sys.stdout.write(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
     return 0

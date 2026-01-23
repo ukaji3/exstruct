@@ -289,7 +289,8 @@ class _Sheet:
 
 
 class _DummyWorkbook:
-    sheets = [_Sheet()]
+    def __init__(self) -> None:
+        self.sheets = [_Sheet()]
 
 
 def test_com_backend_extract_auto_page_breaks_success() -> None:
@@ -329,7 +330,8 @@ class _RestoreErrorSheet:
 
 
 class _RestoreErrorWorkbook:
-    sheets = [_RestoreErrorSheet()]
+    def __init__(self) -> None:
+        self.sheets = [_RestoreErrorSheet()]
 
 
 def test_com_backend_extract_auto_page_breaks_restore_error() -> None:

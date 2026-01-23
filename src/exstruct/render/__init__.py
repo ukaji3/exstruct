@@ -110,10 +110,14 @@ def _sanitize_sheet_filename(name: str) -> str:
 
 
 class _PageSetupProtocol(Protocol):
+    """Protocol for Excel PageSetup objects exposing PrintArea."""
+
     PrintArea: object
 
 
 class _SheetApiProtocol(Protocol):
+    """Protocol for Excel sheet COM APIs used by render helpers."""
+
     PageSetup: _PageSetupProtocol
 
     def ExportAsFixedFormat(  # noqa: N802

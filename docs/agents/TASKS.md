@@ -25,3 +25,15 @@
 - [x] Codecov パッチカバレッジ低下（60.53%）の指摘に対応し、対象ファイルの不足分テストを追加する（`src/exstruct/render/__init__.py`, `src/exstruct/core/cells.py`, `src/exstruct/core/backends/com_backend.py`, `src/exstruct/core/pipeline.py`, `src/exstruct/core/backends/openpyxl_backend.py`）
 - [x] Codecov の「Files with missing lines」で具体的な未カバー行を確認し、テスト観点を整理する
 - [x] Codacy 警告対応: `src/exstruct/render/__init__.py:274` の finally 内 return により例外が握りつぶされる可能性（`PyLintPython3_W0150`）を解消する
+
+## PR #44 CodeRabbit 再レビュー対応
+
+- [ ] `scripts/codacy_issues.py`: トークン未設定時の `sys.exit(1)` をモジュールトップから排除し、`get_token()` または `main()` で検証する
+- [ ] `scripts/codacy_issues.py`: `format_for_ai` の `sys.exit` を `ValueError` に置換し、呼び出し側でバリデーションする
+- [ ] `scripts/codacy_issues.py`: `urlopen` の非2xxチェック（到達不能）を削除または `HTTPError` 側へ寄せる
+- [ ] `scripts/codacy_issues.py`: `status` の固定値バリデーションを廃止する（固定なら直代入／必要なら CLI 引数化）
+- [ ] `tests/backends/test_print_areas_openpyxl.py`: `PrintAreaData` 型に合わせる＋関連テストに Google スタイル docstring を付与
+- [ ] `tests/core/test_pipeline.py`: 無効な `MergedCellRange` を有効な非重複レンジに修正する
+- [ ] `tests/backends/test_backends.py`: `sheets` のクラス属性共有を避け、インスタンス属性に変更する
+- [ ] `tests/render/test_render_init.py` / `tests/utils.py` / `tests/models/test_models_export.py`: docstring/コメントの指摘を反映する
+- [ ] `src/exstruct/render/__init__.py`: Protocol クラスに Google スタイル docstring を追加する
