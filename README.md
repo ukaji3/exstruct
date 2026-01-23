@@ -72,6 +72,10 @@ Notes:
 - Logs go to stderr (and optionally `--log-file`) to avoid contaminating stdio responses.
 - On Windows with Excel, standard/verbose can use COM for richer extraction. On non-Windows, COM is unavailable and extraction uses openpyxl-based fallbacks.
 
+MCP Setup Guide for Each AI Agent:
+
+[MCP Server](https://harumiweb.github.io/exstruct/cli/)
+
 ## Quick Start (Python)
 
 ```python

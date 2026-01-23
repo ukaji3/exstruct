@@ -69,6 +69,10 @@ exstruct-mcp --root C:\data --log-file C:\logs\exstruct-mcp.log --on-conflict re
 - 標準入出力の応答を汚染しないよう、ログは標準エラー出力（およびオプションで`--log-file`で指定したファイル）に出力されます。
 - WindowsのExcel環境では、標準/詳細モードでCOMを利用して、よりリッチな抽出が可能です。Windows以外ではCOMは利用できず、抽出はopenpyxlベースのフォールバック機能を使用します。
 
+各AIエージェントでのMCP設定ガイド:
+
+[MCPサーバー](https://harumiweb.github.io/exstruct/cli/)
+
 ## クイックスタート Python
 
 ```python
