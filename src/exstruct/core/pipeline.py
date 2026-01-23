@@ -929,6 +929,15 @@ def run_extraction_pipeline(inputs: ExtractionInputs) -> PipelineResult:
     state = PipelineState()
 
     def _fallback(message: str, reason: FallbackReason) -> PipelineResult:
+        """Run the fallback pipeline for non-COM extraction.
+
+        Args:
+            message: Human-readable fallback reason.
+            reason: Structured fallback reason enum.
+
+        Returns:
+            PipelineResult for the fallback run.
+        """
         state.fallback_reason = reason
         log_fallback(logger, reason, message)
         logger.info("Fallback pipeline start: %s", reason.value)

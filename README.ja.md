@@ -71,7 +71,7 @@ exstruct-mcp --root C:\data --log-file C:\logs\exstruct-mcp.log --on-conflict re
 
 各AIエージェントでのMCP設定ガイド:
 
-[MCPサーバー](https://harumiweb.github.io/exstruct/cli/)
+[MCPサーバー](https://harumiweb.github.io/exstruct/mcp/)
 
 ## クイックスタート Python
 

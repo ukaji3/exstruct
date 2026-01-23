@@ -147,6 +147,15 @@ _DEFAULT_TABLE_SCAN_LIMITS = TableScanLimits(
 def _resolve_table_scan_limits(
     mode: ExtractionMode, scan_limits: TableScanLimits | None
 ) -> TableScanLimits:
+    """Resolve effective scan limits for table detection.
+
+    Args:
+        mode: Extraction mode (light/standard/verbose).
+        scan_limits: Optional explicit limits override.
+
+    Returns:
+        Effective TableScanLimits for scanning.
+    """
     if scan_limits is not None:
         return scan_limits
     if mode in {"standard", "verbose"}:
@@ -676,6 +685,12 @@ def _normalize_rgb(rgb: str) -> str:
 
 
 def warn_once(key: str, message: str) -> None:
+    """Log a warning once per unique key.
+
+    Args:
+        key: Deduplication key for the warning.
+        message: Warning message to log.
+    """
     if key not in _warned_keys:
         logger.warning(message)
         _warned_keys.add(key)
@@ -802,30 +817,37 @@ def shrink_to_content(  # noqa: C901
     cols_n = len(vals[0]) if rows_n else 0
 
     def to_str(x: object) -> str:
+        """Convert a value to a string for emptiness checks."""
         return "" if x is None else str(x)
 
     def is_empty_value(x: object) -> bool:
+        """Return True when a value is considered empty."""
         return to_str(x).strip() == ""
 
     def row_empty(i: int) -> bool:
+        """Return True when all values in a row are empty."""
         return cols_n == 0 or all(is_empty_value(vals[i][j]) for j in range(cols_n))
 
     def col_empty(j: int) -> bool:
+        """Return True when all values in a column are empty."""
         return rows_n == 0 or all(is_empty_value(vals[i][j]) for i in range(rows_n))
 
     def row_nonempty_ratio(i: int) -> float:
+        """Return the ratio of non-empty cells in a row."""
         if cols_n == 0:
             return 0.0
         cnt = sum(1 for j in range(cols_n) if not is_empty_value(vals[i][j]))
         return cnt / cols_n
 
     def col_nonempty_ratio(j: int) -> float:
+        """Return the ratio of non-empty cells in a column."""
         if rows_n == 0:
             return 0.0
         cnt = sum(1 for i in range(rows_n) if not is_empty_value(vals[i][j]))
         return cnt / rows_n
 
     def column_has_inside_border(col_idx: int) -> bool:
+        """Return True if the column has any inside borders."""
         if not require_inside_border:
             return False
         try:
@@ -842,6 +864,7 @@ def shrink_to_content(  # noqa: C901
         return False
 
     def row_has_inside_border(row_idx: int) -> bool:
+        """Return True if the row has any inside borders."""
         if not require_inside_border:
             return False
         try:
@@ -858,6 +881,7 @@ def shrink_to_content(  # noqa: C901
         return False
 
     def should_trim_col(j: int) -> bool:
+        """Return True when a column should be trimmed."""
         if col_empty(j):
             return True
         if require_inside_border and not column_has_inside_border(j):
@@ -867,6 +891,7 @@ def shrink_to_content(  # noqa: C901
         return False
 
     def should_trim_row(i: int) -> bool:
+        """Return True when a row should be trimmed."""
         if row_empty(i):
             return True
         if require_inside_border and not row_has_inside_border(i):
@@ -916,6 +941,17 @@ def load_border_maps_xlsx(  # noqa: C901
     *,
     scan_limits: TableScanLimits | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int]:
+    """Load border presence maps for a worksheet using openpyxl.
+
+    Args:
+        xlsx_path: Excel workbook path.
+        sheet_name: Target worksheet name.
+        scan_limits: Optional scan limits override.
+
+    Returns:
+        Tuple of (has_border, top_edge, bottom_edge, left_edge, right_edge,
+        scan_max_row, scan_max_col).
+    """
     with openpyxl_workbook(xlsx_path, data_only=True, read_only=False) as wb:
         if sheet_name not in wb.sheetnames:
             raise KeyError(f"Sheet '{sheet_name}' not found in {xlsx_path}")
@@ -946,6 +982,7 @@ def load_border_maps_xlsx(  # noqa: C901
     col_has_border = np.zeros(shape[1], dtype=bool)
 
     def edge_has_style(edge: object) -> bool:
+        """Return True when a border edge has a usable style."""
         if edge is None:
             return False
         style = getattr(edge, "style", None)
@@ -1017,6 +1054,15 @@ def load_border_maps_xlsx(  # noqa: C901
 def _detect_border_clusters_numpy(
     has_border: np.ndarray, min_size: int
 ) -> list[tuple[int, int, int, int]]:
+    """Detect border clusters using scipy labeling.
+
+    Args:
+        has_border: Boolean border grid.
+        min_size: Minimum cluster size to keep.
+
+    Returns:
+        List of bounding boxes (r1, c1, r2, c2).
+    """
     from scipy.ndimage import label
 
     structure = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=np.uint8)
@@ -1033,6 +1079,15 @@ def _detect_border_clusters_numpy(
 def _detect_border_clusters_python(
     has_border: np.ndarray, min_size: int
 ) -> list[tuple[int, int, int, int]]:
+    """Detect border clusters with a pure-Python BFS.
+
+    Args:
+        has_border: Boolean border grid.
+        min_size: Minimum cluster size to keep.
+
+    Returns:
+        List of bounding boxes (r1, c1, r2, c2).
+    """
     h, w = has_border.shape
     visited = np.zeros_like(has_border, dtype=bool)
     rects: list[tuple[int, int, int, int]] = []
@@ -1064,6 +1119,7 @@ def _detect_border_clusters_python(
 
 
 def _resolve_border_cluster_backend() -> Literal["auto", "python", "numpy"]:
+    """Resolve the border clustering backend from environment."""
     value = os.getenv(_BORDER_CLUSTER_BACKEND_ENV, "").strip().lower()
     if value in {"python", "numpy"}:
         return "python" if value == "python" else "numpy"
@@ -1073,6 +1129,15 @@ def _resolve_border_cluster_backend() -> Literal["auto", "python", "numpy"]:
 def detect_border_clusters(
     has_border: np.ndarray, min_size: int = 4
 ) -> list[tuple[int, int, int, int]]:
+    """Detect border clusters using the selected backend.
+
+    Args:
+        has_border: Boolean border grid.
+        min_size: Minimum cluster size to keep.
+
+    Returns:
+        List of bounding boxes (r1, c1, r2, c2).
+    """
     backend = _resolve_border_cluster_backend()
     if backend == "python":
         return _detect_border_clusters_python(has_border, min_size)
@@ -1093,6 +1158,18 @@ def detect_border_clusters(
 def _get_values_block(
     ws: Worksheet, top: int, left: int, bottom: int, right: int
 ) -> list[list[object]]:
+    """Extract a rectangular block of values from a worksheet.
+
+    Args:
+        ws: Target worksheet.
+        top: Top row (1-based).
+        left: Left column (1-based).
+        bottom: Bottom row (1-based).
+        right: Right column (1-based).
+
+    Returns:
+        2D list of cell values.
+    """
     vals: list[list[object]] = []
     for row in ws.iter_rows(
         min_row=top, max_row=bottom, min_col=left, max_col=right, values_only=True
@@ -1102,6 +1179,14 @@ def _get_values_block(
 
 
 def _ensure_matrix(matrix: MatrixInput) -> list[list[object]]:
+    """Normalize input into a 2D list of values.
+
+    Args:
+        matrix: Sequence of rows or flat sequence.
+
+    Returns:
+        2D list of values.
+    """
     rows_seq = list(matrix)
     if not rows_seq:
         return []
@@ -1205,6 +1290,7 @@ def _nonempty_clusters(
     boxes: list[tuple[int, int, int, int]] = []
 
     def bfs(sr: int, sc: int) -> tuple[int, int, int, int]:
+        """Return bounding box of a connected component starting at (sr, sc)."""
         q = deque([(sr, sc)])
         visited[sr][sc] = True
         ys = [sr]
@@ -1233,6 +1319,7 @@ def _nonempty_clusters(
 
 
 def _normalize_matrix(matrix: object) -> list[list[object]]:
+    """Normalize arbitrary matrix-like input into a 2D list."""
     if matrix is None:
         return []
     if isinstance(matrix, list):
@@ -1243,6 +1330,7 @@ def _normalize_matrix(matrix: object) -> list[list[object]]:
 
 
 def _header_like_row(row: list[object]) -> bool:
+    """Return True if a row looks like a header row."""
     nonempty = [v for v in row if not (v is None or str(v).strip() == "")]
     if len(nonempty) < 2:
         return False
@@ -1258,6 +1346,7 @@ def _header_like_row(row: list[object]) -> bool:
 
 
 def _table_signal_score(matrix: Sequence[Sequence[object]]) -> float:
+    """Compute a heuristic table-likeliness score for a matrix."""
     normalized = _ensure_matrix(matrix)
     density, coverage = _table_density_metrics(normalized)
     header = any(_header_like_row(r) for r in normalized[:2])  # check first 2 rows
@@ -1324,17 +1413,38 @@ def shrink_to_content_openpyxl(  # noqa: C901
     right_edge: np.ndarray,
     min_nonempty_ratio: float = 0.0,
 ) -> tuple[int, int, int, int]:
+    """Trim a rectangle based on cell values and border heuristics (openpyxl).
+
+    Args:
+        ws: Target worksheet.
+        top: Top row (1-based).
+        left: Left column (1-based).
+        bottom: Bottom row (1-based).
+        right: Right column (1-based).
+        require_inside_border: Whether to require inside borders when trimming.
+        top_edge: Top edge border map.
+        bottom_edge: Bottom edge border map.
+        left_edge: Left edge border map.
+        right_edge: Right edge border map.
+        min_nonempty_ratio: Minimum non-empty ratio to keep rows/cols.
+
+    Returns:
+        Trimmed bounds as (top, left, bottom, right).
+    """
     vals = _get_values_block(ws, top, left, bottom, right)
     rows_n = bottom - top + 1
     cols_n = right - left + 1
 
     def to_str(x: object) -> str:
+        """Convert a value to a string for emptiness checks."""
         return "" if x is None else str(x)
 
     def is_empty_value(x: object) -> bool:
+        """Return True when a value is considered empty."""
         return to_str(x).strip() == ""
 
     def row_nonempty_ratio_local(i: int) -> float:
+        """Return the ratio of non-empty cells in a row slice."""
         if cols_n <= 0:
             return 0.0
         row = vals[i]
@@ -1342,6 +1452,7 @@ def shrink_to_content_openpyxl(  # noqa: C901
         return cnt / cols_n
 
     def col_nonempty_ratio_local(j: int) -> float:
+        """Return the ratio of non-empty cells in a column slice."""
         if rows_n <= 0:
             return 0.0
         cnt = 0
@@ -1351,6 +1462,7 @@ def shrink_to_content_openpyxl(  # noqa: C901
         return cnt / rows_n
 
     def col_has_inside_border(j_abs: int) -> bool:
+        """Return True if a column has inside borders between neighbors."""
         if not require_inside_border:
             return False
         count_pairs = 0
@@ -1364,6 +1476,7 @@ def shrink_to_content_openpyxl(  # noqa: C901
         return count_pairs > 0
 
     def row_has_inside_border(i_abs: int) -> bool:
+        """Return True if a row has inside borders between neighbors."""
         if not require_inside_border:
             return False
         count_pairs = 0
@@ -1507,6 +1620,7 @@ def _detect_border_rectangles_xlwings(
     max_col = used.last_cell.column
 
     def cell_has_any_border(r: int, c: int) -> bool:
+        """Return True if a cell has any visible border."""
         try:
             b = sheet.api.Cells(r, c).Borders
             for idx in (
@@ -1779,6 +1893,15 @@ def detect_tables_openpyxl(
 
 
 def detect_tables(sheet: xw.Sheet, *, mode: ExtractionMode = "standard") -> list[str]:
+    """Detect table-like ranges with COM and optional openpyxl fallback.
+
+    Args:
+        sheet: xlwings worksheet.
+        mode: Extraction mode for scan limits.
+
+    Returns:
+        List of table range strings.
+    """
     excel_path: Path | None = None
     try:
         excel_path = Path(sheet.book.fullname)

@@ -74,7 +74,7 @@ Notes:
 
 MCP Setup Guide for Each AI Agent:
 
-[MCP Server](https://harumiweb.github.io/exstruct/cli/)
+[MCP Server](https://harumiweb.github.io/exstruct/mcp/)
 
 ## Quick Start (Python)
 
@@ -360,7 +360,6 @@ flowchart TD
     I --> J
 ```
 ````
-
 
 ## Example 2: General Application Form
 
