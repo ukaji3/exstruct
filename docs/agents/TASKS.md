@@ -22,3 +22,9 @@
 - [x] `--on-conflict` の出力衝突ポリシー実装
 - [x] Windows/非Windows の読み取り差分を明文化
 - [x] 最低限のテスト追加（パス制約 / 入出力モデル / 例外）
+
+## PR #47 レビュー対応
+
+- [x] cells.py の列幅縮小ヒューリスティックを再検討（遅い行に境界があるケースで早期縮小しない方針に修正）
+- [x] 上記修正に対応するテストを追加（遅い行・右端に表があるケースを openpyxl で検証）
+- [ ] Codecov 指摘の不足分を埋めるテスト追加（mcp: chunk_reader/extract_runner/server/tools/validate_input/io、core/cells）

@@ -120,6 +120,7 @@ class TableScanLimits:
     max_cols: int
     empty_row_run: int
     empty_col_run: int
+    min_rows_before_col_shrink: int
 
     def scaled(self, factor: float) -> TableScanLimits:
         """Return a scaled copy of the limits."""
@@ -128,6 +129,9 @@ class TableScanLimits:
             max_cols=int(math.ceil(self.max_cols * factor)),
             empty_row_run=int(math.ceil(self.empty_row_run * factor)),
             empty_col_run=int(math.ceil(self.empty_col_run * factor)),
+            min_rows_before_col_shrink=int(
+                math.ceil(self.min_rows_before_col_shrink * factor)
+            ),
         )
 
 
@@ -136,6 +140,7 @@ _DEFAULT_TABLE_SCAN_LIMITS = TableScanLimits(
     max_cols=200,
     empty_row_run=200,
     empty_col_run=80,
+    min_rows_before_col_shrink=200,
 )
 
 
@@ -948,6 +953,7 @@ def load_border_maps_xlsx(  # noqa: C901
 
     consecutive_empty_rows = 0
     current_max_col = scan_max_col
+    rows_scanned = 0
 
     for r in range(min_row, scan_max_row + 1):
         row_has_border = False
@@ -979,8 +985,12 @@ def load_border_maps_xlsx(  # noqa: C901
             consecutive_empty_rows = 0
         else:
             consecutive_empty_rows += 1
+        rows_scanned += 1
         if consecutive_empty_rows >= resolved_limits.empty_row_run:
             break
+
+        if rows_scanned < resolved_limits.min_rows_before_col_shrink:
+            continue
 
         trailing_empty_cols = 0
         for c in range(current_max_col, min_col - 1, -1):
