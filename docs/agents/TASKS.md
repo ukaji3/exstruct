@@ -17,8 +17,8 @@
 
 ## MCPサーバー（実用化）
 
-- [ ] `exstruct.read_json_chunk` を追加（大容量 JSON 対応）
-- [ ] `exstruct.validate_input` を追加（事前検証）
+- [x] `exstruct.read_json_chunk` を追加（大容量 JSON 対応）
+- [x] `exstruct.validate_input` を追加（事前検証）
 - [ ] `--on-conflict` の出力衝突ポリシー実装
 - [ ] Windows/非Windows の読み取り差分を明文化
 - [ ] 最低限のテスト追加（パス制約 / 入出力モデル / 例外）

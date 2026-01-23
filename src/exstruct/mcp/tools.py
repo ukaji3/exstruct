@@ -7,8 +7,19 @@ from pydantic import BaseModel, Field
 
 from exstruct import ExtractionMode
 
+from .chunk_reader import (
+    ReadJsonChunkFilter,
+    ReadJsonChunkRequest,
+    ReadJsonChunkResult,
+    read_json_chunk,
+)
 from .extract_runner import ExtractRequest, ExtractResult, WorkbookMeta, run_extract
 from .io import PathPolicy
+from .validate_input import (
+    ValidateInputRequest,
+    ValidateInputResult,
+    validate_input,
+)
 
 
 class ExtractToolInput(BaseModel):
@@ -29,6 +40,38 @@ class ExtractToolOutput(BaseModel):
     workbook_meta: WorkbookMeta | None = None
     warnings: list[str] = Field(default_factory=list)
     engine: Literal["internal_api", "cli_subprocess"] = "internal_api"
+
+
+class ReadJsonChunkToolInput(BaseModel):
+    """MCP tool input for JSON chunk reading."""
+
+    out_path: str
+    sheet: str | None = None
+    max_bytes: int = Field(default=50_000, ge=1)
+    filter: ReadJsonChunkFilter | None = Field(default=None)  # noqa: A003
+    cursor: str | None = None
+
+
+class ReadJsonChunkToolOutput(BaseModel):
+    """MCP tool output for JSON chunk reading."""
+
+    chunk: str
+    next_cursor: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ValidateInputToolInput(BaseModel):
+    """MCP tool input for validating Excel files."""
+
+    xlsx_path: str
+
+
+class ValidateInputToolOutput(BaseModel):
+    """MCP tool output for validating Excel files."""
+
+    is_readable: bool
+    warnings: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
 
 
 def run_extract_tool(
@@ -55,6 +98,46 @@ def run_extract_tool(
     return _to_tool_output(result)
 
 
+def run_read_json_chunk_tool(
+    payload: ReadJsonChunkToolInput, *, policy: PathPolicy | None = None
+) -> ReadJsonChunkToolOutput:
+    """Run the JSON chunk tool handler.
+
+    Args:
+        payload: Tool input payload.
+        policy: Optional path policy for access control.
+
+    Returns:
+        Tool output payload.
+    """
+    request = ReadJsonChunkRequest(
+        out_path=Path(payload.out_path),
+        sheet=payload.sheet,
+        max_bytes=payload.max_bytes,
+        filter=payload.filter,
+        cursor=payload.cursor,
+    )
+    result = read_json_chunk(request, policy=policy)
+    return _to_read_json_chunk_output(result)
+
+
+def run_validate_input_tool(
+    payload: ValidateInputToolInput, *, policy: PathPolicy | None = None
+) -> ValidateInputToolOutput:
+    """Run the validate input tool handler.
+
+    Args:
+        payload: Tool input payload.
+        policy: Optional path policy for access control.
+
+    Returns:
+        Tool output payload.
+    """
+    request = ValidateInputRequest(xlsx_path=Path(payload.xlsx_path))
+    result = validate_input(request, policy=policy)
+    return _to_validate_input_output(result)
+
+
 def _to_tool_output(result: ExtractResult) -> ExtractToolOutput:
     """Convert internal result to tool output model.
 
@@ -69,4 +152,40 @@ def _to_tool_output(result: ExtractResult) -> ExtractToolOutput:
         workbook_meta=result.workbook_meta,
         warnings=result.warnings,
         engine=result.engine,
+    )
+
+
+def _to_read_json_chunk_output(
+    result: ReadJsonChunkResult,
+) -> ReadJsonChunkToolOutput:
+    """Convert internal result to JSON chunk tool output.
+
+    Args:
+        result: Internal chunk result.
+
+    Returns:
+        Tool output payload.
+    """
+    return ReadJsonChunkToolOutput(
+        chunk=result.chunk,
+        next_cursor=result.next_cursor,
+        warnings=result.warnings,
+    )
+
+
+def _to_validate_input_output(
+    result: ValidateInputResult,
+) -> ValidateInputToolOutput:
+    """Convert internal result to validate input tool output.
+
+    Args:
+        result: Internal validation result.
+
+    Returns:
+        Tool output payload.
+    """
+    return ValidateInputToolOutput(
+        is_readable=result.is_readable,
+        warnings=result.warnings,
+        errors=result.errors,
     )

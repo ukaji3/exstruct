@@ -12,7 +12,17 @@ from pydantic import BaseModel, Field
 from exstruct import ExtractionMode
 
 from .io import PathPolicy
-from .tools import ExtractToolInput, ExtractToolOutput, run_extract_tool
+from .tools import (
+    ExtractToolInput,
+    ExtractToolOutput,
+    ReadJsonChunkToolInput,
+    ReadJsonChunkToolOutput,
+    ValidateInputToolInput,
+    ValidateInputToolOutput,
+    run_extract_tool,
+    run_read_json_chunk_tool,
+    run_validate_input_tool,
+)
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from mcp.server.fastmcp import FastMCP
@@ -180,3 +190,63 @@ def _register_tools(app: FastMCP, policy: PathPolicy) -> None:
 
     tool = app.tool(name="exstruct.extract")
     tool(_extract_tool)
+
+    def _read_json_chunk_tool(
+        out_path: str,
+        sheet: str | None = None,
+        max_bytes: int = 50_000,
+        filter: dict[str, Any] | None = None,  # noqa: A002
+        cursor: str | None = None,
+    ) -> ReadJsonChunkToolOutput:
+        """Handle JSON chunk tool call.
+
+        Args:
+            out_path: Path to the JSON output file.
+            sheet: Optional sheet name.
+            max_bytes: Maximum chunk size in bytes.
+            filter: Optional filter payload.
+            cursor: Optional cursor for pagination.
+
+        Returns:
+            JSON chunk result payload.
+        """
+        payload = ReadJsonChunkToolInput(
+            out_path=out_path,
+            sheet=sheet,
+            max_bytes=max_bytes,
+            filter=_coerce_filter(filter),
+            cursor=cursor,
+        )
+        return run_read_json_chunk_tool(payload, policy=policy)
+
+    chunk_tool = app.tool(name="exstruct.read_json_chunk")
+    chunk_tool(_read_json_chunk_tool)
+
+    def _validate_input_tool(xlsx_path: str) -> ValidateInputToolOutput:
+        """Handle input validation tool call.
+
+        Args:
+            xlsx_path: Path to the Excel workbook.
+
+        Returns:
+            Validation result payload.
+        """
+        payload = ValidateInputToolInput(xlsx_path=xlsx_path)
+        return run_validate_input_tool(payload, policy=policy)
+
+    validate_tool = app.tool(name="exstruct.validate_input")
+    validate_tool(_validate_input_tool)
+
+
+def _coerce_filter(filter_data: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Normalize filter input for chunk reading.
+
+    Args:
+        filter_data: Filter payload from MCP tool call.
+
+    Returns:
+        Normalized filter dict or None.
+    """
+    if not filter_data:
+        return None
+    return dict(filter_data)
