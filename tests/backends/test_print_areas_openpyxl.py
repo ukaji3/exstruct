@@ -3,7 +3,13 @@ from pathlib import Path
 from openpyxl import Workbook
 
 from exstruct import extract
-from exstruct.core.backends.openpyxl_backend import OpenpyxlBackend
+from exstruct.core.backends.openpyxl_backend import (
+    OpenpyxlBackend,
+    _append_print_areas,
+    _extract_print_areas_from_defined_names,
+    _extract_print_areas_from_sheet_props,
+    _parse_print_area_range,
+)
 
 
 def _make_book_with_print_area(path: Path) -> None:
@@ -44,3 +50,54 @@ def test_openpyxl_backend_multiple_print_areas(tmp_path: Path) -> None:
     assert "Sheet1" in areas
     ranges = [(a.r1, a.c1, a.r2, a.c2) for a in areas["Sheet1"]]
     assert ranges == [(1, 0, 2, 1), (3, 3, 4, 4)]
+
+
+def test_extract_print_areas_from_defined_names_filters_unknown_sheets() -> None:
+    class _DefinedArea:
+        destinations = [("Sheet1", "A1:B2"), ("Unknown", "C1:D2")]
+
+    class _DefinedNames:
+        def get(self, _name: str) -> _DefinedArea:
+            return _DefinedArea()
+
+    class _DummyWorkbook:
+        defined_names = _DefinedNames()
+        sheetnames = ["Sheet1"]
+
+    areas = _extract_print_areas_from_defined_names(_DummyWorkbook())
+    assert "Sheet1" in areas
+    assert "Unknown" not in areas
+
+
+def test_extract_print_areas_from_defined_names_without_defined_names() -> None:
+    class _DummyWorkbook:
+        defined_names = None
+
+    assert _extract_print_areas_from_defined_names(_DummyWorkbook()) == {}
+
+
+def test_extract_print_areas_from_sheet_props_skips_empty() -> None:
+    class _SheetEmpty:
+        title = "Sheet1"
+        _print_area = None
+
+    class _SheetWithArea:
+        title = "Sheet2"
+        _print_area = "A1:B2"
+
+    class _DummyWorkbook:
+        worksheets = [_SheetEmpty(), _SheetWithArea()]
+
+    areas = _extract_print_areas_from_sheet_props(_DummyWorkbook())
+    assert "Sheet2" in areas
+
+
+def test_parse_print_area_range_invalid() -> None:
+    assert _parse_print_area_range("INVALID") is None
+
+
+def test_append_print_areas_skips_invalid_ranges() -> None:
+    areas: dict[str, list[object]] = {}
+    _append_print_areas(areas, "Sheet1", "A1:B2,INVALID")
+    assert "Sheet1" in areas
+    assert len(areas["Sheet1"]) == 1

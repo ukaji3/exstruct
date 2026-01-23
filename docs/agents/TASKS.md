@@ -23,5 +23,5 @@
 ## PR #44 コメント/Codecov 対応
 
 - [x] Codecov パッチカバレッジ低下（60.53%）の指摘に対応し、対象ファイルの不足分テストを追加する（`src/exstruct/render/__init__.py`, `src/exstruct/core/cells.py`, `src/exstruct/core/backends/com_backend.py`, `src/exstruct/core/pipeline.py`, `src/exstruct/core/backends/openpyxl_backend.py`）
-- [ ] Codecov の「Files with missing lines」で具体的な未カバー行を確認し、テスト観点を整理する
+- [x] Codecov の「Files with missing lines」で具体的な未カバー行を確認し、テスト観点を整理する
 - [x] Codacy 警告対応: `src/exstruct/render/__init__.py:274` の finally 内 return により例外が握りつぶされる可能性（`PyLintPython3_W0150`）を解消する

@@ -11,6 +11,7 @@ from exstruct.core.cells import (
     _normalize_formula_value,
     detect_tables_openpyxl,
     extract_sheet_formulas_map,
+    extract_sheet_formulas_map_com,
 )
 
 
@@ -99,3 +100,58 @@ def test_normalize_formula_from_com() -> None:
     assert _normalize_formula_from_com("A1") is None
     assert _normalize_formula_from_com("") is None
     assert _normalize_formula_from_com(None) is None
+
+
+def test_extract_sheet_formulas_map_com_empty_range() -> None:
+    class _DummyLastCell:
+        row = 0
+        column = 0
+
+    class _DummyUsedRange:
+        row = 1
+        column = 1
+        last_cell = _DummyLastCell()
+
+    class _DummySheet:
+        name = "Sheet1"
+        used_range = _DummyUsedRange()
+
+    class _DummyWorkbook:
+        sheets = [_DummySheet()]
+
+    result = extract_sheet_formulas_map_com(_DummyWorkbook())
+    sheet = result.get_sheet("Sheet1")
+    assert sheet is not None
+    assert sheet.formulas_map == {}
+
+
+def test_extract_sheet_formulas_map_com_collects_formulas() -> None:
+    class _DummyLastCell:
+        row = 2
+        column = 2
+
+    class _DummyUsedRange:
+        row = 1
+        column = 1
+        last_cell = _DummyLastCell()
+
+    class _DummyRange:
+        formula = [["=A1", "B1"], ["=SUM(A1)", ""]]
+
+    class _DummySheet:
+        name = "Sheet1"
+        used_range = _DummyUsedRange()
+
+        def range(self, _start: object, _end: object) -> _DummyRange:
+            return _DummyRange()
+
+    class _DummyWorkbook:
+        sheets = [_DummySheet()]
+
+    result = extract_sheet_formulas_map_com(_DummyWorkbook())
+    sheet = result.get_sheet("Sheet1")
+    assert sheet is not None
+    assert sheet.formulas_map == {
+        "=A1": [(1, 0)],
+        "=SUM(A1)": [(2, 0)],
+    }

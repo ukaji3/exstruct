@@ -6,17 +6,36 @@ import pytest
 
 from exstruct.core.backends.com_backend import ComBackend
 from exstruct.core.backends.openpyxl_backend import OpenpyxlBackend
-from exstruct.core.cells import MergedCellRange
+from exstruct.core.cells import (
+    MergedCellRange,
+    SheetColorsMap,
+    SheetFormulasMap,
+    WorkbookColorsMap,
+    WorkbookFormulasMap,
+)
 from exstruct.core.pipeline import (
     ExtractionArtifacts,
     ExtractionInputs,
+    PipelinePlan,
+    _col_in_intervals,
     _filter_rows_excluding_merged_values,
+    _merge_intervals,
+    _resolve_sheet_colors_map,
+    _resolve_sheet_formulas_map,
     build_cells_tables_workbook,
     build_com_pipeline,
     build_pre_com_pipeline,
     resolve_extraction_inputs,
+    run_com_pipeline,
+    run_extraction_pipeline,
+    step_extract_auto_page_breaks_com,
+    step_extract_charts_com,
+    step_extract_colors_map_com,
+    step_extract_colors_map_openpyxl,
     step_extract_formulas_map_com,
     step_extract_formulas_map_openpyxl,
+    step_extract_print_areas_com,
+    step_extract_shapes_com,
 )
 from exstruct.models import CellRow, PrintArea
 
@@ -198,6 +217,51 @@ def test_resolve_extraction_inputs_forces_merged_cells_when_excluding_values(
     assert inputs.include_merged_cells is True
 
 
+def test_resolve_extraction_inputs_warns_on_xls_formulas(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    calls: list[str] = []
+
+    def _warn_once(key: str, message: str) -> None:
+        calls.append(key)
+        _ = message
+
+    monkeypatch.setattr("exstruct.core.pipeline.warn_once", _warn_once)
+
+    inputs = resolve_extraction_inputs(
+        tmp_path / "book.xls",
+        mode="standard",
+        include_cell_links=None,
+        include_print_areas=None,
+        include_auto_page_breaks=False,
+        include_colors_map=None,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=True,
+        include_merged_cells=None,
+        include_merged_values_in_rows=True,
+    )
+    assert inputs.use_com_for_formulas is True
+    assert calls
+
+
+def test_resolve_extraction_inputs_sets_ignore_colors(tmp_path: Path) -> None:
+    inputs = resolve_extraction_inputs(
+        tmp_path / "book.xlsx",
+        mode="verbose",
+        include_cell_links=None,
+        include_print_areas=None,
+        include_auto_page_breaks=False,
+        include_colors_map=True,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=None,
+        include_merged_cells=None,
+        include_merged_values_in_rows=True,
+    )
+    assert inputs.ignore_colors == set()
+
+
 def test_build_cells_tables_workbook_uses_print_areas(
     monkeypatch: MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -286,6 +350,187 @@ def test_filter_rows_excluding_merged_values_drops_empty_rows() -> None:
     assert filtered == []
 
 
+def test_filter_rows_excluding_merged_values_returns_when_empty() -> None:
+    assert _filter_rows_excluding_merged_values([], []) == []
+
+
+def test_filter_rows_excluding_merged_values_keeps_rows_without_intervals() -> None:
+    rows = [CellRow(r=1, c={"0": "A"})]
+    merged_cells = [MergedCellRange(r1=2, c1=0, r2=2, c2=1, v="B")]
+    filtered = _filter_rows_excluding_merged_values(rows, merged_cells)
+    assert filtered == rows
+
+
+def test_filter_rows_excluding_merged_values_drops_links_when_filtered() -> None:
+    rows = [CellRow(r=1, c={"0": "A", "1": "B"}, links={"0": "L0"})]
+    merged_cells = [MergedCellRange(r1=1, c1=0, r2=1, c2=0, v="A")]
+    filtered = _filter_rows_excluding_merged_values(rows, merged_cells)
+    assert filtered[0].links is None
+
+
+def test_resolve_sheet_colors_map_empty() -> None:
+    assert _resolve_sheet_colors_map(None, "Sheet1") == {}
+
+
+def test_resolve_sheet_formulas_map_empty() -> None:
+    assert _resolve_sheet_formulas_map(None, "Sheet1") == {}
+
+
+def test_merge_intervals_merges_adjacent() -> None:
+    assert _merge_intervals([(1, 2), (3, 4)]) == [(1, 4)]
+
+
+def test_col_in_intervals_fast_false() -> None:
+    assert _col_in_intervals(1, [(3, 5)]) is False
+
+
+def test_step_extract_colors_map_openpyxl_sets_data(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    def _fake(
+        _: OpenpyxlBackend,
+        *,
+        include_default_background: bool,
+        ignore_colors: set[str] | None,
+    ) -> object:
+        _ = include_default_background
+        _ = ignore_colors
+        return WorkbookColorsMap(sheets={})
+
+    monkeypatch.setattr(OpenpyxlBackend, "extract_colors_map", _fake)
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="standard",
+        include_cell_links=False,
+        include_print_areas=False,
+        include_auto_page_breaks=False,
+        include_colors_map=True,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
+        include_merged_cells=False,
+        include_merged_values_in_rows=True,
+    )
+    artifacts = ExtractionArtifacts()
+    step_extract_colors_map_openpyxl(inputs, artifacts)
+    assert artifacts.colors_map_data is not None
+
+
+def test_step_extract_colors_map_com_falls_back(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    def _fake_com(
+        _: ComBackend,
+        *,
+        include_default_background: bool,
+        ignore_colors: set[str] | None,
+    ) -> None:
+        _ = include_default_background
+        _ = ignore_colors
+        return None
+
+    def _fake_openpyxl(
+        _: OpenpyxlBackend,
+        *,
+        include_default_background: bool,
+        ignore_colors: set[str] | None,
+    ) -> object:
+        _ = include_default_background
+        _ = ignore_colors
+        return WorkbookColorsMap(sheets={})
+
+    monkeypatch.setattr(ComBackend, "extract_colors_map", _fake_com)
+    monkeypatch.setattr(OpenpyxlBackend, "extract_colors_map", _fake_openpyxl)
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="standard",
+        include_cell_links=False,
+        include_print_areas=False,
+        include_auto_page_breaks=False,
+        include_colors_map=True,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
+        include_merged_cells=False,
+        include_merged_values_in_rows=True,
+    )
+    artifacts = ExtractionArtifacts()
+    step_extract_colors_map_com(inputs, artifacts, object())
+    assert artifacts.colors_map_data is not None
+
+
+def test_step_extract_auto_page_breaks_com_sets_data(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    def _fake(_: ComBackend) -> dict[str, list[PrintArea]]:
+        return {"Sheet1": [PrintArea(r1=1, c1=0, r2=1, c2=0)]}
+
+    monkeypatch.setattr(ComBackend, "extract_auto_page_breaks", _fake)
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="standard",
+        include_cell_links=False,
+        include_print_areas=False,
+        include_auto_page_breaks=True,
+        include_colors_map=False,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
+        include_merged_cells=False,
+        include_merged_values_in_rows=True,
+    )
+    artifacts = ExtractionArtifacts()
+    step_extract_auto_page_breaks_com(inputs, artifacts, object())
+    assert artifacts.auto_page_break_data
+
+
+def test_build_cells_tables_workbook_fetches_missing_maps(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    colors_map = WorkbookColorsMap(sheets={})
+    formulas_map = WorkbookFormulasMap(sheets={})
+
+    def _fake_colors(
+        _: OpenpyxlBackend,
+        *,
+        include_default_background: bool,
+        ignore_colors: set[str] | None,
+    ) -> object:
+        _ = include_default_background
+        _ = ignore_colors
+        return colors_map
+
+    def _fake_formulas(_: OpenpyxlBackend) -> object:
+        return formulas_map
+
+    monkeypatch.setattr(OpenpyxlBackend, "extract_colors_map", _fake_colors)
+    monkeypatch.setattr(OpenpyxlBackend, "extract_formulas_map", _fake_formulas)
+
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="standard",
+        include_cell_links=False,
+        include_print_areas=False,
+        include_auto_page_breaks=False,
+        include_colors_map=True,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=True,
+        use_com_for_formulas=False,
+        include_merged_cells=False,
+        include_merged_values_in_rows=True,
+    )
+    artifacts = ExtractionArtifacts(
+        cell_data={"Sheet1": [CellRow(r=1, c={"0": "A"})]},
+        merged_cell_data={"Sheet1": []},
+    )
+    wb = build_cells_tables_workbook(inputs=inputs, artifacts=artifacts, reason="test")
+    assert "Sheet1" in wb.sheets
+
+
 def test_step_extract_formulas_map_openpyxl_skips_on_failure(
     tmp_path: Path, monkeypatch: MonkeyPatch, caplog: "pytest.LogCaptureFixture"
 ) -> None:
@@ -344,3 +589,295 @@ def test_step_extract_formulas_map_com_skips_on_failure(
 
     assert artifacts.formulas_map_data is None
     assert "Failed to extract formulas_map via COM" in caplog.text
+
+
+def test_filter_rows_excluding_merged_values_returns_rows_when_intervals_empty() -> (
+    None
+):
+    rows = [CellRow(r=1, c={"0": "A"})]
+    merged_cells = [MergedCellRange(r1=2, c1=0, r2=1, c2=1, v="A")]
+    assert _filter_rows_excluding_merged_values(rows, merged_cells) == rows
+
+
+def test_resolve_sheet_colors_map_missing_sheet() -> None:
+    colors_map = WorkbookColorsMap(
+        sheets={"Other": SheetColorsMap(sheet_name="Other", colors_map={})}
+    )
+    assert _resolve_sheet_colors_map(colors_map, "Sheet1") == {}
+
+
+def test_resolve_sheet_formulas_map_missing_sheet() -> None:
+    formulas_map = WorkbookFormulasMap(
+        sheets={"Other": SheetFormulasMap(sheet_name="Other", formulas_map={})}
+    )
+    assert _resolve_sheet_formulas_map(formulas_map, "Sheet1") == {}
+
+
+def test_merge_intervals_empty() -> None:
+    assert _merge_intervals([]) == []
+
+
+def test_merge_intervals_keeps_non_overlapping() -> None:
+    assert _merge_intervals([(1, 2), (5, 6)]) == [(1, 2), (5, 6)]
+
+
+def test_step_extract_shapes_com_sets_data(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    shapes_data = {"Sheet1": [object()]}
+
+    def _fake(_: object, *, mode: str) -> dict[str, list[object]]:
+        _ = mode
+        return shapes_data
+
+    monkeypatch.setattr("exstruct.core.pipeline.get_shapes_with_position", _fake)
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="standard",
+        include_cell_links=False,
+        include_print_areas=False,
+        include_auto_page_breaks=False,
+        include_colors_map=False,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
+        include_merged_cells=False,
+        include_merged_values_in_rows=True,
+    )
+    artifacts = ExtractionArtifacts()
+    step_extract_shapes_com(inputs, artifacts, object())
+    assert artifacts.shape_data == shapes_data
+
+
+def test_step_extract_charts_com_sets_data(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    charts = [object()]
+
+    def _fake(_: object, *, mode: str) -> list[object]:
+        _ = mode
+        return charts
+
+    class _Sheet:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+    class _Workbook:
+        sheets = [_Sheet("Sheet1")]
+
+    monkeypatch.setattr("exstruct.core.pipeline.get_charts", _fake)
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="standard",
+        include_cell_links=False,
+        include_print_areas=False,
+        include_auto_page_breaks=False,
+        include_colors_map=False,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
+        include_merged_cells=False,
+        include_merged_values_in_rows=True,
+    )
+    artifacts = ExtractionArtifacts()
+    step_extract_charts_com(inputs, artifacts, _Workbook())
+    assert artifacts.chart_data == {"Sheet1": charts}
+
+
+def test_step_extract_print_areas_com_skips_when_present(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    def _raise(_: ComBackend) -> object:
+        raise RuntimeError("should not be called")
+
+    monkeypatch.setattr(ComBackend, "extract_print_areas", _raise)
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="standard",
+        include_cell_links=False,
+        include_print_areas=True,
+        include_auto_page_breaks=False,
+        include_colors_map=False,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
+        include_merged_cells=False,
+        include_merged_values_in_rows=True,
+    )
+    artifacts = ExtractionArtifacts(
+        print_area_data={"Sheet1": [PrintArea(r1=1, c1=0, r2=1, c2=0)]}
+    )
+    step_extract_print_areas_com(inputs, artifacts, object())
+
+
+def test_step_extract_print_areas_com_sets_data(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    def _fake(_: ComBackend) -> dict[str, list[PrintArea]]:
+        return {"Sheet1": [PrintArea(r1=1, c1=0, r2=1, c2=0)]}
+
+    monkeypatch.setattr(ComBackend, "extract_print_areas", _fake)
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="standard",
+        include_cell_links=False,
+        include_print_areas=True,
+        include_auto_page_breaks=False,
+        include_colors_map=False,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
+        include_merged_cells=False,
+        include_merged_values_in_rows=True,
+    )
+    artifacts = ExtractionArtifacts()
+    step_extract_print_areas_com(inputs, artifacts, object())
+    assert artifacts.print_area_data
+
+
+def test_step_extract_colors_map_com_sets_data(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    colors_map = WorkbookColorsMap(sheets={})
+
+    def _fake_com(
+        _: ComBackend,
+        *,
+        include_default_background: bool,
+        ignore_colors: set[str] | None,
+    ) -> object:
+        _ = include_default_background
+        _ = ignore_colors
+        return colors_map
+
+    def _raise(
+        _: OpenpyxlBackend,
+        *,
+        include_default_background: bool,
+        ignore_colors: set[str] | None,
+    ) -> object:
+        _ = include_default_background
+        _ = ignore_colors
+        raise RuntimeError("should not be called")
+
+    monkeypatch.setattr(ComBackend, "extract_colors_map", _fake_com)
+    monkeypatch.setattr(OpenpyxlBackend, "extract_colors_map", _raise)
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="standard",
+        include_cell_links=False,
+        include_print_areas=False,
+        include_auto_page_breaks=False,
+        include_colors_map=True,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
+        include_merged_cells=False,
+        include_merged_values_in_rows=True,
+    )
+    artifacts = ExtractionArtifacts()
+    step_extract_colors_map_com(inputs, artifacts, object())
+    assert artifacts.colors_map_data is colors_map
+
+
+def test_run_com_pipeline_executes_steps(tmp_path: Path) -> None:
+    calls: list[str] = []
+
+    def _step(_: ExtractionInputs, artifacts: ExtractionArtifacts, __: object) -> None:
+        calls.append("called")
+        artifacts.shape_data = {"Sheet1": [object()]}
+
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="standard",
+        include_cell_links=False,
+        include_print_areas=False,
+        include_auto_page_breaks=False,
+        include_colors_map=False,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
+        include_merged_cells=False,
+        include_merged_values_in_rows=True,
+    )
+    artifacts = ExtractionArtifacts()
+    run_com_pipeline([_step], inputs, artifacts, object())
+    assert calls == ["called"]
+    assert artifacts.shape_data
+
+
+def test_run_extraction_pipeline_com_success(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    class _Sheet:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+    class _Sheets:
+        def __init__(self) -> None:
+            self._sheets = {"Sheet1": _Sheet("Sheet1")}
+
+        def __getitem__(self, name: str) -> _Sheet:
+            return self._sheets[name]
+
+    class _Workbook:
+        sheets = _Sheets()
+
+    def _pre_step(_: ExtractionInputs, artifacts: ExtractionArtifacts) -> None:
+        artifacts.cell_data = {"Sheet1": [CellRow(r=1, c={"0": "A"})]}
+        artifacts.merged_cell_data = {"Sheet1": []}
+
+    def _fake_plan(_: ExtractionInputs) -> PipelinePlan:
+        return PipelinePlan(pre_com_steps=[_pre_step], com_steps=[], use_com=True)
+
+    def _fake_detect_tables(_: object) -> list[str]:
+        return []
+
+    def _fake_workbook(_: Path) -> object:
+        class _Context:
+            def __enter__(self) -> _Workbook:
+                return _Workbook()
+
+            def __exit__(
+                self,
+                exc_type: type[BaseException] | None,
+                exc: BaseException | None,
+                tb: object | None,
+            ) -> bool | None:
+                _ = exc_type
+                _ = exc
+                _ = tb
+                return None
+
+        return _Context()
+
+    monkeypatch.delenv("SKIP_COM_TESTS", raising=False)
+    monkeypatch.setattr("exstruct.core.pipeline.build_pipeline_plan", _fake_plan)
+    monkeypatch.setattr("exstruct.core.pipeline.detect_tables", _fake_detect_tables)
+    monkeypatch.setattr("exstruct.core.pipeline.xlwings_workbook", _fake_workbook)
+
+    inputs = ExtractionInputs(
+        file_path=tmp_path / "book.xlsx",
+        mode="standard",
+        include_cell_links=False,
+        include_print_areas=False,
+        include_auto_page_breaks=False,
+        include_colors_map=False,
+        include_default_background=False,
+        ignore_colors=None,
+        include_formulas_map=False,
+        use_com_for_formulas=False,
+        include_merged_cells=False,
+        include_merged_values_in_rows=True,
+    )
+
+    result = run_extraction_pipeline(inputs)
+    assert result.state.com_attempted is True
+    assert result.state.com_succeeded is True
+    assert "Sheet1" in result.workbook.sheets

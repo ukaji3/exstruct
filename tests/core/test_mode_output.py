@@ -1,7 +1,8 @@
+import os
 from pathlib import Path
 import subprocess
 import sys
-from typing import Never
+from typing import Never, cast
 
 from _pytest.capture import CaptureFixture
 from _pytest.monkeypatch import MonkeyPatch
@@ -9,7 +10,7 @@ from openpyxl import Workbook
 import pytest
 import xlwings as xw
 
-from exstruct import extract, process_excel
+from exstruct import ExtractionMode, extract, process_excel
 from exstruct.models import Arrow
 
 
@@ -29,6 +30,8 @@ def _make_basic_book(path: Path) -> None:
 
 
 def _ensure_excel() -> None:
+    if os.getenv("SKIP_COM_TESTS"):
+        pytest.skip("SKIP_COM_TESTS is set; skipping Excel-dependent test.")
     try:
         app = xw.App(add_book=False, visible=False)
         app.quit()
@@ -115,11 +118,11 @@ def test_invalidモードはエラーになる(tmp_path: Path) -> None:
     path = tmp_path / "book.xlsx"
     _make_basic_book(path)
     with pytest.raises(ValueError):
-        extract(path, mode="invalid")  # type: ignore[arg-type]
+        extract(path, mode=cast(ExtractionMode, "invalid"))
 
     out = tmp_path / "out.json"
     with pytest.raises(ValueError):
-        process_excel(path, out, mode="invalid")  # type: ignore[arg-type]
+        process_excel(path, out, mode=cast(ExtractionMode, "invalid"))
 
 
 def test_CLIのmode引数バリデーション(tmp_path: Path) -> None:

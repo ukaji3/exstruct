@@ -543,6 +543,199 @@ def test_sanitize_sheet_filename() -> None:
     assert render._sanitize_sheet_filename("  ") == "sheet"
 
 
+def test_split_csv_respecting_quotes() -> None:
+    raw = "'Sheet 1'!A1:B2,'Sheet,2'!C3:D4,'O''Brien'!E1:F2"
+    parts = render._split_csv_respecting_quotes(raw)
+    assert parts == ["'Sheet 1'!A1:B2", "'Sheet,2'!C3:D4", "'O''Brien'!E1:F2"]
+
+
+def test_extract_print_areas_with_page_setup() -> None:
+    class _PageSetup:
+        PrintArea = "'Sheet 1'!A1:B2,'Sheet 1'!C3:D4"
+
+    class _SheetApi:
+        PageSetup = _PageSetup()
+
+    areas = render._extract_print_areas(_SheetApi())
+    assert areas == ["'Sheet 1'!A1:B2", "'Sheet 1'!C3:D4"]
+
+
+def test_extract_print_areas_empty_print_area() -> None:
+    class _PageSetup:
+        PrintArea = ""
+
+    class _SheetApi:
+        PageSetup = _PageSetup()
+
+    assert render._extract_print_areas(_SheetApi()) == []
+
+
+def test_extract_print_areas_handles_exception() -> None:
+    class _PageSetup:
+        @property
+        def PrintArea(self) -> str:
+            raise RuntimeError("boom")
+
+    class _SheetApi:
+        PageSetup = _PageSetup()
+
+    assert render._extract_print_areas(_SheetApi()) == []
+
+
+def test_iter_sheet_apis_prefers_worksheets_collection() -> None:
+    class _WsApi:
+        def __init__(self, name: str) -> None:
+            self.Name = name
+
+    class _Worksheets:
+        def __init__(self) -> None:
+            self.Count = 2
+
+        def Item(self, index: int) -> _WsApi:
+            return _WsApi(f"Sheet{index}")
+
+    class _Api:
+        Worksheets = _Worksheets()
+
+    class _Wb:
+        api = _Api()
+        sheets: list[Any] = []
+
+    result = render._iter_sheet_apis(_Wb())
+    assert result[0][1] == "Sheet1"
+    assert result[1][1] == "Sheet2"
+
+
+def test_export_pdf_propagates_render_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def _raise() -> xw.App:
+        raise RenderError("boom")
+
+    monkeypatch.setattr(render, "_require_excel_app", _raise)
+    with pytest.raises(RenderError, match="boom"):
+        render.export_pdf(tmp_path / "in.xlsx", tmp_path / "out.pdf")
+
+
+def test_require_pdfium_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_pdfium = ModuleType("pypdfium2")
+    sys.modules["pypdfium2"] = fake_pdfium
+    try:
+        assert render._require_pdfium() is fake_pdfium
+    finally:
+        sys.modules.pop("pypdfium2", None)
+
+
+def test_build_sheet_export_plan_handles_multiple_areas(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _SheetApi:
+        pass
+
+    def _fake_iter(_: xw.Book) -> list[tuple[int, str, _SheetApi]]:
+        return [(0, "Sheet1", _SheetApi())]
+
+    def _fake_extract(_: _SheetApi) -> list[str]:
+        return ["A1:B2", "C3:D4"]
+
+    monkeypatch.setattr(render, "_iter_sheet_apis", _fake_iter)
+    monkeypatch.setattr(render, "_extract_print_areas", _fake_extract)
+
+    plan = render._build_sheet_export_plan(cast(xw.Book, object()))
+    assert [item[0] for item in plan] == ["Sheet1", "Sheet1"]
+    assert [item[2] for item in plan] == ["A1:B2", "C3:D4"]
+
+
+def test_page_index_from_suffix_default() -> None:
+    assert render._page_index_from_suffix("sheet") == 0
+
+
+def test_page_index_from_suffix_non_digit() -> None:
+    assert render._page_index_from_suffix("sheet_pxx") == 0
+
+
+def test_export_sheet_pdf_skips_invalid_print_area(tmp_path: Path) -> None:
+    class _BadPageSetup:
+        @property
+        def PrintArea(self) -> str:
+            return "A1:B2"
+
+        @PrintArea.setter
+        def PrintArea(self, _value: object) -> None:
+            raise RuntimeError("bad")
+
+    class _SheetApi:
+        PageSetup = _BadPageSetup()
+
+        def ExportAsFixedFormat(
+            self, _file_format: int, _output_path: str, *args: object, **kwargs: object
+        ) -> None:
+            _ = args
+            _ = kwargs
+
+    render._export_sheet_pdf(
+        _SheetApi(),
+        tmp_path / "out.pdf",
+        ignore_print_areas=False,
+        print_area="A1:B2",
+    )
+
+
+def test_render_sheet_images_requires_pdfium(tmp_path: Path) -> None:
+    with pytest.raises(RenderError, match="pypdfium2 is required"):
+        render._render_sheet_images(
+            None,
+            tmp_path / "sheet.pdf",
+            tmp_path,
+            0,
+            "Sheet1",
+            144,
+            False,
+        )
+
+
+def test_export_sheet_images_with_app_retries_on_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[int] = []
+
+    def _fake_render(
+        _pdfium: ModuleType | None,
+        _pdf_path: Path,
+        output_dir: Path,
+        sheet_index: int,
+        safe_name: str,
+        _dpi: int,
+        _use_subprocess: bool,
+    ) -> list[Path]:
+        calls.append(1)
+        if len(calls) == 1:
+            return []
+        return [output_dir / f"{sheet_index + 1:02d}_{safe_name}.png"]
+
+    monkeypatch.setattr(render, "_render_sheet_images", _fake_render)
+    monkeypatch.setattr(
+        render, "_require_excel_app", lambda: FakeApp(["Sheet1"], False)
+    )
+    monkeypatch.setattr(render, "_export_sheet_pdf", lambda *a, **k: None)
+    monkeypatch.setattr(
+        render,
+        "_build_sheet_export_plan",
+        lambda _wb: [("Sheet1", cast(render._SheetApiProtocol, object()), None)],
+    )
+
+    result = render._export_sheet_images_with_app(
+        tmp_path / "in.xlsx",
+        tmp_path / "out",
+        tmp_path / "tmp",
+        144,
+        False,
+        None,
+    )
+    assert len(calls) == 2
+    assert result
+
+
 def test_page_index_from_suffix_handles_multi_digits() -> None:
     assert render._page_index_from_suffix("sheet_01") == 0
     assert render._page_index_from_suffix("sheet_01_p01") == 0
@@ -552,7 +745,7 @@ def test_page_index_from_suffix_handles_multi_digits() -> None:
 
 
 def test_export_sheet_pdf_does_not_swallow_export_errors(tmp_path: Path) -> None:
-    class _FlakyPageSetup(render._PageSetupProtocol):
+    class _FlakyPageSetup:
         def __init__(self) -> None:
             self._print_area: object = "A1"
             self._set_calls = 0
@@ -569,7 +762,9 @@ def test_export_sheet_pdf_does_not_swallow_export_errors(tmp_path: Path) -> None
             self._set_calls += 1
 
     class _ExplodingSheetApi:
-        PageSetup: render._PageSetupProtocol = _FlakyPageSetup()
+        PageSetup: render._PageSetupProtocol = cast(
+            render._PageSetupProtocol, _FlakyPageSetup()
+        )
 
         def ExportAsFixedFormat(
             self, file_format: int, output_path: str, *args: object, **kwargs: object

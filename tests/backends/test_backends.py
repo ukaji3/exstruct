@@ -3,7 +3,7 @@ from pathlib import Path
 from _pytest.monkeypatch import MonkeyPatch
 from openpyxl import Workbook
 
-from exstruct.core.backends.com_backend import ComBackend
+from exstruct.core.backends.com_backend import ComBackend, _parse_print_area_range
 from exstruct.core.backends.openpyxl_backend import OpenpyxlBackend
 from exstruct.core.ranges import parse_range_zero_based
 
@@ -175,6 +175,19 @@ def test_openpyxl_backend_extract_print_areas(tmp_path: Path) -> None:
     assert areas["Sheet1"][0].c1 == 0
 
 
+def test_openpyxl_backend_extract_print_areas_returns_empty_on_error(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    def _raise(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        "exstruct.core.backends.openpyxl_backend.openpyxl_workbook", _raise
+    )
+    backend = OpenpyxlBackend(tmp_path / "book.xlsx")
+    assert backend.extract_print_areas() == {}
+
+
 def test_parse_range_zero_based_parses_sheet_prefix() -> None:
     bounds = parse_range_zero_based("Sheet1!A1:B2")
     assert bounds is not None
@@ -182,3 +195,144 @@ def test_parse_range_zero_based_parses_sheet_prefix() -> None:
     assert bounds.c1 == 0
     assert bounds.r2 == 1
     assert bounds.c2 == 1
+
+
+def test_com_backend_extract_print_areas_success() -> None:
+    class _PageSetup:
+        PrintArea = "A1:B2,INVALID"
+
+    class _SheetApi:
+        PageSetup = _PageSetup()
+
+    class _Sheet:
+        name = "Sheet1"
+        api = _SheetApi()
+
+    class _DummyWorkbook:
+        sheets = [_Sheet()]
+
+    backend = ComBackend(_DummyWorkbook())
+    areas = backend.extract_print_areas()
+    assert "Sheet1" in areas
+    assert areas["Sheet1"][0].r1 == 1
+    assert areas["Sheet1"][0].c1 == 0
+    assert areas["Sheet1"][0].r2 == 2
+    assert areas["Sheet1"][0].c2 == 1
+
+
+def test_com_backend_parse_print_area_range_invalid() -> None:
+    assert _parse_print_area_range("INVALID") is None
+
+
+class _Location:
+    def __init__(self, row: int | None = None, col: int | None = None) -> None:
+        self.Row = row
+        self.Column = col
+
+
+class _BreakItem:
+    def __init__(self, row: int | None = None, col: int | None = None) -> None:
+        self.Location = _Location(row=row, col=col)
+
+
+class _Breaks:
+    def __init__(self, items: list[_BreakItem]) -> None:
+        self._items = items
+        self.Count = len(items)
+
+    def Item(self, index: int) -> _BreakItem:
+        return self._items[index - 1]
+
+
+class _RangeRows:
+    def __init__(self, count: int) -> None:
+        self.Count = count
+
+
+class _RangeCols:
+    def __init__(self, count: int) -> None:
+        self.Count = count
+
+
+class _Range:
+    Row = 1
+    Column = 1
+    Rows = _RangeRows(2)
+    Columns = _RangeCols(2)
+
+
+class _UsedRange:
+    Address = "A1:B2"
+
+
+class _PageSetup:
+    PrintArea = "A1:B2"
+
+
+class _SheetApi:
+    def __init__(self) -> None:
+        self.DisplayPageBreaks = False
+        self.PageSetup = _PageSetup()
+        self.UsedRange = _UsedRange()
+        self.HPageBreaks = _Breaks([_BreakItem(row=2)])
+        self.VPageBreaks = _Breaks([_BreakItem(col=2)])
+
+    def Range(self, _addr: str) -> _Range:
+        return _Range()
+
+
+class _Sheet:
+    name = "Sheet1"
+
+    def __init__(self) -> None:
+        self.api = _SheetApi()
+
+
+class _DummyWorkbook:
+    sheets = [_Sheet()]
+
+
+def test_com_backend_extract_auto_page_breaks_success() -> None:
+    backend = ComBackend(_DummyWorkbook())
+    areas = backend.extract_auto_page_breaks()
+    assert "Sheet1" in areas
+    assert areas["Sheet1"]
+
+
+class _RestoreErrorSheetApi:
+    def __init__(self) -> None:
+        self._display = False
+        self.PageSetup = _PageSetup()
+        self.UsedRange = _UsedRange()
+        self.HPageBreaks = _Breaks([])
+        self.VPageBreaks = _Breaks([])
+
+    @property
+    def DisplayPageBreaks(self) -> bool:
+        return self._display
+
+    @DisplayPageBreaks.setter
+    def DisplayPageBreaks(self, value: bool) -> None:
+        if value is False:
+            raise RuntimeError("restore failed")
+        self._display = value
+
+    def Range(self, _addr: str) -> _Range:
+        return _Range()
+
+
+class _RestoreErrorSheet:
+    name = "Sheet1"
+
+    def __init__(self) -> None:
+        self.api = _RestoreErrorSheetApi()
+
+
+class _RestoreErrorWorkbook:
+    sheets = [_RestoreErrorSheet()]
+
+
+def test_com_backend_extract_auto_page_breaks_restore_error() -> None:
+    backend = ComBackend(_RestoreErrorWorkbook())
+    areas = backend.extract_auto_page_breaks()
+    assert "Sheet1" in areas
