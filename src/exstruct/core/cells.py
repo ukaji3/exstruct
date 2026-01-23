@@ -5,8 +5,10 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 import logging
+import math
 from pathlib import Path
 import re
+from typing import Literal
 
 import numpy as np
 from openpyxl.styles.colors import Color
@@ -38,6 +40,8 @@ _DETECTION_CONFIG = {
 }
 _DEFAULT_BACKGROUND_HEX = "FFFFFF"
 _XL_COLOR_NONE = -4142
+
+ExtractionMode = Literal["light", "standard", "verbose"]
 
 
 # Use dataclasses for lightweight models
@@ -104,6 +108,43 @@ class MergedCellRange:
     r2: int
     c2: int
     v: str
+
+
+@dataclass(frozen=True)
+class TableScanLimits:
+    """Limits for openpyxl border scanning during table detection."""
+
+    max_rows: int
+    max_cols: int
+    empty_row_run: int
+    empty_col_run: int
+
+    def scaled(self, factor: float) -> TableScanLimits:
+        """Return a scaled copy of the limits."""
+        return TableScanLimits(
+            max_rows=int(math.ceil(self.max_rows * factor)),
+            max_cols=int(math.ceil(self.max_cols * factor)),
+            empty_row_run=int(math.ceil(self.empty_row_run * factor)),
+            empty_col_run=int(math.ceil(self.empty_col_run * factor)),
+        )
+
+
+_DEFAULT_TABLE_SCAN_LIMITS = TableScanLimits(
+    max_rows=5000,
+    max_cols=200,
+    empty_row_run=200,
+    empty_col_run=80,
+)
+
+
+def _resolve_table_scan_limits(
+    mode: ExtractionMode, scan_limits: TableScanLimits | None
+) -> TableScanLimits:
+    if scan_limits is not None:
+        return scan_limits
+    if mode in {"standard", "verbose"}:
+        return _DEFAULT_TABLE_SCAN_LIMITS.scaled(1.5)
+    return _DEFAULT_TABLE_SCAN_LIMITS
 
 
 def extract_sheet_colors_map(
@@ -863,7 +904,10 @@ def shrink_to_content(  # noqa: C901
 
 
 def load_border_maps_xlsx(  # noqa: C901
-    xlsx_path: Path, sheet_name: str
+    xlsx_path: Path,
+    sheet_name: str,
+    *,
+    scan_limits: TableScanLimits | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int]:
     with openpyxl_workbook(xlsx_path, data_only=True, read_only=False) as wb:
         if sheet_name not in wb.sheetnames:
@@ -882,12 +926,17 @@ def load_border_maps_xlsx(  # noqa: C901
                 ws.max_row or 1,
             )
 
-    shape = (max_row + 1, max_col + 1)
+    resolved_limits = scan_limits or _DEFAULT_TABLE_SCAN_LIMITS
+    scan_max_row = min(max_row, resolved_limits.max_rows)
+    scan_max_col = min(max_col, resolved_limits.max_cols)
+
+    shape = (scan_max_row + 1, scan_max_col + 1)
     has_border = np.zeros(shape, dtype=bool)
     top_edge = np.zeros(shape, dtype=bool)
     bottom_edge = np.zeros(shape, dtype=bool)
     left_edge = np.zeros(shape, dtype=bool)
     right_edge = np.zeros(shape, dtype=bool)
+    col_has_border = np.zeros(shape[1], dtype=bool)
 
     def edge_has_style(edge: object) -> bool:
         if edge is None:
@@ -895,8 +944,12 @@ def load_border_maps_xlsx(  # noqa: C901
         style = getattr(edge, "style", None)
         return style is not None and style != "none"
 
-    for r in range(min_row, max_row + 1):
-        for c in range(min_col, max_col + 1):
+    consecutive_empty_rows = 0
+    current_max_col = scan_max_col
+
+    for r in range(min_row, scan_max_row + 1):
+        row_has_border = False
+        for c in range(min_col, current_max_col + 1):
             cell = ws.cell(row=r, column=c)
             b = getattr(cell, "border", None)
             if b is None:
@@ -908,6 +961,8 @@ def load_border_maps_xlsx(  # noqa: C901
             rgt = edge_has_style(b.right)
 
             if t or btm or left_border or rgt:
+                row_has_border = True
+                col_has_border[c] = True
                 has_border[r, c] = True
                 if t:
                     top_edge[r, c] = True
@@ -918,7 +973,43 @@ def load_border_maps_xlsx(  # noqa: C901
                 if rgt:
                     right_edge[r, c] = True
 
-    return has_border, top_edge, bottom_edge, left_edge, right_edge, max_row, max_col
+        if row_has_border:
+            consecutive_empty_rows = 0
+        else:
+            consecutive_empty_rows += 1
+        if consecutive_empty_rows >= resolved_limits.empty_row_run:
+            logger.info(
+                "Openpyxl border scan early-exit after %s empty rows (sheet=%s).",
+                resolved_limits.empty_row_run,
+                sheet_name,
+            )
+            break
+
+        trailing_empty_cols = 0
+        for c in range(current_max_col, min_col - 1, -1):
+            if col_has_border[c]:
+                break
+            trailing_empty_cols += 1
+            if trailing_empty_cols >= resolved_limits.empty_col_run:
+                new_max_col = max(min_col, current_max_col - trailing_empty_cols)
+                if new_max_col < current_max_col:
+                    current_max_col = new_max_col
+                    logger.info(
+                        "Openpyxl border scan early-exit after %s empty columns (sheet=%s).",
+                        resolved_limits.empty_col_run,
+                        sheet_name,
+                    )
+                break
+
+    return (
+        has_border,
+        top_edge,
+        bottom_edge,
+        left_edge,
+        right_edge,
+        scan_max_row,
+        scan_max_col,
+    )
 
 
 def _detect_border_clusters_numpy(
@@ -1619,14 +1710,24 @@ def detect_tables_xlwings(sheet: xw.Sheet) -> list[str]:
     return tables
 
 
-def detect_tables_openpyxl(xlsx_path: Path, sheet_name: str) -> list[str]:
+def detect_tables_openpyxl(
+    xlsx_path: Path,
+    sheet_name: str,
+    *,
+    mode: ExtractionMode = "standard",
+    scan_limits: TableScanLimits | None = None,
+) -> list[str]:
     """Detect table-like ranges via openpyxl tables and border clusters."""
     with openpyxl_workbook(xlsx_path, data_only=True, read_only=False) as wb:
         ws = wb[sheet_name]
         tables = _extract_openpyxl_table_refs(ws)
 
         has_border, top_edge, bottom_edge, left_edge, right_edge, max_row, max_col = (
-            load_border_maps_xlsx(xlsx_path, sheet_name)
+            load_border_maps_xlsx(
+                xlsx_path,
+                sheet_name,
+                scan_limits=_resolve_table_scan_limits(mode, scan_limits),
+            )
         )
         rects = _detect_border_rectangles(has_border, min_size=4)
         merged_rects = _merge_rectangles(rects)
@@ -1660,7 +1761,7 @@ def detect_tables_openpyxl(xlsx_path: Path, sheet_name: str) -> list[str]:
         return tables
 
 
-def detect_tables(sheet: xw.Sheet) -> list[str]:
+def detect_tables(sheet: xw.Sheet, *, mode: ExtractionMode = "standard") -> list[str]:
     excel_path: Path | None = None
     try:
         excel_path = Path(sheet.book.fullname)
@@ -1685,7 +1786,7 @@ def detect_tables(sheet: xw.Sheet) -> list[str]:
             return detect_tables_xlwings(sheet)
 
         try:
-            return detect_tables_openpyxl(excel_path, sheet.name)
+            return detect_tables_openpyxl(excel_path, sheet.name, mode=mode)
         except Exception as e:
             warn_once(
                 f"openpyxl-parse-fallback::{excel_path}::{sheet.name}",

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
+import time
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -8,6 +10,8 @@ from pydantic import BaseModel, Field
 from exstruct import ExtractionMode, process_excel
 
 from .io import PathPolicy
+
+logger = logging.getLogger(__name__)
 
 
 class WorkbookMeta(BaseModel):
@@ -63,14 +67,18 @@ def run_extract(
     )
     _ensure_output_dir(output_path)
 
+    start = time.monotonic()
     process_excel(
         file_path=resolved_input,
         output_path=output_path,
         out_fmt=request.format,
         mode=request.mode,
     )
+    logger.info("process_excel completed in %.2fs", time.monotonic() - start)
 
+    meta_start = time.monotonic()
     meta, warnings = _try_read_workbook_meta(resolved_input)
+    logger.info("workbook meta read completed in %.2fs", time.monotonic() - meta_start)
     return ExtractResult(
         out_path=str(output_path),
         workbook_meta=meta,

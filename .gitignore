@@ -25,3 +25,4 @@ ruff-error.txt
 mypy_report.txt
 coverage.xml
 htmlcov/
+.tmp_mcp_test/

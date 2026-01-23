@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import functools
 import importlib
 import logging
 from pathlib import Path
+import time
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
+import anyio
 from pydantic import BaseModel, Field
 
 from exstruct import ExtractionMode
@@ -37,6 +40,7 @@ class ServerConfig(BaseModel):
     deny_globs: list[str] = Field(default_factory=list, description="Denied glob list.")
     log_level: str = Field(default="INFO", description="Logging level.")
     log_file: Path | None = Field(default=None, description="Optional log file path.")
+    warmup: bool = Field(default=False, description="Warm up heavy imports on start.")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -67,6 +71,8 @@ def run_server(config: ServerConfig) -> None:
     _import_mcp()
     policy = PathPolicy(root=config.root, deny_globs=config.deny_globs)
     logger.info("MCP root: %s", policy.normalize_root())
+    if config.warmup:
+        _warmup_exstruct()
     app = _create_app(policy)
     app.run()
 
@@ -94,12 +100,18 @@ def _parse_args(argv: list[str] | None) -> ServerConfig:
         help="Logging level (DEBUG, INFO, WARNING, ERROR).",
     )
     parser.add_argument("--log-file", type=Path, help="Optional log file path.")
+    parser.add_argument(
+        "--warmup",
+        action="store_true",
+        help="Warm up heavy imports on startup to reduce tool latency.",
+    )
     args = parser.parse_args(argv)
     return ServerConfig(
         root=args.root,
         deny_globs=list(args.deny_glob),
         log_level=args.log_level,
         log_file=args.log_file,
+        warmup=bool(args.warmup),
     )
 
 
@@ -133,6 +145,14 @@ def _import_mcp() -> ModuleType:
         ) from exc
 
 
+def _warmup_exstruct() -> None:
+    """Warm up heavy imports to reduce first-call latency."""
+    logger.info("Warming up ExStruct imports...")
+    importlib.import_module("exstruct.core.cells")
+    importlib.import_module("exstruct.core.integrate")
+    logger.info("Warmup completed.")
+
+
 def _create_app(policy: PathPolicy) -> FastMCP:
     """Create the MCP FastMCP application.
 
@@ -157,7 +177,7 @@ def _register_tools(app: FastMCP, policy: PathPolicy) -> None:
         policy: Path policy for filesystem access.
     """
 
-    def _extract_tool(
+    async def _extract_tool(
         xlsx_path: str,
         mode: ExtractionMode = "standard",
         format: Literal["json", "yaml", "yml", "toon"] = "json",  # noqa: A002
@@ -178,6 +198,8 @@ def _register_tools(app: FastMCP, policy: PathPolicy) -> None:
         Returns:
             Extraction result payload.
         """
+        logger.info("exstruct.extract start: %s", xlsx_path)
+        start = time.monotonic()
         payload = ExtractToolInput(
             xlsx_path=xlsx_path,
             mode=mode,
@@ -186,7 +208,11 @@ def _register_tools(app: FastMCP, policy: PathPolicy) -> None:
             out_name=out_name,
             options=options or {},
         )
-        return run_extract_tool(payload, policy=policy)
+        work = functools.partial(run_extract_tool, payload, policy=policy)
+        result = cast(ExtractToolOutput, await anyio.to_thread.run_sync(work))
+        elapsed = time.monotonic() - start
+        logger.info("exstruct.extract done in %.2fs", elapsed)
+        return result
 
     tool = app.tool(name="exstruct.extract")
     tool(_extract_tool)
