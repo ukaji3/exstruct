@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import json
 import os
 import re
-import subprocess
+import subprocess  # nosec B404 - used for fixed git commands only
 import sys
 from typing import Any, cast
 import urllib.parse
@@ -108,20 +108,28 @@ def build_pr_issues_url(
     )
 
 
-def run_git(cmd: list[str]) -> str | None:
-    try:
-        out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
-        return out.decode("utf-8", errors="replace").strip()
-    except Exception:
-        return None
-
-
 def get_git_origin_url() -> str | None:
     # git repo check
-    ok = run_git(["git", "rev-parse", "--is-inside-work-tree"])
-    if not ok:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )  # nosec B603 - fixed git command without user input
+        if result.returncode != 0 or not result.stdout.strip():
+            return None
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )  # nosec B603 - fixed git command without user input
+        if result.returncode != 0:
+            return None
+        return result.stdout.strip()
+    except Exception:
         return None
-    return run_git(["git", "remote", "get-url", "origin"])
 
 
 @dataclass
@@ -180,7 +188,7 @@ def fetch_json(
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=60) as res:
+        with urllib.request.urlopen(req, timeout=60) as res:  # nosec B310 - validated https origin
             raw = res.read().decode("utf-8", errors="replace")
             status = getattr(res, "status", 0) or 0
             if status < 200 or status >= 300:
