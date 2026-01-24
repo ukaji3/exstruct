@@ -141,3 +141,8 @@ codecov-unit = "codecov-cli upload-process -f coverage.xml -F unit -C %CODECOV_S
 codecov-com = "codecov-cli upload-process -f coverage.xml -F com -C %CODECOV_SHA% -t %CODECOV_TOKEN%"
 docs = "mkdocs serve"
 build-docs = "mkdocs build && python scripts/gen_json_schema.py && python scripts/gen_model_docs.py"
+
+[tool.uv.workspace]
+members = [
+    "benchmark",
+]
