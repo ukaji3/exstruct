@@ -245,3 +245,11 @@ def report() -> None:
     out_md = RESULTS_DIR / "report.md"
     out_md.write_text("\n".join(md_lines), encoding="utf-8")
     print(f"[green]Wrote {out_md}[/green]")
+
+
+import typer
+
+app = typer.Typer()
+
+if __name__ == "__main__":
+    app()
