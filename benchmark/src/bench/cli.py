@@ -248,6 +248,8 @@ def ask(
     client = OpenAIResponsesClient()
     ensure_dir(PROMPTS_DIR)
     ensure_dir(RESPONSES_DIR)
+    total_cost = 0.0
+    total_calls = 0
 
     for c in cases:
         console.rule(f"ASK {c.id}")
@@ -328,9 +330,12 @@ def ask(
             with resp_file.open("a", encoding="utf-8") as f:
                 f.write(resp_line + "\n")
 
+            total_cost += res.cost_usd
+            total_calls += 1
             print(
                 f"[cyan]{c.id} {m}[/cyan] tokens(in/out)={res.input_tokens}/{res.output_tokens} cost=${res.cost_usd:.6f}"
             )
+    print(f"[green]Total cost: ${total_cost:.6f} ({total_calls} call(s))[/green]")
 
 
 @app.command()
