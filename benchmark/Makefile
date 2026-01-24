@@ -2,6 +2,7 @@
 
 setup:
 	python -m pip install -U pip
+	pip install -e ..
 	pip install -e .
 
 extract:

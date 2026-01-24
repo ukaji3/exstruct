@@ -19,6 +19,7 @@ This benchmark compares methods for answering questions about Excel documents us
 ```bash
 cd benchmark
 cp .env.example .env
+pip install -e ..  # install exstruct from repo root
 pip install -e .
 ```
 

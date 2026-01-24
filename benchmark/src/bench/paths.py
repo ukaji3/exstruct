@@ -12,3 +12,18 @@ EXTRACTED_DIR = OUT_DIR / "extracted"
 PROMPTS_DIR = OUT_DIR / "prompts"
 RESPONSES_DIR = OUT_DIR / "responses"
 RESULTS_DIR = OUT_DIR / "results"
+
+
+def resolve_path(path: str | Path) -> Path:
+    """Resolve a path relative to the benchmark root when needed.
+
+    Args:
+        path: Path string or Path instance from the manifest.
+
+    Returns:
+        Resolved Path anchored to the benchmark root when relative.
+    """
+    candidate = Path(path)
+    if candidate.is_absolute():
+        return candidate
+    return ROOT / candidate

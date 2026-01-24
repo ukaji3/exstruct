@@ -1,19 +1,21 @@
 from __future__ import annotations
 
 import base64
-from dataclasses import dataclass
 import json
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from pydantic import BaseModel
 
+from ..paths import ROOT
 from .pricing import estimate_cost_usd
 
 
-@dataclass
-class LLMResult:
+class LLMResult(BaseModel):
+    """Structured response data from the LLM call."""
+
     text: str
     input_tokens: int
     output_tokens: int
@@ -22,19 +24,54 @@ class LLMResult:
 
 
 def _png_to_data_url(png_path: Path) -> str:
+    """Encode a PNG image as a data URL.
+
+    Args:
+        png_path: PNG file path.
+
+    Returns:
+        Base64 data URL string.
+    """
     b = png_path.read_bytes()
     b64 = base64.b64encode(b).decode("ascii")
     return f"data:image/png;base64,{b64}"
 
 
+def _extract_usage_tokens(usage: object | None) -> tuple[int, int]:
+    """Extract input/output tokens from the OpenAI usage payload.
+
+    Args:
+        usage: Usage payload from the OpenAI SDK (object or dict).
+
+    Returns:
+        Tuple of (input_tokens, output_tokens).
+    """
+    if usage is None:
+        return 0, 0
+    if isinstance(usage, dict):
+        return int(usage.get("input_tokens", 0)), int(usage.get("output_tokens", 0))
+    input_tokens = int(getattr(usage, "input_tokens", 0))
+    output_tokens = int(getattr(usage, "output_tokens", 0))
+    return input_tokens, output_tokens
+
+
 class OpenAIResponsesClient:
+    """Thin wrapper around the OpenAI Responses API for this benchmark."""
+
     def __init__(self) -> None:
-        load_dotenv()
+        load_dotenv(dotenv_path=ROOT / ".env")
         self.client = OpenAI()
 
     def ask_text(self, *, model: str, question: str, context_text: str) -> LLMResult:
-        """
-        Responses API: text-only
+        """Call Responses API with text-only input.
+
+        Args:
+            model: OpenAI model name (e.g., "gpt-4o").
+            question: User question to answer.
+            context_text: Extracted context text from the workbook.
+
+        Returns:
+            LLMResult containing the model output and usage metadata.
         """
         resp = self.client.responses.create(
             model=model,
@@ -54,9 +91,8 @@ class OpenAIResponsesClient:
         )
 
         text = resp.output_text  # SDK helper
-        usage = getattr(resp, "usage", None) or {}
-        in_tok = int(usage.get("input_tokens", 0))
-        out_tok = int(usage.get("output_tokens", 0))
+        usage = getattr(resp, "usage", None)
+        in_tok, out_tok = _extract_usage_tokens(usage)
         cost = estimate_cost_usd(model, in_tok, out_tok)
 
         raw = json.loads(resp.model_dump_json())
@@ -71,8 +107,15 @@ class OpenAIResponsesClient:
     def ask_images(
         self, *, model: str, question: str, image_paths: list[Path]
     ) -> LLMResult:
-        """
-        Responses API: image + text
+        """Call Responses API with image + text input.
+
+        Args:
+            model: OpenAI model name (e.g., "gpt-4o").
+            question: User question to answer.
+            image_paths: PNG image paths to include as vision input.
+
+        Returns:
+            LLMResult containing the model output and usage metadata.
         """
         content: list[dict[str, Any]] = [
             {
@@ -90,9 +133,8 @@ class OpenAIResponsesClient:
         )
 
         text = resp.output_text
-        usage = getattr(resp, "usage", None) or {}
-        in_tok = int(usage.get("input_tokens", 0))
-        out_tok = int(usage.get("output_tokens", 0))
+        usage = getattr(resp, "usage", None)
+        in_tok, out_tok = _extract_usage_tokens(usage)
         cost = estimate_cost_usd(model, in_tok, out_tok)
 
         raw = json.loads(resp.model_dump_json())
