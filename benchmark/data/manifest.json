@@ -13,11 +13,11 @@
       }
     },
     {
-      "id": "flowchart_image_01",
+      "id": "flowchart_01",
       "type": "flowchart",
-      "xlsx": "data/raw/flowchart_image_01.xlsx",
+      "xlsx": "data/raw/flowchart_01.xlsx",
       "question": "このフローチャートの開始から終了までの主要な処理ステップを順番に抽出し、次のJSON形式のみで返してください。\n\n出力形式（厳守）:\n{\n  \"steps\": [\"step1\", \"step2\", \"step3\", ...]\n}\n\n注意事項:\n- 開始ノードと終了ノードも含めてください\n- 分岐やループがある場合は、代表的な主経路として線形化してください\n- ステップ名は図中のラベル文字列をそのまま使用してください",
-      "truth": "data/truth/flowchart_image_01.json",
+      "truth": "data/truth/flowchart_01.json",
       "sheet_scope": null,
       "render": {
         "dpi": 220,
