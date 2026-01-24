@@ -9,9 +9,9 @@ from rich import print
 from rich.console import Console
 import typer
 
-from .eval.exact_match import exact_match
 from .eval.normalize import normalize_json_text
 from .eval.report import write_results_csv
+from .eval.score import key_score, key_score_ordered
 from .llm.openai_client import OpenAIResponsesClient
 from .manifest import Case, load_manifest
 from .paths import (
@@ -70,6 +70,8 @@ class ResultRow(BaseModel):
     type: str
     method: str
     model: str | None
+    score: float
+    score_ordered: float
     ok: bool
     input_tokens: int
     output_tokens: int
@@ -365,10 +367,14 @@ def eval(case: str = "all", method: str = "all") -> None:
 
         for m, rec in latest.items():
             ok = False
+            score = 0.0
+            score_ordered = 0.0
             err: str | None = None
             try:
                 pred_obj = normalize_json_text(rec["text"])
-                ok = exact_match(pred_obj, truth)
+                score = key_score(truth, pred_obj)
+                score_ordered = key_score_ordered(truth, pred_obj)
+                ok = score == 1.0
             except Exception as exc:
                 err = str(exc)
 
@@ -378,6 +384,8 @@ def eval(case: str = "all", method: str = "all") -> None:
                     type=c.type,
                     method=m,
                     model=rec.get("model"),
+                    score=score,
+                    score_ordered=score_ordered,
                     ok=ok,
                     input_tokens=int(rec.get("input_tokens", 0)),
                     output_tokens=int(rec.get("output_tokens", 0)),
@@ -401,16 +409,16 @@ def report() -> None:
     import pandas as pd
 
     df = pd.read_csv(csv_path)
-    g = (
-        df.groupby("method")
-        .agg(
-            acc=("ok", "mean"),
-            avg_in=("input_tokens", "mean"),
-            avg_cost=("cost_usd", "mean"),
-            n=("ok", "count"),
-        )
-        .reset_index()
-    )
+    score_col = "score" if "score" in df.columns else "ok"
+    agg: dict[str, tuple[str, str]] = {
+        "acc": (score_col, "mean"),
+        "avg_in": ("input_tokens", "mean"),
+        "avg_cost": ("cost_usd", "mean"),
+        "n": (score_col, "count"),
+    }
+    if "score_ordered" in df.columns:
+        agg["acc_ordered"] = ("score_ordered", "mean")
+    g = df.groupby("method").agg(**agg).reset_index()
 
     md_lines = []
     md_lines.append("# Benchmark Report")
