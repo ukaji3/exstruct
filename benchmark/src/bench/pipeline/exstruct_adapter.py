@@ -66,7 +66,7 @@ def extract_exstruct(
         config: Optional ExStruct text extraction configuration.
     """
     resolved_config = config or ExstructTextConfig()
-    engine = ExStructEngine(options=StructOptions(include_merged_values_in_rows=False))
+    engine = ExStructEngine(options=StructOptions(include_merged_values_in_rows=True))
     workbook = engine.extract(xlsx_path, mode=resolved_config.mode)
     workbook = _filter_workbook_sheets(workbook, sheet_scope)
     payload = workbook.to_json(

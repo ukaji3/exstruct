@@ -37,6 +37,17 @@ Outputs:
 - outputs/results/results.csv
 - outputs/results/report.md
 
+## Evaluation
+
+The evaluator now writes two tracks:
+
+- Exact: `score`, `score_ordered` (strict string match, current behavior)
+- Normalized: `score_norm`, `score_norm_ordered` (applies case-specific rules)
+
+Normalization rules live in `data/normalization_rules.json` and are applied in
+`bench.cli eval`. Publish these rules alongside the benchmark to keep the
+normalized track transparent and reproducible.
+
 ## Notes:
 
 - GPT-4o Responses API supports text and image inputs. See docs:

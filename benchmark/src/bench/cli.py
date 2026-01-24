@@ -10,8 +10,14 @@ from rich.console import Console
 import typer
 
 from .eval.normalize import normalize_json_text
+from .eval.normalization_rules import load_ruleset
 from .eval.report import write_results_csv
-from .eval.score import key_score, key_score_ordered
+from .eval.score import (
+    key_score,
+    key_score_normalized,
+    key_score_ordered,
+    key_score_ordered_normalized,
+)
 from .llm.openai_client import OpenAIResponsesClient
 from .manifest import Case, load_manifest
 from .paths import (
@@ -72,6 +78,8 @@ class ResultRow(BaseModel):
     model: str | None
     score: float
     score_ordered: float
+    score_norm: float | None = None
+    score_norm_ordered: float | None = None
     ok: bool
     input_tokens: int
     output_tokens: int
@@ -353,6 +361,7 @@ def eval(case: str = "all", method: str = "all") -> None:
     methods = _select_methods(method)
 
     rows: list[ResultRow] = []
+    ruleset = load_ruleset(DATA_DIR / "normalization_rules.json")
 
     for c in cases:
         truth_path = _resolve_case_path(c.truth, case_id=c.id, label="truth")
@@ -370,15 +379,22 @@ def eval(case: str = "all", method: str = "all") -> None:
             if rec.get("method") in methods:
                 latest[rec["method"]] = rec
 
+        rules = ruleset.for_case(c.id)
         for m, rec in latest.items():
             ok = False
             score = 0.0
             score_ordered = 0.0
+            score_norm: float | None = None
+            score_norm_ordered: float | None = None
             err: str | None = None
             try:
                 pred_obj = normalize_json_text(rec["text"])
                 score = key_score(truth, pred_obj)
                 score_ordered = key_score_ordered(truth, pred_obj)
+                score_norm = key_score_normalized(truth, pred_obj, rules)
+                score_norm_ordered = key_score_ordered_normalized(
+                    truth, pred_obj, rules
+                )
                 ok = score == 1.0
             except Exception as exc:
                 err = str(exc)
@@ -391,6 +407,8 @@ def eval(case: str = "all", method: str = "all") -> None:
                     model=rec.get("model"),
                     score=score,
                     score_ordered=score_ordered,
+                    score_norm=score_norm,
+                    score_norm_ordered=score_norm_ordered,
                     ok=ok,
                     input_tokens=int(rec.get("input_tokens", 0)),
                     output_tokens=int(rec.get("output_tokens", 0)),
@@ -423,7 +441,14 @@ def report() -> None:
     }
     if "score_ordered" in df.columns:
         agg["acc_ordered"] = ("score_ordered", "mean")
+    if "score_norm" in df.columns:
+        agg["acc_norm"] = ("score_norm", "mean")
+    if "score_norm_ordered" in df.columns:
+        agg["acc_norm_ordered"] = ("score_norm_ordered", "mean")
     g = df.groupby("method").agg(**agg).reset_index()
+
+    detail_dir = RESULTS_DIR / "detailed_reports"
+    detail_dir.mkdir(parents=True, exist_ok=True)
 
     md_lines = []
     md_lines.append("# Benchmark Report")
@@ -432,11 +457,49 @@ def report() -> None:
     md_lines.append("")
     md_lines.append(g.to_markdown(index=False))
     md_lines.append("")
+    md_lines.append("## Detailed reports")
+    md_lines.append("")
+    for case_id in sorted(df["case_id"].unique()):
+        md_lines.append(f"- detailed_reports/report_{case_id}.md")
+    md_lines.append("")
     out_md = RESULTS_DIR / "report.md"
     out_md.write_text("\n".join(md_lines), encoding="utf-8")
     print(f"[green]Wrote {out_md}[/green]")
     print("[cyan]Summary (from report.md)[/cyan]")
     print(g.to_markdown(index=False))
+
+    # Per-case detail reports
+    detail_cols = [
+        "method",
+        "case_id",
+        "type",
+        "model",
+        "score",
+        "score_ordered",
+        "score_norm",
+        "score_norm_ordered",
+        "input_tokens",
+        "output_tokens",
+        "cost_usd",
+        "error",
+    ]
+    available_cols = [c for c in detail_cols if c in df.columns]
+
+    for case_id in sorted(df["case_id"].unique()):
+        case_df = df[df["case_id"] == case_id][available_cols]
+        case_lines = [
+            "# Benchmark Report",
+            "",
+            f"## Details: {case_id}",
+            "",
+            case_df.to_markdown(index=False),
+            "",
+        ]
+        case_md = detail_dir / f"report_{case_id}.md"
+        case_md.write_text("\n".join(case_lines), encoding="utf-8")
+        print(f"[green]Wrote {case_md}[/green]")
+        print(f"[cyan]Details ({case_id})[/cyan]")
+        print(case_df.to_markdown(index=False))
 
 
 if __name__ == "__main__":
