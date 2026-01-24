@@ -29,6 +29,40 @@ pip install -e .
 make all
 ```
 
+## Reproducibility script (Windows PowerShell)
+
+```powershell
+.\scripts\reproduce.ps1
+```
+
+Options:
+
+- `-Case` (default: `all`)
+- `-Method` (default: `all`)
+- `-Model` (default: `gpt-4o`)
+- `-Temperature` (default: `0.0`)
+- `-SkipAsk` (skip LLM calls; uses existing responses)
+
+## Reproducibility script (macOS/Linux)
+
+```bash
+./scripts/reproduce.sh
+```
+
+If you see a permission error, run:
+
+```bash
+chmod +x ./scripts/reproduce.sh
+```
+
+Options:
+
+- `--case` (default: `all`)
+- `--method` (default: `all`)
+- `--model` (default: `gpt-4o`)
+- `--temperature` (default: `0.0`)
+- `--skip-ask` (skip LLM calls; uses existing responses)
+
 Outputs:
 
 - outputs/extracted/\* : extracted context (text or images)
