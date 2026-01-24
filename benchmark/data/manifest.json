@@ -101,6 +101,30 @@
         "dpi": 200,
         "max_pages": 1
       }
+    },
+    {
+      "id": "basic_form_01",
+      "type": "application_form",
+      "xlsx": "data/raw/basic_form_01.xlsx",
+      "question": "このExcel申請書に記載されている入力項目を、意味的なブロック単位で整理してください。申請者本人に関する項目、配偶者に関する項目、収入等に関する申告、預貯金等に関する申告の4分類に分け、それぞれに含まれる項目名を配列でまとめたJSONを、次の形式のみで返してください。\n\n{\n  \"applicant\": [],\n  \"spouse\": [],\n  \"income_declaration\": [],\n  \"asset_declaration\": []\n}",
+      "truth": "data/truth/basic_form_01.json",
+      "sheet_scope": null,
+      "render": {
+        "dpi": 200,
+        "max_pages": 1
+      }
+    },
+    {
+      "id": "flowchart_02",
+      "type": "flowchart",
+      "xlsx": "data/raw/flowchart_02.xlsx",
+      "question": "このExcelに記載されているログイン処理フローについて、工程を上から順に整理してください。各工程について、step_name（工程名）、step_type（start|process|decision|end）、next_steps（条件付き遷移を含む次工程）を含むJSONを、次の形式のみで返してください。\n\n{\n  \"steps\": [\n    {\n      \"step_name\": \"...\",\n      \"step_type\": \"start|process|decision|end\",\n      \"next_steps\": [\n        {\n          \"condition\": \"...\",\n          \"next\": \"...\"\n        }\n      ]\n    }\n  ]\n}",
+      "truth": "data/truth/flowchart_02.json",
+      "sheet_scope": null,
+      "render": {
+        "dpi": 200,
+        "max_pages": 1
+      }
     }
   ]
 }
