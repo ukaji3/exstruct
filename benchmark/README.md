@@ -37,6 +37,22 @@ Outputs:
 - outputs/results/results.csv
 - outputs/results/report.md
 
+## How to interpret results (public guide)
+
+This benchmark reports two evaluation tracks to keep comparisons fair:
+
+- Exact: strict string match with no normalization.
+- Normalized: applies case-specific rules in `data/normalization_rules.json` to
+  absorb formatting differences (aliases, split/composite labels).
+
+Recommended interpretation:
+
+- Use **Exact** to compare end-to-end string fidelity (best for literal extraction).
+- Use **Normalized** to compare **document understanding** across methods.
+- When methods disagree between tracks, favor Normalized for Excel-heavy layouts
+  where labels are split/merged or phrased differently.
+- Always cite both accuracy and cost metrics when presenting results publicly.
+
 ## Evaluation
 
 The evaluator now writes two tracks:

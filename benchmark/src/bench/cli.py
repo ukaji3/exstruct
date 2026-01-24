@@ -453,6 +453,52 @@ def report() -> None:
     md_lines = []
     md_lines.append("# Benchmark Report")
     md_lines.append("")
+    md_lines.append(
+        "This report summarizes extraction accuracy for each method on the benchmark cases."
+    )
+    md_lines.append(
+        "Scores are computed per case and aggregated by method. Both exact and normalized"
+    )
+    md_lines.append(
+        "tracks are reported to ensure fair comparison across formatting variations."
+    )
+    md_lines.append("")
+    md_lines.append("## How to interpret results (public guide)")
+    md_lines.append("")
+    md_lines.append("- Exact: strict string match with no normalization.")
+    md_lines.append(
+        "- Normalized: applies case-specific rules in data/normalization_rules.json to"
+    )
+    md_lines.append(
+        "  absorb formatting differences (aliases, split/composite labels)."
+    )
+    md_lines.append("")
+    md_lines.append("Recommended interpretation:")
+    md_lines.append("")
+    md_lines.append(
+        "- Use Exact to compare end-to-end string fidelity (best for literal extraction)."
+    )
+    md_lines.append(
+        "- Use Normalized to compare document understanding across methods."
+    )
+    md_lines.append(
+        "- When tracks disagree, favor Normalized for Excel-heavy layouts where labels"
+    )
+    md_lines.append("  are split/merged or phrased differently.")
+    md_lines.append(
+        "- Always cite both accuracy and cost metrics in public comparisons."
+    )
+    md_lines.append("")
+    md_lines.append("## Evaluation tracks")
+    md_lines.append("")
+    md_lines.append("- Exact: strict string match without any normalization.")
+    md_lines.append(
+        "- Normalized: applies case-specific normalization rules (aliases, split/composite)"
+    )
+    md_lines.append(
+        "  defined in data/normalization_rules.json to absorb format and wording variations."
+    )
+    md_lines.append("")
     md_lines.append("## Summary by method")
     md_lines.append("")
     md_lines.append(g.to_markdown(index=False))
