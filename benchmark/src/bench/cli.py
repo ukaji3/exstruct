@@ -284,7 +284,7 @@ def ask(
         raise typer.BadParameter(f"No cases matched: {case}")
     methods = _select_methods(method)
 
-    client = OpenAIResponsesClient() if use_llm else None
+    client = OpenAIResponsesClient()
     ensure_dir(PROMPTS_DIR)
     ensure_dir(RESPONSES_DIR)
     total_cost = 0.0
@@ -697,6 +697,42 @@ def report() -> None:
     md_lines.append("## Summary by method")
     md_lines.append("")
     md_lines.append(g.to_markdown(index=False))
+    md_lines.append("")
+    md_lines.append("## Markdown evaluation notes")
+    md_lines.append("")
+    md_lines.append(
+        "Markdown scores measure how well the generated Markdown lines match a canonical"
+    )
+    md_lines.append(
+        "Markdown rendering of the ground truth JSON. This is a *conversion quality*"
+    )
+    md_lines.append("signal, not a direct extraction-accuracy substitute.")
+    md_lines.append("")
+    md_lines.append("Key points:")
+    md_lines.append("")
+    md_lines.append(
+        "- Coverage (acc_md): how much of truth Markdown content is recovered."
+    )
+    md_lines.append(
+        "- Precision (md_precision): how much of predicted Markdown is correct."
+    )
+    md_lines.append(
+        "- Layout shifts or list formatting differences can lower scores even if"
+    )
+    md_lines.append("  the underlying facts are correct.")
+    md_lines.append(
+        "- LLM-based conversion introduces variability; re-run with the same seed"
+    )
+    md_lines.append(
+        "  and model settings to assess stability, or use deterministic rendering"
+    )
+    md_lines.append("  for baseline comparisons.")
+    md_lines.append(
+        "- Use Markdown scores when your downstream task consumes Markdown (e.g.,"
+    )
+    md_lines.append(
+        "  RAG ingestion), and report alongside Exact/Normalized/Raw metrics."
+    )
     md_lines.append("")
     md_lines.append("## Exstruct positioning notes (public)")
     md_lines.append("")

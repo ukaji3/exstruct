@@ -7,7 +7,10 @@
       "question": "このExcel帳票（Federal Financial Report / SF-425）について、次の情報を抽出し、JSONのみで返してください。\n\n(1) checkbox_groups: チェックボックスのグループ名と、その選択肢ラベル一覧を抽出してください（\"Report Type\" と \"Basis of Accounting\" の2グループのみ）。\n(2) not_required_by_epa_scope: 赤字の注記 \"Not Required by EPA\" がかかっているセクション名を返してください（例: \"Federal Cash\"）。\n(3) section_headers: 帳票上部の番号付きセクション見出し（1〜9）のうち、見出しテキストのみを配列で返してください（例: \"Federal Agency and Organizational Element to Which Report is Submitted\" など）。\n\n出力形式（厳守）:\n{\n  \"checkbox_groups\": {\n    \"Report Type\": [\"Quarterly\", \"Semi-Annual\", \"Annual\", \"Final\"],\n    \"Basis of Accounting\": [\"Cash\", \"Accrual\"]\n  },\n  \"not_required_by_epa_scope\": \"...\",\n  \"section_headers\": [\"...\", \"...\", \"...\"]\n}\n\n注意:\n- チェックボックスの記号（□など）は含めないでください。ラベル文字列のみを返してください。\n- section_headers は表示順（上から左→右）で返してください。\n- 余分な説明文やコードフェンスは付けず、JSONのみを返してください。",
       "truth": "data/truth/ffr_425_01.json",
       "sheet_scope": null,
-      "render": { "dpi": 220, "max_pages": 2 }
+      "render": {
+        "dpi": 220,
+        "max_pages": 2
+      }
     },
     {
       "id": "flowchart_01",
@@ -28,7 +31,10 @@
       "question": "このガントチャートのPhase3のタスク名とその開始日、終了日を抽出し、次のJSON形式のみで返してください: {\"tasks\":[{\"name\":\"...\",\"start_date\":\"YYYY-MM-DD\",\"end_date\":\"YYYY-MM-DD\"}, ...]}",
       "truth": "data/truth/gantt_01.json",
       "sheet_scope": null,
-      "render": { "dpi": 200, "max_pages": 4 }
+      "render": {
+        "dpi": 200,
+        "max_pages": 4
+      }
     },
     {
       "id": "certificate_of_employment_01",
@@ -124,6 +130,18 @@
       "render": {
         "dpi": 200,
         "max_pages": 1
+      }
+    },
+    {
+      "id": "food_inspection_record_01",
+      "type": "inspection_log",
+      "xlsx": "data/raw/food_inspection record_01.xlsx",
+      "question": "This workbook contains three sheets (\"検食簿（1）\", \"検食簿 (2)\", \"検食簿 (3)\"). For the first date on each sheet, extract the lunch menu items and snack items and return JSON in the following format:\n\n{\n  \"sheets\": {\n    \"検食簿（1）\": {\"date\": \"...\", \"lunch_menu\": [\"...\"], \"snacks\": [\"...\"]},\n    \"検食簿 (2)\": {\"date\": \"...\", \"lunch_menu\": [\"...\"], \"snacks\": [\"...\"]},\n    \"検食簿 (3)\": {\"date\": \"...\", \"lunch_menu\": [\"...\"], \"snacks\": [\"...\"]},\n  }\n}\n\nJSON only.",
+      "truth": "data/truth/food_inspection_record_01.json",
+      "sheet_scope": null,
+      "render": {
+        "dpi": 220,
+        "max_pages": 3
       }
     }
   ]
