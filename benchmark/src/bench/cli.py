@@ -202,12 +202,17 @@ def _select_methods(method: str) -> list[str]:
     return deduped
 
 
-def _rub_manifest_path() -> Path:
+def _rub_manifest_path(manifest_path: str | None) -> Path:
     """Return the path to the RUB manifest.
 
+    Args:
+        manifest_path: Optional override path from CLI.
+
     Returns:
-        Path to rub/manifest.json.
+        Path to the RUB manifest file.
     """
+    if manifest_path:
+        return resolve_path(manifest_path)
     return RUB_MANIFEST
 
 
@@ -566,6 +571,7 @@ def rub_ask(
     method: str = "all",
     model: str = "gpt-4o",
     temperature: float = 0.0,
+    manifest: str | None = None,
 ) -> None:
     """Run RUB Stage B queries using Markdown outputs as context.
 
@@ -574,8 +580,9 @@ def rub_ask(
         method: Comma-separated method names or "all".
         model: OpenAI model name for Stage B queries.
         temperature: Sampling temperature for the model.
+        manifest: Optional RUB manifest path override.
     """
-    rub_manifest = load_rub_manifest(_rub_manifest_path())
+    rub_manifest = load_rub_manifest(_rub_manifest_path(manifest))
     tasks = _select_tasks(rub_manifest.tasks, task)
     if not tasks:
         raise typer.BadParameter(f"No tasks matched: {task}")
@@ -634,14 +641,17 @@ def rub_ask(
 
 
 @app.command()
-def rub_eval(task: str = "all", method: str = "all") -> None:
+def rub_eval(
+    task: str = "all", method: str = "all", manifest: str | None = None
+) -> None:
     """Evaluate RUB responses and write results CSV.
 
     Args:
         task: Comma-separated task ids or "all".
         method: Comma-separated method names or "all".
+        manifest: Optional RUB manifest path override.
     """
-    rub_manifest = load_rub_manifest(_rub_manifest_path())
+    rub_manifest = load_rub_manifest(_rub_manifest_path(manifest))
     tasks = _select_tasks(rub_manifest.tasks, task)
     if not tasks:
         raise typer.BadParameter(f"No tasks matched: {task}")

@@ -33,5 +33,5 @@ def load_rub_manifest(path: Path) -> RubManifest:
     Returns:
         Parsed RubManifest.
     """
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
     return RubManifest(**data)

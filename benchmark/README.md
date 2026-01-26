@@ -90,6 +90,23 @@ If you want a deterministic renderer without LLM calls:
 python -m bench.cli markdown --case all --method all --use-llm false
 ```
 
+## RUB (lite)
+
+RUB lite evaluates reconstruction utility using Markdown-only inputs.
+
+Run Stage B tasks with the lite manifest:
+
+```bash
+python -m bench.cli rub-ask --task all --method all --manifest rub/manifest_lite.json
+python -m bench.cli rub-eval --manifest rub/manifest_lite.json
+python -m bench.cli rub-report
+```
+
+Outputs:
+
+- outputs/rub/results/rub_results.csv
+- outputs/rub/results/report.md
+
 ## Evaluation protocol (public)
 
 To ensure reproducibility and fair comparison, follow these fixed settings:
