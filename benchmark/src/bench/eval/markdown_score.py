@@ -6,6 +6,15 @@ import unicodedata
 _TABLE_SEPARATOR = re.compile(r"^[\s|:-]+$")
 _WS_PATTERN = re.compile(r"\s+")
 _NUMERIC_PATTERN = re.compile(r"[+-]?\d+(?:[.,]\d+)?")
+_DOT_SEPARATORS = re.compile(r"[\u30fb\uff65\u00b7\u2022\u2219]")
+_ZERO_WIDTH_PATTERN = re.compile(r"[\u200b\u200c\u200d\ufeff]")
+_WEEKDAY_PAREN = re.compile(
+    r"(?:\uFF08|\()"
+    r"(?:\u6708|\u706B|\u6C34|\u6728|\u91D1|\u571F|\u65E5)"
+    r"(?:\uFF09|\))"
+)
+_PAREN = re.compile(r"[\uFF08\uFF09()]")
+_NON_ASCII_SPACE_PATTERN = re.compile(r"(?<=[^\x00-\x7F])\s+(?=[^\x00-\x7F])")
 
 
 def markdown_coverage_score(truth_md: str, pred_md: str) -> float:
@@ -77,8 +86,13 @@ def _normalize_line(line: str) -> str:
     text = text.replace("*", "")
     text = text.replace(">", "")
     text = unicodedata.normalize("NFKC", text)
-    text = text.replace("窶ｻ", "")
-    text = _WS_PATTERN.sub("", text)
+    text = text.replace("\u3000", " ")
+    text = _ZERO_WIDTH_PATTERN.sub("", text)
+    text = _WEEKDAY_PAREN.sub("", text)
+    text = _PAREN.sub("", text)
+    text = _DOT_SEPARATORS.sub("", text)
+    text = _WS_PATTERN.sub(" ", text)
+    text = _NON_ASCII_SPACE_PATTERN.sub("", text)
     return text.strip()
 
 

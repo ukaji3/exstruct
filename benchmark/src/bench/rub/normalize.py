@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from typing import Any
 
 from pydantic import BaseModel
@@ -13,6 +14,11 @@ class NormalizedPayload(BaseModel):
     value: Any
 
 
+_WS_PATTERN = re.compile(r"\s+")
+_ZERO_WIDTH_PATTERN = re.compile(r"[\u200b\u200c\u200d\ufeff]")
+_NON_ASCII_SPACE_PATTERN = re.compile(r"(?<=[^\x00-\x7F])\s+(?=[^\x00-\x7F])")
+
+
 def _normalize_text(value: str) -> str:
     """Normalize a string for comparison.
 
@@ -22,9 +28,14 @@ def _normalize_text(value: str) -> str:
     Returns:
         Normalized string.
     """
-    text = value.replace("\r\n", "\n").replace("\r", "\n").strip()
-    text = re.sub(r"\s+", " ", text)
-    return text
+    text = value.replace("\r\n", "\n").replace("\r", "\n")
+    text = unicodedata.normalize("NFKC", text)
+    text = text.replace("\u3000", " ")
+    text = _ZERO_WIDTH_PATTERN.sub("", text)
+    text = text.strip()
+    text = _WS_PATTERN.sub(" ", text)
+    text = _NON_ASCII_SPACE_PATTERN.sub("", text)
+    return text.strip()
 
 
 def _maybe_parse_number(value: str) -> int | float | str:

@@ -200,3 +200,99 @@ class OpenAIResponsesClient:
             cost_usd=cost,
             raw=raw,
         )
+
+    def ask_markdown_from_text(
+        self, *, model: str, context_text: str, temperature: float
+    ) -> LLMResult:
+        """Call Responses API to convert raw text into Markdown.
+
+        Args:
+            model: OpenAI model name (e.g., "gpt-4o").
+            context_text: Extracted document text to format.
+            temperature: Sampling temperature for the response.
+
+        Returns:
+            LLMResult containing the model output and usage metadata.
+        """
+        instructions = (
+            "You are a strict Markdown formatter. Output Markdown only.\n"
+            "Rules:\n"
+            "- Preserve all content from the input.\n"
+            "- Use headings and lists when they are clearly implied.\n"
+            "- Use tables when a row/column structure is evident.\n"
+            "- Do not add or invent information.\n"
+        )
+        resp = self.client.responses.create(
+            model=model,
+            temperature=temperature,
+            input=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "input_text", "text": instructions},
+                        {"type": "input_text", "text": f"[TEXT]\n{context_text}"},
+                    ],
+                }
+            ],
+        )
+
+        text = resp.output_text
+        usage = getattr(resp, "usage", None)
+        in_tok, out_tok = _extract_usage_tokens(usage)
+        cost = estimate_cost_usd(model, in_tok, out_tok)
+
+        raw = json.loads(resp.model_dump_json())
+        return LLMResult(
+            text=text,
+            input_tokens=in_tok,
+            output_tokens=out_tok,
+            cost_usd=cost,
+            raw=raw,
+        )
+
+    def ask_markdown_images(
+        self, *, model: str, image_paths: list[Path], temperature: float
+    ) -> LLMResult:
+        """Call Responses API to convert images into Markdown.
+
+        Args:
+            model: OpenAI model name (e.g., "gpt-4o").
+            image_paths: PNG image paths to include as vision input.
+            temperature: Sampling temperature for the response.
+
+        Returns:
+            LLMResult containing the model output and usage metadata.
+        """
+        instructions = (
+            "You are a strict Markdown formatter. Output Markdown only.\n"
+            "Rules:\n"
+            "- Preserve all visible content from the images.\n"
+            "- Use headings and lists when they are clearly implied.\n"
+            "- Use tables when a row/column structure is evident.\n"
+            "- Do not add or invent information.\n"
+        )
+        content: list[dict[str, Any]] = [
+            {"type": "input_text", "text": instructions},
+        ]
+        for p in image_paths:
+            content.append({"type": "input_image", "image_url": _png_to_data_url(p)})
+
+        resp = self.client.responses.create(
+            model=model,
+            temperature=temperature,
+            input=[{"role": "user", "content": content}],
+        )
+
+        text = resp.output_text
+        usage = getattr(resp, "usage", None)
+        in_tok, out_tok = _extract_usage_tokens(usage)
+        cost = estimate_cost_usd(model, in_tok, out_tok)
+
+        raw = json.loads(resp.model_dump_json())
+        return LLMResult(
+            text=text,
+            input_tokens=in_tok,
+            output_tokens=out_tok,
+            cost_usd=cost,
+            raw=raw,
+        )

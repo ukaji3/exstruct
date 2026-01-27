@@ -27,6 +27,8 @@ from .paths import (
     DATA_DIR,
     EXTRACTED_DIR,
     MARKDOWN_DIR,
+    MARKDOWN_FULL_DIR,
+    MARKDOWN_FULL_RESPONSES_DIR,
     MARKDOWN_RESPONSES_DIR,
     PROMPTS_DIR,
     RESPONSES_DIR,
@@ -45,7 +47,7 @@ from .pipeline.image_render import xlsx_to_pngs_via_pdf
 from .pipeline.openpyxl_pandas import extract_openpyxl
 from .pipeline.pdf_text import pdf_to_text, xlsx_to_pdf
 from .rub.manifest import RubTask, load_rub_manifest
-from .rub.score import score_exact
+from .rub.score import RubPartialScore, score_exact, score_partial
 
 app = typer.Typer(add_completion=False)
 console = Console()
@@ -122,6 +124,9 @@ class RubResultRow(BaseModel):
     method: str
     model: str | None
     score: float
+    partial_precision: float | None = None
+    partial_recall: float | None = None
+    partial_f1: float | None = None
     ok: bool
     input_tokens: int
     output_tokens: int
@@ -287,6 +292,13 @@ def _reset_rub_outputs(task_id: str) -> None:
 def _reset_markdown_outputs(case_id: str) -> None:
     """Delete existing markdown logs for a case."""
     path = MARKDOWN_RESPONSES_DIR / f"{case_id}.jsonl"
+    if path.exists():
+        path.unlink()
+
+
+def _reset_markdown_full_outputs(case_id: str) -> None:
+    """Delete existing full-markdown logs for a case."""
+    path = MARKDOWN_FULL_RESPONSES_DIR / f"{case_id}.jsonl"
     if path.exists():
         path.unlink()
 
@@ -566,11 +578,108 @@ def markdown(
 
 
 @app.command()
+def markdown_full(
+    case: str = "all",
+    method: str = "all",
+    model: str = "gpt-4o",
+    temperature: float = 0.0,
+) -> None:
+    """Generate full-document Markdown from extracted contexts.
+
+    Args:
+        case: Comma-separated case ids or "all".
+        method: Comma-separated method names or "all".
+        model: OpenAI model name for Markdown conversion.
+        temperature: Sampling temperature for the model.
+    """
+    mf = load_manifest(_manifest_path())
+    cases = _select_cases(mf.cases, case)
+    if not cases:
+        raise typer.BadParameter(f"No cases matched: {case}")
+    methods = _select_methods(method)
+
+    client = OpenAIResponsesClient()
+    ensure_dir(MARKDOWN_FULL_DIR)
+    ensure_dir(MARKDOWN_FULL_RESPONSES_DIR)
+    total_cost = 0.0
+    total_calls = 0
+
+    for c in cases:
+        console.rule(f"MARKDOWN FULL {c.id}")
+        _reset_markdown_full_outputs(c.id)
+        case_dir = MARKDOWN_FULL_DIR / c.id
+        ensure_dir(case_dir)
+        md_file = MARKDOWN_FULL_RESPONSES_DIR / f"{c.id}.jsonl"
+
+        for m in methods:
+            try:
+                if m == "image_vlm":
+                    img_dir = EXTRACTED_DIR / "image_vlm" / c.id
+                    images_json = img_dir / "images.json"
+                    if not images_json.exists():
+                        print(f"[yellow]skip: missing images for {c.id}[/yellow]")
+                        continue
+                    imgs = json.loads(images_json.read_text(encoding="utf-8"))["images"]
+                    img_paths = [Path(p) for p in imgs]
+                    if not img_paths:
+                        print(f"[yellow]skip: no images for {c.id}[/yellow]")
+                        continue
+                    prompt_hash = sha256_text("|".join([p.name for p in img_paths]))
+                    res = client.ask_markdown_images(
+                        model=model, image_paths=img_paths, temperature=temperature
+                    )
+                else:
+                    txt_path = EXTRACTED_DIR / m / f"{c.id}.txt"
+                    if not txt_path.exists():
+                        print(
+                            f"[yellow]skip: missing context for {c.id} ({m})[/yellow]"
+                        )
+                        continue
+                    context_text = txt_path.read_text(encoding="utf-8")
+                    prompt_hash = sha256_text(context_text)
+                    res = client.ask_markdown_from_text(
+                        model=model,
+                        context_text=context_text,
+                        temperature=temperature,
+                    )
+
+                md_text = res.text
+                md_rec = MarkdownRecord(
+                    case_id=c.id,
+                    method=m,
+                    model=model,
+                    temperature=temperature,
+                    prompt_hash=prompt_hash,
+                    text=md_text,
+                    input_tokens=res.input_tokens,
+                    output_tokens=res.output_tokens,
+                    cost_usd=res.cost_usd,
+                    raw=res.raw,
+                )
+                total_cost += res.cost_usd
+                total_calls += 1
+                line = _dump_jsonl(md_rec)
+                with md_file.open("a", encoding="utf-8") as f:
+                    f.write(line + "\n")
+
+                out_md = case_dir / f"{m}.md"
+                out_md.write_text(md_text, encoding="utf-8")
+                print(f"[green]{c.id} {m} -> {out_md}[/green]")
+            except Exception as exc:
+                print(f"[yellow]skip: markdown full {c.id} {m} ({exc})[/yellow]")
+
+    print(
+        f"[green]Markdown full cost: ${total_cost:.6f} ({total_calls} call(s))[/green]"
+    )
+
+
+@app.command()
 def rub_ask(
     task: str = "all",
     method: str = "all",
     model: str = "gpt-4o",
     temperature: float = 0.0,
+    context: str = "partial",
     manifest: str | None = None,
 ) -> None:
     """Run RUB Stage B queries using Markdown outputs as context.
@@ -580,6 +689,7 @@ def rub_ask(
         method: Comma-separated method names or "all".
         model: OpenAI model name for Stage B queries.
         temperature: Sampling temperature for the model.
+        context: Markdown source ("partial" or "full").
         manifest: Optional RUB manifest path override.
     """
     rub_manifest = load_rub_manifest(_rub_manifest_path(manifest))
@@ -587,6 +697,10 @@ def rub_ask(
     if not tasks:
         raise typer.BadParameter(f"No tasks matched: {task}")
     methods = _select_methods(method)
+    context_key = context.lower().strip()
+    if context_key not in {"partial", "full"}:
+        raise typer.BadParameter(f"Invalid context: {context}")
+    md_root = MARKDOWN_DIR if context_key == "partial" else MARKDOWN_FULL_DIR
 
     ensure_dir(RUB_OUT_DIR)
     ensure_dir(RUB_PROMPTS_DIR)
@@ -601,7 +715,7 @@ def rub_ask(
         _reset_rub_outputs(t.id)
         resp_file = RUB_RESPONSES_DIR / f"{t.id}.jsonl"
         for m in methods:
-            md_path = MARKDOWN_DIR / t.source_case_id / f"{m}.md"
+            md_path = md_root / t.source_case_id / f"{m}.md"
             if not md_path.exists():
                 print(f"[yellow]skip: missing markdown {t.id} {m}[/yellow]")
                 continue
@@ -677,6 +791,7 @@ def rub_eval(
         for m, rec in latest.items():
             score = 0.0
             ok = False
+            partial: RubPartialScore | None = None
             err: str | None = None
             try:
                 pred_obj = normalize_json_text(rec["text"])
@@ -685,6 +800,9 @@ def rub_eval(
                 )
                 score = score_res.score
                 ok = score_res.ok
+                partial = score_partial(
+                    truth, pred_obj, unordered_paths=t.unordered_paths
+                )
             except Exception as exc:
                 err = str(exc)
 
@@ -696,6 +814,9 @@ def rub_eval(
                     method=m,
                     model=rec.get("model"),
                     score=score,
+                    partial_precision=partial.precision if partial else None,
+                    partial_recall=partial.recall if partial else None,
+                    partial_f1=partial.f1 if partial else None,
                     ok=ok,
                     input_tokens=int(rec.get("input_tokens", 0)),
                     output_tokens=int(rec.get("output_tokens", 0)),
@@ -725,6 +846,12 @@ def rub_report() -> None:
         "avg_cost": ("cost_usd", "mean"),
         "n": ("task_id", "count"),
     }
+    if "partial_precision" in df.columns and df["partial_precision"].notna().any():
+        agg["partial_precision"] = ("partial_precision", "mean")
+    if "partial_recall" in df.columns and df["partial_recall"].notna().any():
+        agg["partial_recall"] = ("partial_recall", "mean")
+    if "partial_f1" in df.columns and df["partial_f1"].notna().any():
+        agg["partial_f1"] = ("partial_f1", "mean")
     g = df.groupby("method").agg(**agg).reset_index()
 
     detail_dir = RUB_RESULTS_DIR / "detailed_reports"
