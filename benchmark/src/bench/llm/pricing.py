@@ -8,12 +8,18 @@ from __future__ import annotations
 GPT4O_INPUT_PER_1M = 2.50
 GPT4O_OUTPUT_PER_1M = 10.00
 
+_PRICING_PER_1M: dict[str, tuple[float, float]] = {
+    "gpt-4o": (GPT4O_INPUT_PER_1M, GPT4O_OUTPUT_PER_1M),
+}
+
 
 def estimate_cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
-    if model != "gpt-4o":
-        # ベンチでは統一前提。拡張するならここをテーブル化。
-        raise ValueError(f"Unsupported model for cost table: {model}")
-
-    return (input_tokens / 1_000_000) * GPT4O_INPUT_PER_1M + (
+    """Estimate USD cost for a model run when pricing is known."""
+    pricing = _PRICING_PER_1M.get(model)
+    if pricing is None:
+        # Pricing unknown; keep run going and report 0.0 cost.
+        return 0.0
+    input_per_1m, output_per_1m = pricing
+    return (input_tokens / 1_000_000) * input_per_1m + (
         output_tokens / 1_000_000
-    ) * GPT4O_OUTPUT_PER_1M
+    ) * output_per_1m
