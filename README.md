@@ -19,6 +19,15 @@ ExStruct reads Excel workbooks and outputs structured data (cells, table candida
 - **CLI rendering** (Excel required): optional PDF and per-sheet PNGs.
 - **Graceful fallback**: if Excel COM is unavailable, extraction falls back to cells + table candidates without crashing.
 
+## Benchmark
+
+![Benchmark Chart](benchmark/outputs/plots/markdown_quality.png)
+
+This repository includes benchmark reports focused on RAG/LLM preprocessing of Excel documents.
+We track two perspectives: (1) core extraction accuracy and (2) reconstruction utility for downstream structure queries (RUB).
+See `benchmark/REPORT.md` for the working summary and `benchmark/public/REPORT.md` for the public bundle.
+Current results are based on n=12 cases and will be expanded.
+
 ## Installation
 
 ```bash
