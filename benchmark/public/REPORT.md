@@ -21,6 +21,7 @@ Sources:
 - Model: gpt-4o (Responses API)
 - Temperature: 0.0
 - Note: record the run date/time when publishing
+- This is an initial benchmark (n=12) and will be expanded in future releases.
 
 ## Core Benchmark (extraction + scoring)
 
