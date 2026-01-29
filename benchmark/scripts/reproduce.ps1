@@ -1,6 +1,3 @@
-Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
-
 param(
     [string]$Case = "all",
     [string]$Method = "all",
@@ -8,6 +5,9 @@ param(
     [double]$Temperature = 0.0,
     [switch]$SkipAsk
 )
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
 
 function Write-Info {
     param([string]$Message)

@@ -21,7 +21,7 @@ ExStruct reads Excel workbooks and outputs structured data (cells, table candida
 
 ## Benchmark
 
-![Benchmark Chart](../benchmark/outputs/plots/markdown_quality.png)
+![Benchmark Chart](../benchmark/public/plots/markdown_quality.png)
 
 This repository includes benchmark reports focused on RAG/LLM preprocessing of Excel documents.
 We track two perspectives: (1) core extraction accuracy and (2) reconstruction utility for downstream structure queries (RUB).

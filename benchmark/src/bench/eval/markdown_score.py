@@ -62,8 +62,13 @@ def markdown_precision_score(truth_md: str, pred_md: str) -> float:
 def _normalized_lines(markdown: str) -> list[str]:
     """Normalize Markdown into comparable text lines."""
     lines: list[str] = []
+    in_code_block = False
     for raw in markdown.splitlines():
-        if raw.strip().startswith("```"):
+        stripped = raw.strip()
+        if stripped.startswith("```"):
+            in_code_block = not in_code_block
+            continue
+        if in_code_block:
             continue
         norm = _normalize_line(raw)
         if not norm:

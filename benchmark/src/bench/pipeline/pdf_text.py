@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 import fitz  # PyMuPDF
 
@@ -23,18 +23,21 @@ def xlsx_to_pdf(xlsx_path: Path, out_pdf: Path) -> None:
         str(out_pdf.parent),
         str(xlsx_path),
     ]
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True, timeout=300)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"soffice timed out after 300s: {xlsx_path}") from exc
     produced = out_pdf.parent / (xlsx_path.stem + ".pdf")
     produced.replace(out_pdf)
 
 
 def pdf_to_text(pdf_path: Path, out_txt: Path) -> None:
-    doc = fitz.open(pdf_path)
     parts: list[str] = []
-    for i in range(doc.page_count):
-        page = doc.load_page(i)
-        parts.append(f"\n# PAGE {i + 1}")
-        parts.append(page.get_text("text"))
+    with fitz.open(pdf_path) as doc:
+        for i in range(doc.page_count):
+            page = doc.load_page(i)
+            parts.append(f"\n# PAGE {i + 1}")
+            parts.append(page.get_text("text"))
     text = "\n".join(parts).strip()
 
     lines: list[str] = []

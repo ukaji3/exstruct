@@ -1,4 +1,4 @@
-﻿# Benchmark Summary (Public)
+# Benchmark Summary (Public)
 
 This summary consolidates the latest results for the Excel document benchmark and
 RUB (structure query track). Use this file as a public-facing overview and link

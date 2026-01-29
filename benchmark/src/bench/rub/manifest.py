@@ -10,6 +10,7 @@ class RubTask(BaseModel):
     """RUB task definition."""
 
     id: str
+    track: str = Field("reconstruction", description="Evaluation track name.")
     source_case_id: str = Field(..., description="Case id for Stage A Markdown.")
     type: str
     question: str

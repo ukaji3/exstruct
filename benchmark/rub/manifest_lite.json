@@ -1,4 +1,4 @@
-﻿{
+{
   "tasks": [
     {
       "id": "ffr_425_01",
@@ -8,7 +8,8 @@
       "truth": "rub/truth_lite/ffr_425_01.json",
       "unordered_paths": [
         "section_headers"
-      ]
+      ],
+      "track": "reconstruction"
     },
     {
       "id": "certificate_of_employment_01",
@@ -18,7 +19,8 @@
       "truth": "rub/truth_lite/certificate_of_employment_01.json",
       "unordered_paths": [
         "sections"
-      ]
+      ],
+      "track": "reconstruction"
     },
     {
       "id": "tax_report_01",
@@ -28,7 +30,8 @@
       "truth": "rub/truth_lite/tax_report_01.json",
       "unordered_paths": [
         "income_items"
-      ]
+      ],
+      "track": "reconstruction"
     },
     {
       "id": "basic_01",
@@ -38,14 +41,16 @@
       "truth": "rub/truth_lite/basic_01.json",
       "unordered_paths": [
         "chart_series"
-      ]
+      ],
+      "track": "reconstruction"
     },
     {
       "id": "heatstroke_flow_01",
       "source_case_id": "heatstroke_flow_01",
       "type": "flowchart",
       "question": "Extract step names in order. JSON only: {\"steps\":[\"...\"]}",
-      "truth": "rub/truth_lite/heatstroke_flow_01.json"
+      "truth": "rub/truth_lite/heatstroke_flow_01.json",
+      "track": "reconstruction"
     },
     {
       "id": "workflow_01",
@@ -55,7 +60,8 @@
       "truth": "rub/truth_lite/workflow_01.json",
       "unordered_paths": [
         "nodes"
-      ]
+      ],
+      "track": "reconstruction"
     },
     {
       "id": "flowchart_02",
@@ -65,14 +71,16 @@
       "truth": "rub/truth_lite/flowchart_02.json",
       "unordered_paths": [
         "nodes"
-      ]
+      ],
+      "track": "reconstruction"
     },
     {
       "id": "food_inspection_record_01",
       "source_case_id": "food_inspection_record_01",
       "type": "inspection_log",
       "question": "Extract first date per sheet. JSON only: {\"dates_by_sheet\": {\"sheet\": \"date\"}}",
-      "truth": "rub/truth_lite/food_inspection_record_01.json"
+      "truth": "rub/truth_lite/food_inspection_record_01.json",
+      "track": "reconstruction"
     },
     {
       "id": "basic_form_01",
@@ -82,14 +90,16 @@
       "truth": "rub/truth_lite/basic_form_01.json",
       "unordered_paths": [
         "applicant_fields"
-      ]
+      ],
+      "track": "reconstruction"
     },
     {
       "id": "flowchart_01",
       "source_case_id": "flowchart_01",
       "type": "flowchart",
       "question": "Extract flowchart step names in order. JSON only: {\"steps\":[\"...\"]}",
-      "truth": "rub/truth_lite/flowchart_01.json"
+      "truth": "rub/truth_lite/flowchart_01.json",
+      "track": "reconstruction"
     },
     {
       "id": "gantt_01",
@@ -99,7 +109,8 @@
       "truth": "rub/truth_lite/gantt_01.json",
       "unordered_paths": [
         "task_names"
-      ]
+      ],
+      "track": "reconstruction"
     },
     {
       "id": "smartart_01",
@@ -110,7 +121,8 @@
       "unordered_paths": [
         "sales_departments",
         "production_sites"
-      ]
+      ],
+      "track": "reconstruction"
     }
   ]
 }

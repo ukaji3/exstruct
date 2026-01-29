@@ -19,7 +19,7 @@ ExStruct は Excel ワークブックを読み取り、構造化データ（セ�
 
 ## ベンチマーク
 
-![Benchmark Chart](../benchmark/outputs/plots/markdown_quality.png)
+![Benchmark Chart](../benchmark/public/plots/markdown_quality.png)
 
 このリポジトリには、ExcelドキュメントのRAG/LLM前処理に焦点を当てたベンチマークレポートが含まれています。
 私たちは2つの視点から追跡しています。(1) コア抽出精度と (2) 下流構造クエリのための再構築ユーティリティ (RUB) です。

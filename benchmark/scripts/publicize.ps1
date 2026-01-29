@@ -1,4 +1,4 @@
-﻿Set-StrictMode -Version Latest
+Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -11,3 +11,4 @@ if (Test-Path $venvPython) {
 }
 
 python (Join-Path $scriptDir "publicize.py")
+exit $LASTEXITCODE

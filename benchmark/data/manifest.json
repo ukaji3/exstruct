@@ -135,8 +135,8 @@
     {
       "id": "food_inspection_record_01",
       "type": "inspection_log",
-      "xlsx": "data/raw/food_inspection record_01.xlsx",
-      "question": "This workbook contains three sheets (\"検食簿（1）\", \"検食簿 (2)\", \"検食簿 (3)\"). For the first date on each sheet, extract the lunch menu items and snack items and return JSON in the following format:\n\n{\n  \"sheets\": {\n    \"検食簿（1）\": {\"date\": \"...\", \"lunch_menu\": [\"...\"], \"snacks\": [\"...\"]},\n    \"検食簿 (2)\": {\"date\": \"...\", \"lunch_menu\": [\"...\"], \"snacks\": [\"...\"]},\n    \"検食簿 (3)\": {\"date\": \"...\", \"lunch_menu\": [\"...\"], \"snacks\": [\"...\"]},\n  }\n}\n\nJSON only.",
+      "xlsx": "data/raw/food_inspection_record_01.xlsx",
+      "question": "This workbook contains three sheets (\"検食簿（1）\", \"検食簿 (2)\", \"検食簿 (3)\"). For the first date on each sheet, extract the lunch menu items and snack items and return JSON in the following format:\n\n{\n  \"sheets\": {\n    \"検食簿（1）\": {\"date\": \"...\", \"lunch_menu\": [\"...\"], \"snacks\": [\"...\"]},\n    \"検食簿 (2)\": {\"date\": \"...\", \"lunch_menu\": [\"...\"], \"snacks\": [\"...\"]},\n    \"検食簿 (3)\": {\"date\": \"...\", \"lunch_menu\": [\"...\"], \"snacks\": [\"...\"]}\n  }\n}\n\nJSON only.",
       "truth": "data/truth/food_inspection_record_01.json",
       "sheet_scope": null,
       "render": {

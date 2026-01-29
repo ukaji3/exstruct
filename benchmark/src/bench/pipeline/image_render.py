@@ -19,16 +19,15 @@ def xlsx_to_pngs_via_pdf(
     tmp_pdf = out_dir / f"{xlsx_path.stem}.pdf"
     xlsx_to_pdf(xlsx_path, tmp_pdf)
 
-    doc = fitz.open(tmp_pdf)
-    zoom = dpi / 72.0
-    mat = fitz.Matrix(zoom, zoom)
-
     paths: list[Path] = []
-    for i in range(min(doc.page_count, max_pages)):
-        page = doc.load_page(i)
-        pix = page.get_pixmap(matrix=mat, alpha=False)
-        p = out_dir / f"page_{i + 1:02d}.png"
-        pix.save(p)
-        paths.append(p)
+    with fitz.open(tmp_pdf) as doc:
+        zoom = dpi / 72.0
+        mat = fitz.Matrix(zoom, zoom)
+        for i in range(min(doc.page_count, max_pages)):
+            page = doc.load_page(i)
+            pix = page.get_pixmap(matrix=mat, alpha=False)
+            p = out_dir / f"page_{i + 1:02d}.png"
+            pix.save(p)
+            paths.append(p)
 
     return paths

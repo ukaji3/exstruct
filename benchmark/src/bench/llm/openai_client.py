@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -60,6 +61,10 @@ class OpenAIResponsesClient:
 
     def __init__(self) -> None:
         load_dotenv(dotenv_path=ROOT / ".env")
+        if not os.getenv("OPENAI_API_KEY"):
+            raise RuntimeError(
+                "OPENAI_API_KEY is not set. Add it to .env or your environment."
+            )
         self.client = OpenAI()
 
     def ask_text(
