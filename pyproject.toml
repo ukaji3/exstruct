@@ -74,6 +74,7 @@ omit = [
 target-version = "py311"
 src = ["exstruct"]
 fix = true
+exclude = ["benchmark/**"]
 
 # 静的解析ルール
 [tool.ruff.lint]
@@ -113,6 +114,7 @@ max-complexity = 12
 [tool.mypy]
 packages = ["exstruct"]
 python_version = "3.11"
+exclude = "benchmark/.*"
 
 # 外部ライブラリの型情報がない場合は無視
 ignore_missing_imports = true
