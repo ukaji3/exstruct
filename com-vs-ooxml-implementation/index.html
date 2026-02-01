@@ -1,0 +1,3469 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://harumiweb.github.io/exstruct/com-vs-ooxml-implementation/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>COM vs OOXML 実装比較ドキュメント - ExStruct</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#com-vs-ooxml" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="ExStruct" class="md-header__button md-logo" aria-label="ExStruct" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ExStruct
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              COM vs OOXML 実装比較ドキュメント
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="ExStruct" class="md-nav__button md-logo" aria-label="ExStruct" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ExStruct
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../generated/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Models (generated)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../schemas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Schemas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concept/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concept / Why ExStruct?
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Release Notes
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Release Notes
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/v0.4.0/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.4.0
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/v0.3.7/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.3.7
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/v0.3.6/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.3.6
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/v0.3.5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.3.5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/v0.3.2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.3.2
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/v0.3.1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.3.1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/v0.3.0/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.3.0
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/v0.2.90/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.2.90
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/v0.2.80/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.2.80
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/v0.2.71/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.2.71
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/v0.2.70/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.2.70
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/v0.2.61/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.2.61
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/v0.2.60/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    v0.2.60
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Read Me
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Read Me
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README.en/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Read Me (EN)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README.ja/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Read Me (JA)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../license-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    License Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        目次
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        アーキテクチャ概要
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="アーキテクチャ概要">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com-windows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装 (Windows)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装 (クロスプラットフォーム)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shape 抽出機能
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Shape 抽出機能">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-l-t" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 位置情報 (l, t)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. 位置情報 (l, t)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-w-h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. サイズ情報 (w, h)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. サイズ情報 (w, h)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. テキスト抽出
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. テキスト抽出">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 図形種別 (type)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. 図形種別 (type)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-shape-id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Shape ID 割り当て
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Shape ID 割り当て">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-direction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. コネクター方向 (direction)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. コネクター方向 (direction)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7-begin_arrow_style-end_arrow_style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 矢印スタイル (begin_arrow_style, end_arrow_style)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. 矢印スタイル (begin_arrow_style, end_arrow_style)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-begin_id-end_id" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. コネクター接続情報 (begin_id, end_id)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. コネクター接続情報 (begin_id, end_id)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-rotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. 回転 (rotation)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. 回転 (rotation)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. グループ図形のフラット化
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. グループ図形のフラット化">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. 出力モードフィルタリング
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. 出力モードフィルタリング">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#chart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chart 抽出機能
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Chart 抽出機能">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-chart_type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. チャート種別 (chart_type)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. チャート種別 (chart_type)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-title" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. タイトル (title)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. タイトル (title)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-y-y_axis_title-y_axis_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Y軸情報 (y_axis_title, y_axis_range)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Y軸情報 (y_axis_title, y_axis_range)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-series" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 系列データ (series)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. 系列データ (series)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        実装方法の比較
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="実装方法の比較">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        データアクセス方式
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ファイル構造 (OOXML)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#xml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        XML 名前空間
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        機能対応表
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="機能対応表">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#shape_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shape 機能
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#chart_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chart 機能
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ooxml_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML で実装できない/困難な機能
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OOXML で実装できない/困難な機能">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-y" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 自動計算された Y 軸範囲
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. 自動計算された Y 軸範囲">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        機能概要
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#com_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML の制限
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        実装不可能な理由
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        現在の動作
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. セル参照から解決されたタイトル/ラベル
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. セル参照から解決されたタイトル/ラベル">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        機能概要
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#com_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML の制限
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        実装困難な理由
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        現在の動作
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 動的に計算されるフォント/スタイル情報
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. 動的に計算されるフォント/スタイル情報">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        機能概要
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#com_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML の制限
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        実装困難な理由
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        現在の動作
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-ole" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. OLE オブジェクト / 埋め込みオブジェクト
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. OLE オブジェクト / 埋め込みオブジェクト">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        機能概要
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#com_18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML の制限
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_16" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        実装不可能な理由
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        現在の動作
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-vba" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. マクロ / VBA コード
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. マクロ / VBA コード">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        機能概要
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#com_19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML の制限
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_19" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        実装不可能な理由
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        現在の動作
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. 条件付き書式の評価結果
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. 条件付き書式の評価結果">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        機能概要
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#com_20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML の制限
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        実装不可能な理由
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        現在の動作
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 数式の計算結果（キャッシュなしの場合）
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. 数式の計算結果（キャッシュなしの場合）">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        機能概要
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#com_21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML の制限
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        実装困難な理由
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        現在の動作
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 複合チャートの詳細な種別判定
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. 複合チャートの詳細な種別判定">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_27" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        機能概要
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#com_22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COM 実装
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML の制限
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_28" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        実装困難な理由
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        現在の動作
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_30" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        制限事項と注意点
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="制限事項と注意点">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ooxml_26" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OOXML 実装の制限（その他）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_31" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        使い分けの指針
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_32" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        フォールバック動作
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_33" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        参考資料
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="com-vs-ooxml">COM vs OOXML 実装比較ドキュメント<a class="headerlink" href="#com-vs-ooxml" title="Permanent link">&para;</a></h1>
+<p>ExStruct は Windows 環境では Excel COM API、Linux/macOS 環境では OOXML (Office Open XML) パーサーを使用して Excel ファイルから Shape と Chart を抽出します。本ドキュメントでは、両実装の詳細な機能比較と実装方法の違いを説明します。</p>
+<h2 id="_1">目次<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="#アーキテクチャ概要">アーキテクチャ概要</a></li>
+<li><a href="#shape-抽出機能">Shape 抽出機能</a></li>
+<li><a href="#chart-抽出機能">Chart 抽出機能</a></li>
+<li><a href="#実装方法の比較">実装方法の比較</a></li>
+<li><a href="#機能対応表">機能対応表</a></li>
+<li><a href="#制限事項と注意点">制限事項と注意点</a></li>
+</ol>
+<hr />
+<h2 id="_2">アーキテクチャ概要<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<h3 id="com-windows">COM 実装 (Windows)<a class="headerlink" href="#com-windows" title="Permanent link">&para;</a></h3>
+<pre><code>Excel Application (COM)
+    ↓
+xlwings ライブラリ
+    ↓
+shapes.py / charts.py
+    ↓
+Pydantic モデル (Shape, Chart)
+</code></pre>
+<ul>
+<li><strong>依存</strong>: Microsoft Excel がインストールされた Windows 環境</li>
+<li><strong>利点</strong>: Excel の全機能にアクセス可能、高精度</li>
+<li><strong>欠点</strong>: Windows 限定、Excel ライセンス必要</li>
+</ul>
+<h3 id="ooxml">OOXML 実装 (クロスプラットフォーム)<a class="headerlink" href="#ooxml" title="Permanent link">&para;</a></h3>
+<pre><code>.xlsx ファイル (ZIP アーカイブ)
+    ↓
+xml.etree.ElementTree
+    ↓
+drawing.py / chart.py
+    ↓
+Pydantic モデル (Shape, Chart)
+</code></pre>
+<ul>
+<li><strong>依存</strong>: Python 標準ライブラリのみ</li>
+<li><strong>利点</strong>: 全プラットフォーム対応、Excel 不要</li>
+<li><strong>欠点</strong>: 一部機能が制限される</li>
+</ul>
+<hr />
+<h2 id="shape">Shape 抽出機能<a class="headerlink" href="#shape" title="Permanent link">&para;</a></h2>
+<h3 id="1-l-t">1. 位置情報 (l, t)<a class="headerlink" href="#1-l-t" title="Permanent link">&para;</a></h3>
+<h4 id="com">COM 実装<a class="headerlink" href="#com" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python"># shapes.py
+shape_obj = Shape(
+    l=int(shp.left),
+    t=int(shp.top),
+    ...
+)
+</code></pre>
+<ul>
+<li><code>xlwings.Shape.left</code> / <code>xlwings.Shape.top</code> プロパティを使用</li>
+<li>単位: ポイント (1/72 インチ)</li>
+</ul>
+<h4 id="ooxml_1">OOXML 実装<a class="headerlink" href="#ooxml_1" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python"># drawing.py
+def _get_xfrm_position(elem: Element) -&gt; tuple[int, int, int, int] | None:
+    xfrm = elem.find(&quot;.//a:xfrm&quot;, NS)
+    off = xfrm.find(&quot;a:off&quot;, NS)
+    x = int(off.get(&quot;x&quot;, &quot;0&quot;))
+    y = int(off.get(&quot;y&quot;, &quot;0&quot;))
+    return (emu_to_pixels(x), emu_to_pixels(y), ...)
+</code></pre>
+<ul>
+<li>DrawingML の <code>&lt;a:xfrm&gt;&lt;a:off&gt;</code> 要素から取得</li>
+<li>単位: EMU (English Metric Units) → ピクセルに変換</li>
+<li>変換式: <code>pixels = emu / 914400 * 96</code></li>
+</ul>
+<hr />
+<h3 id="2-w-h">2. サイズ情報 (w, h)<a class="headerlink" href="#2-w-h" title="Permanent link">&para;</a></h3>
+<h4 id="com_1">COM 実装<a class="headerlink" href="#com_1" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">w=int(shp.width) if mode == &quot;verbose&quot; or shape_type_str == &quot;Group&quot; else None,
+h=int(shp.height) if mode == &quot;verbose&quot; or shape_type_str == &quot;Group&quot; else None,
+</code></pre>
+<h4 id="ooxml_2">OOXML 実装<a class="headerlink" href="#ooxml_2" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">ext = xfrm.find(&quot;a:ext&quot;, NS)
+cx = int(ext.get(&quot;cx&quot;, &quot;0&quot;))
+cy = int(ext.get(&quot;cy&quot;, &quot;0&quot;))
+return (..., emu_to_pixels(cx), emu_to_pixels(cy))
+</code></pre>
+<ul>
+<li><code>&lt;a:ext cx="..." cy="..."&gt;</code> から取得</li>
+<li>verbose モードまたはグループ図形の場合のみ出力</li>
+</ul>
+<hr />
+<h3 id="3">3. テキスト抽出<a class="headerlink" href="#3" title="Permanent link">&para;</a></h3>
+<h4 id="com_2">COM 実装<a class="headerlink" href="#com_2" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">try:
+    text = shp.text.strip() if shp.text else &quot;&quot;
+except Exception:
+    text = &quot;&quot;
+</code></pre>
+<ul>
+<li><code>xlwings.Shape.text</code> プロパティを使用</li>
+</ul>
+<h4 id="ooxml_3">OOXML 実装<a class="headerlink" href="#ooxml_3" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">def _get_text_from_element(elem: Element) -&gt; str:
+    texts: list[str] = []
+    for t_elem in elem.findall(&quot;.//a:t&quot;, NS):
+        if t_elem.text:
+            texts.append(t_elem.text)
+    return &quot;&quot;.join(texts).strip()
+</code></pre>
+<ul>
+<li><code>&lt;a:t&gt;</code> 要素（テキストラン）を全て収集して結合</li>
+<li>リッチテキストの書式情報は無視</li>
+</ul>
+<hr />
+<h3 id="4-type">4. 図形種別 (type)<a class="headerlink" href="#4-type" title="Permanent link">&para;</a></h3>
+<h4 id="com_3">COM 実装<a class="headerlink" href="#com_3" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">type_num = shp.api.Type
+shape_type_str = MSO_SHAPE_TYPE_MAP.get(type_num, f&quot;Unknown({type_num})&quot;)
+astype_num = shp.api.AutoShapeType
+autoshape_type_str = MSO_AUTO_SHAPE_TYPE_MAP.get(astype_num, ...)
+type_label = f&quot;{shape_type_str}-{autoshape_type_str}&quot;
+</code></pre>
+<ul>
+<li><code>MsoShapeType</code> と <code>MsoAutoShapeType</code> の組み合わせ</li>
+<li>例: <code>"AutoShape-FlowchartProcess"</code></li>
+</ul>
+<h4 id="ooxml_4">OOXML 実装<a class="headerlink" href="#ooxml_4" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">def _get_preset_geometry(elem: Element) -&gt; str | None:
+    prst_geom = elem.find(&quot;.//a:prstGeom&quot;, NS)
+    return prst_geom.get(&quot;prst&quot;) if prst_geom is not None else None
+
+# PRESET_GEOM_MAP で変換
+PRESET_GEOM_MAP = {
+    &quot;flowChartProcess&quot;: &quot;AutoShape-FlowchartProcess&quot;,
+    &quot;rect&quot;: &quot;AutoShape-Rectangle&quot;,
+    ...
+}
+</code></pre>
+<ul>
+<li><code>&lt;a:prstGeom prst="..."&gt;</code> 属性から取得</li>
+<li>マッピングテーブルで COM 互換の名前に変換</li>
+</ul>
+<hr />
+<h3 id="5-shape-id">5. Shape ID 割り当て<a class="headerlink" href="#5-shape-id" title="Permanent link">&para;</a></h3>
+<h4 id="com_4">COM 実装<a class="headerlink" href="#com_4" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">node_index = 0
+for shp in iter_shapes_recursive(root):
+    if not is_relationship_geom:
+        node_index += 1
+        shape_id = node_index
+    if excel_name:
+        if shape_id is not None:
+            excel_names.append((excel_name, shape_id))
+</code></pre>
+<ul>
+<li>非コネクター図形に連番 ID を割り当て</li>
+<li>Excel 内部名と ID のマッピングを保持</li>
+</ul>
+<h4 id="ooxml_5">OOXML 実装<a class="headerlink" href="#ooxml_5" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">def _assign_shape_ids(parse_results: list[_ShapeParseResult]) -&gt; None:
+    excel_id_to_node_id: dict[str, int] = {}
+    node_index = 0
+    # First pass: assign node IDs to non-connector shapes
+    for result in parse_results:
+        if not result.is_connector and result.excel_id:
+            node_index += 1
+            result.shape.id = node_index
+            excel_id_to_node_id[result.excel_id] = node_index
+</code></pre>
+<ul>
+<li><code>&lt;xdr:cNvPr id="..."&gt;</code> から Excel ID を取得</li>
+<li>非コネクター図形に連番 ID を割り当て</li>
+<li>Excel ID → Node ID のマッピングを構築</li>
+</ul>
+<hr />
+<h3 id="6-direction">6. コネクター方向 (direction)<a class="headerlink" href="#6-direction" title="Permanent link">&para;</a></h3>
+<h4 id="com_5">COM 実装<a class="headerlink" href="#com_5" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">def compute_line_angle_deg(w: float, h: float) -&gt; float:
+    return math.degrees(math.atan2(h, w)) % 360.0
+
+def angle_to_compass(angle: float) -&gt; str:
+    dirs = [&quot;E&quot;, &quot;NE&quot;, &quot;N&quot;, &quot;NW&quot;, &quot;W&quot;, &quot;SW&quot;, &quot;S&quot;, &quot;SE&quot;]
+    idx = int(((angle + 22.5) % 360) // 45)
+    return dirs[idx]
+
+angle = compute_line_angle_deg(float(shp.width), float(shp.height))
+shape_obj.direction = angle_to_compass(angle)
+</code></pre>
+<h4 id="ooxml_6">OOXML 実装<a class="headerlink" href="#ooxml_6" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">def _compute_direction(width: int, height: int) -&gt; str | None:
+    angle = math.degrees(math.atan2(-height, width))
+    if angle &lt; 0:
+        angle += 360
+    # Map angle to compass direction
+    if 337.5 &lt;= angle or angle &lt; 22.5:
+        return &quot;E&quot;
+    elif 22.5 &lt;= angle &lt; 67.5:
+        return &quot;NE&quot;
+    ...
+</code></pre>
+<ul>
+<li>両実装とも <code>atan2</code> で角度を計算し、8方位に変換</li>
+<li>座標系の違いにより符号が異なる</li>
+</ul>
+<hr />
+<h3 id="7-begin_arrow_style-end_arrow_style">7. 矢印スタイル (begin_arrow_style, end_arrow_style)<a class="headerlink" href="#7-begin_arrow_style-end_arrow_style" title="Permanent link">&para;</a></h3>
+<h4 id="com_6">COM 実装<a class="headerlink" href="#com_6" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">begin_style = int(shp.api.Line.BeginArrowheadStyle)
+end_style = int(shp.api.Line.EndArrowheadStyle)
+shape_obj.begin_arrow_style = begin_style
+shape_obj.end_arrow_style = end_style
+</code></pre>
+<ul>
+<li><code>MsoArrowheadStyle</code> 列挙値を直接使用</li>
+</ul>
+<h4 id="ooxml_7">OOXML 実装<a class="headerlink" href="#ooxml_7" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">ARROW_HEAD_MAP: dict[str, int] = {
+    &quot;none&quot;: 1,
+    &quot;triangle&quot;: 2,
+    &quot;stealth&quot;: 3,
+    &quot;diamond&quot;: 4,
+    &quot;oval&quot;: 5,
+    &quot;arrow&quot;: 2,
+}
+
+def _get_arrow_styles(elem: Element) -&gt; tuple[int | None, int | None]:
+    ln = elem.find(&quot;.//a:ln&quot;, NS)
+    head_end = ln.find(&quot;a:headEnd&quot;, NS)
+    tail_end = ln.find(&quot;a:tailEnd&quot;, NS)
+    head_type = head_end.get(&quot;type&quot;, &quot;none&quot;)
+    begin_style = ARROW_HEAD_MAP.get(head_type, 1)
+    ...
+</code></pre>
+<ul>
+<li><code>&lt;a:ln&gt;&lt;a:headEnd type="..."&gt;</code> から取得</li>
+<li>OOXML 名を COM 互換の数値に変換</li>
+</ul>
+<hr />
+<h3 id="8-begin_id-end_id">8. コネクター接続情報 (begin_id, end_id)<a class="headerlink" href="#8-begin_id-end_id" title="Permanent link">&para;</a></h3>
+<h4 id="com_7">COM 実装<a class="headerlink" href="#com_7" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">connector = shp.api.ConnectorFormat
+begin_shape = connector.BeginConnectedShape
+if begin_shape is not None:
+    begin_name = getattr(begin_shape, &quot;Name&quot;, None)
+# 後で名前から ID に変換
+shape_obj.begin_id = name_to_id.get(begin_name)
+</code></pre>
+<ul>
+<li><code>ConnectorFormat.BeginConnectedShape</code> / <code>EndConnectedShape</code> を使用</li>
+<li>接続先図形の名前を取得し、ID マッピングで変換</li>
+</ul>
+<h4 id="ooxml_8">OOXML 実装<a class="headerlink" href="#ooxml_8" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">def _get_connector_endpoints(elem: Element) -&gt; tuple[str | None, str | None]:
+    cnv_cxn_sp_pr = elem.find(&quot;xdr:nvCxnSpPr/xdr:cNvCxnSpPr&quot;, NS)
+    st_cxn = cnv_cxn_sp_pr.find(&quot;a:stCxn&quot;, NS)
+    end_cxn = cnv_cxn_sp_pr.find(&quot;a:endCxn&quot;, NS)
+    start_id = st_cxn.get(&quot;id&quot;) if st_cxn is not None else None
+    end_id = end_cxn.get(&quot;id&quot;) if end_cxn is not None else None
+    return (start_id, end_id)
+
+# Second pass: resolve connector endpoints
+for result in parse_results:
+    if result.is_connector:
+        if result.start_cxn_id and result.start_cxn_id in excel_id_to_node_id:
+            result.shape.begin_id = excel_id_to_node_id[result.start_cxn_id]
+</code></pre>
+<ul>
+<li><code>&lt;a:stCxn id="..."&gt;</code> / <code>&lt;a:endCxn id="..."&gt;</code> から Excel ID を取得</li>
+<li>Excel ID → Node ID マッピングで変換</li>
+</ul>
+<hr />
+<h3 id="9-rotation">9. 回転 (rotation)<a class="headerlink" href="#9-rotation" title="Permanent link">&para;</a></h3>
+<h4 id="com_8">COM 実装<a class="headerlink" href="#com_8" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">rot = float(shp.api.Rotation)
+if abs(rot) &gt; 1e-6:
+    shape_obj.rotation = rot
+</code></pre>
+<h4 id="ooxml_9">OOXML 実装<a class="headerlink" href="#ooxml_9" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">def _get_rotation(elem: Element) -&gt; float | None:
+    xfrm = elem.find(&quot;.//a:xfrm&quot;, NS)
+    rot_str = xfrm.get(&quot;rot&quot;)
+    # OOXML rotation is in 1/60000 of a degree
+    rot_emu = int(rot_str)
+    rot_deg = rot_emu / 60000.0
+    return rot_deg if abs(rot_deg) &gt;= 1e-6 else None
+</code></pre>
+<ul>
+<li>OOXML は 1/60000 度単位で格納</li>
+<li>度に変換して返却</li>
+</ul>
+<hr />
+<h3 id="10">10. グループ図形のフラット化<a class="headerlink" href="#10" title="Permanent link">&para;</a></h3>
+<h4 id="com_9">COM 実装<a class="headerlink" href="#com_9" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">def iter_shapes_recursive(shp: xw.Shape) -&gt; Iterator[xw.Shape]:
+    yield shp
+    if shp.api.Type == 6:  # Group
+        items = shp.api.GroupItems
+        for i in range(1, items.Count + 1):
+            inner = items.Item(i)
+            xl_shape = shp.parent.shapes[inner.Name]
+            yield from iter_shapes_recursive(xl_shape)
+</code></pre>
+<h4 id="ooxml_10">OOXML 実装<a class="headerlink" href="#ooxml_10" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">def _parse_group_shapes(grp_sp: Element, mode: str) -&gt; list[_ShapeParseResult]:
+    results: list[_ShapeParseResult] = []
+    for sp in grp_sp.findall(&quot;xdr:sp&quot;, NS):
+        result = _parse_shape_element(sp, mode, is_cxn_sp=False)
+        if result is not None:
+            results.append(result)
+    for cxn_sp in grp_sp.findall(&quot;xdr:cxnSp&quot;, NS):
+        result = _parse_shape_element(cxn_sp, mode, is_cxn_sp=True)
+        if result is not None:
+            results.append(result)
+    # Recursively parse nested groups
+    for nested_grp in grp_sp.findall(&quot;xdr:grpSp&quot;, NS):
+        results.extend(_parse_group_shapes(nested_grp, mode))
+    return results
+</code></pre>
+<ul>
+<li>両実装とも再帰的にグループ内の図形を展開</li>
+<li>ネストされたグループも対応</li>
+</ul>
+<hr />
+<h3 id="11">11. 出力モードフィルタリング<a class="headerlink" href="#11" title="Permanent link">&para;</a></h3>
+<h4 id="com_10">COM 実装<a class="headerlink" href="#com_10" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">def _should_include_shape(
+    text: str, shape_type_num: int | None, ..., output_mode: str = &quot;standard&quot;
+) -&gt; bool:
+    if output_mode == &quot;light&quot;:
+        return False
+    is_relationship = (shape_type_num in (3, 9) or 
+                       &quot;Arrow&quot; in autoshape_type_str or ...)
+    if output_mode == &quot;standard&quot;:
+        return bool(text) or is_relationship
+    return True  # verbose
+</code></pre>
+<h4 id="ooxml_11">OOXML 実装<a class="headerlink" href="#ooxml_11" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">def _should_include_shape(text: str, type_label: str, is_connector: bool, mode: str) -&gt; bool:
+    if mode == &quot;light&quot;:
+        return False
+    if mode == &quot;verbose&quot;:
+        return True
+    # standard mode
+    if text:
+        return True
+    if is_connector:
+        return True
+    if type_label and &quot;Arrow&quot; in type_label:
+        return True
+    return False
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>モード</th>
+<th>出力内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>light</td>
+<td>Shape 抽出をスキップ</td>
+</tr>
+<tr>
+<td>standard</td>
+<td>テキストあり or コネクター/矢印</td>
+</tr>
+<tr>
+<td>verbose</td>
+<td>全ての Shape</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="chart">Chart 抽出機能<a class="headerlink" href="#chart" title="Permanent link">&para;</a></h2>
+<h3 id="1-chart_type">1. チャート種別 (chart_type)<a class="headerlink" href="#1-chart_type" title="Permanent link">&para;</a></h3>
+<h4 id="com_11">COM 実装<a class="headerlink" href="#com_11" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">chart_com = sheet.api.ChartObjects(ch.name).Chart
+chart_type_num = chart_com.ChartType
+chart_type_label = XL_CHART_TYPE_MAP.get(chart_type_num, f&quot;unknown_{chart_type_num}&quot;)
+</code></pre>
+<ul>
+<li><code>XlChartType</code> 列挙値を使用</li>
+</ul>
+<h4 id="ooxml_12">OOXML 実装<a class="headerlink" href="#ooxml_12" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">CHART_TYPE_MAP = {
+    &quot;lineChart&quot;: &quot;Line&quot;,
+    &quot;barChart&quot;: &quot;Bar&quot;,
+    &quot;pieChart&quot;: &quot;Pie&quot;,
+    ...
+}
+
+def _get_chart_type(plot_area: Element) -&gt; str:
+    for tag, type_name in CHART_TYPE_MAP.items():
+        if plot_area.find(f&quot;c:{tag}&quot;, NS) is not None:
+            return type_name
+    return &quot;unknown&quot;
+</code></pre>
+<ul>
+<li><code>&lt;c:plotArea&gt;</code> 内のチャート要素タグで判定</li>
+</ul>
+<hr />
+<h3 id="2-title">2. タイトル (title)<a class="headerlink" href="#2-title" title="Permanent link">&para;</a></h3>
+<h4 id="com_12">COM 実装<a class="headerlink" href="#com_12" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">title = chart_com.ChartTitle.Text if chart_com.HasTitle else None
+</code></pre>
+<h4 id="ooxml_13">OOXML 実装<a class="headerlink" href="#ooxml_13" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">def _get_chart_title(chart_elem: Element) -&gt; str | None:
+    title_elem = chart_elem.find(&quot;.//c:title&quot;, NS)
+    # Try rich text first
+    for t_elem in title_elem.findall(&quot;.//a:t&quot;, NS):
+        if t_elem.text:
+            return t_elem.text.strip()
+    # Try string reference
+    str_ref = title_elem.find(&quot;.//c:strRef/c:strCache/c:pt/c:v&quot;, NS)
+    if str_ref is not None and str_ref.text:
+        return str_ref.text.strip()
+    return None
+</code></pre>
+<ul>
+<li>リッチテキストまたはセル参照からタイトルを取得</li>
+</ul>
+<hr />
+<h3 id="3-y-y_axis_title-y_axis_range">3. Y軸情報 (y_axis_title, y_axis_range)<a class="headerlink" href="#3-y-y_axis_title-y_axis_range" title="Permanent link">&para;</a></h3>
+<h4 id="com_13">COM 実装<a class="headerlink" href="#com_13" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">y_axis = chart_com.Axes(2, 1)  # xlValue, xlPrimary
+if y_axis.HasTitle:
+    y_axis_title = y_axis.AxisTitle.Text
+y_axis_range = [y_axis.MinimumScale, y_axis.MaximumScale]
+</code></pre>
+<h4 id="ooxml_14">OOXML 実装<a class="headerlink" href="#ooxml_14" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">def _get_axis_title(plot_area: Element, axis_type: str) -&gt; str:
+    axis = plot_area.find(f&quot;c:{axis_type}&quot;, NS)
+    title = axis.find(&quot;c:title&quot;, NS)
+    for t_elem in title.findall(&quot;.//a:t&quot;, NS):
+        if t_elem.text:
+            return t_elem.text.strip()
+    return &quot;&quot;
+
+def _get_axis_range(plot_area: Element, axis_type: str) -&gt; list[float]:
+    axis = plot_area.find(f&quot;c:{axis_type}&quot;, NS)
+    scaling = axis.find(&quot;c:scaling&quot;, NS)
+    min_elem = scaling.find(&quot;c:min&quot;, NS)
+    max_elem = scaling.find(&quot;c:max&quot;, NS)
+    ...
+</code></pre>
+<ul>
+<li><code>&lt;c:valAx&gt;</code> 要素から軸情報を取得</li>
+</ul>
+<hr />
+<h3 id="4-series">4. 系列データ (series)<a class="headerlink" href="#4-series" title="Permanent link">&para;</a></h3>
+<h4 id="com_14">COM 実装<a class="headerlink" href="#com_14" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">for s in chart_com.SeriesCollection():
+    parsed = parse_series_formula(getattr(s, &quot;Formula&quot;, &quot;&quot;))
+    # =SERIES(name, x_range, y_range, plot_order) をパース
+    series_list.append(ChartSeries(
+        name=s.Name,
+        name_range=parsed[&quot;name_range&quot;],
+        x_range=parsed[&quot;x_range&quot;],
+        y_range=parsed[&quot;y_range&quot;],
+    ))
+</code></pre>
+<ul>
+<li><code>=SERIES(...)</code> 数式をパースして範囲を抽出</li>
+</ul>
+<h4 id="ooxml_15">OOXML 実装<a class="headerlink" href="#ooxml_15" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">def _get_series_data(ser_elem: Element) -&gt; ChartSeries:
+    name, name_range = _extract_series_name(ser_elem)
+    x_range = _extract_range_from_ref(ser_elem.find(&quot;c:cat&quot;, NS), [&quot;c:strRef&quot;, &quot;c:numRef&quot;])
+    y_range = _extract_range_from_ref(ser_elem.find(&quot;c:val&quot;, NS), [&quot;c:numRef&quot;])
+    return ChartSeries(name=name, name_range=name_range, x_range=x_range, y_range=y_range)
+</code></pre>
+<ul>
+<li><code>&lt;c:ser&gt;</code> 要素から直接範囲参照を取得</li>
+</ul>
+<hr />
+<h2 id="_3">実装方法の比較<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<h3 id="_4">データアクセス方式<a class="headerlink" href="#_4" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>COM</th>
+<th>OOXML</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>アクセス方式</td>
+<td>オブジェクトモデル</td>
+<td>XML パース</td>
+</tr>
+<tr>
+<td>データソース</td>
+<td>Excel プロセス</td>
+<td>ZIP 内 XML ファイル</td>
+</tr>
+<tr>
+<td>座標単位</td>
+<td>ポイント</td>
+<td>EMU</td>
+</tr>
+<tr>
+<td>型情報</td>
+<td>列挙値 (int)</td>
+<td>文字列属性</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ooxml_16">ファイル構造 (OOXML)<a class="headerlink" href="#ooxml_16" title="Permanent link">&para;</a></h3>
+<pre><code>sample.xlsx (ZIP)
+├── xl/
+│   ├── workbook.xml           # ブック情報
+│   ├── worksheets/
+│   │   └── sheet1.xml         # シートデータ
+│   ├── drawings/
+│   │   └── drawing1.xml       # 図形定義 (DrawingML)
+│   ├── charts/
+│   │   └── chart1.xml         # チャート定義 (ChartML)
+│   └── _rels/
+│       └── workbook.xml.rels  # リレーションシップ
+└── [Content_Types].xml
+</code></pre>
+<h3 id="xml">XML 名前空間<a class="headerlink" href="#xml" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># DrawingML
+NS = {
+    &quot;xdr&quot;: &quot;http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing&quot;,
+    &quot;a&quot;: &quot;http://schemas.openxmlformats.org/drawingml/2006/main&quot;,
+}
+
+# ChartML
+NS = {
+    &quot;c&quot;: &quot;http://schemas.openxmlformats.org/drawingml/2006/chart&quot;,
+    &quot;a&quot;: &quot;http://schemas.openxmlformats.org/drawingml/2006/main&quot;,
+}
+</code></pre>
+<hr />
+<h2 id="_5">機能対応表<a class="headerlink" href="#_5" title="Permanent link">&para;</a></h2>
+<h3 id="shape_1">Shape 機能<a class="headerlink" href="#shape_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>機能</th>
+<th style="text-align: center;">COM</th>
+<th style="text-align: center;">OOXML</th>
+<th>備考</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>位置 (l, t)</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td></td>
+</tr>
+<tr>
+<td>サイズ (w, h)</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td>verbose/Group のみ</td>
+</tr>
+<tr>
+<td>テキスト</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td></td>
+</tr>
+<tr>
+<td>種別 (type)</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td>マッピングテーブルで互換</td>
+</tr>
+<tr>
+<td>ID 割り当て</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td></td>
+</tr>
+<tr>
+<td>方向 (direction)</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td>コネクター/線のみ</td>
+</tr>
+<tr>
+<td>矢印スタイル</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td></td>
+</tr>
+<tr>
+<td>コネクター接続 (begin_id, end_id)</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td></td>
+</tr>
+<tr>
+<td>回転 (rotation)</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td></td>
+</tr>
+<tr>
+<td>グループフラット化</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td>再帰的に展開</td>
+</tr>
+<tr>
+<td>モードフィルタリング</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td>light/standard/verbose</td>
+</tr>
+</tbody>
+</table>
+<h3 id="chart_1">Chart 機能<a class="headerlink" href="#chart_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>機能</th>
+<th style="text-align: center;">COM</th>
+<th style="text-align: center;">OOXML</th>
+<th>備考</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>位置 (l, t)</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td></td>
+</tr>
+<tr>
+<td>サイズ (w, h)</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td>verbose のみ</td>
+</tr>
+<tr>
+<td>チャート種別</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td></td>
+</tr>
+<tr>
+<td>タイトル</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td></td>
+</tr>
+<tr>
+<td>Y軸タイトル</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td></td>
+</tr>
+<tr>
+<td>Y軸範囲</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td></td>
+</tr>
+<tr>
+<td>系列名</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td></td>
+</tr>
+<tr>
+<td>系列範囲 (x_range, y_range)</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="ooxml_17">OOXML で実装できない/困難な機能<a class="headerlink" href="#ooxml_17" title="Permanent link">&para;</a></h2>
+<p>OOXML (Office Open XML) はファイルフォーマット仕様であり、Excel アプリケーションの動的な計算機能にはアクセスできません。以下に、OOXML で実装が不可能または困難な機能とその技術的理由を説明します。</p>
+<h3 id="1-y">1. 自動計算された Y 軸範囲<a class="headerlink" href="#1-y" title="Permanent link">&para;</a></h3>
+<h4 id="_6">機能概要<a class="headerlink" href="#_6" title="Permanent link">&para;</a></h4>
+<p>チャートの Y 軸範囲（最小値・最大値）は、Excel が系列データに基づいて自動計算する場合があります。</p>
+<h4 id="com_15">COM 実装<a class="headerlink" href="#com_15" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">y_axis = chart_com.Axes(2, 1)  # xlValue, xlPrimary
+y_axis_range = [y_axis.MinimumScale, y_axis.MaximumScale]
+</code></pre>
+<ul>
+<li>Excel プロセスが計算した実際の値を取得</li>
+</ul>
+<h4 id="ooxml_18">OOXML の制限<a class="headerlink" href="#ooxml_18" title="Permanent link">&para;</a></h4>
+<pre><code class="language-xml">&lt;!-- 自動スケールの場合、min/max 要素が存在しない --&gt;
+&lt;c:scaling&gt;
+  &lt;c:orientation val=&quot;minMax&quot;/&gt;
+  &lt;!-- &lt;c:min val=&quot;...&quot;/&gt; が省略される --&gt;
+  &lt;!-- &lt;c:max val=&quot;...&quot;/&gt; が省略される --&gt;
+&lt;/c:scaling&gt;
+</code></pre>
+<h4 id="_7">実装不可能な理由<a class="headerlink" href="#_7" title="Permanent link">&para;</a></h4>
+<ul>
+<li>OOXML ファイルには「自動」という設定のみが保存される</li>
+<li>実際の min/max 値は Excel が描画時に動的に計算する</li>
+<li>計算には系列データの解析、適切な目盛り間隔の決定など複雑なロジックが必要</li>
+<li>Excel の自動スケーリングアルゴリズムは非公開</li>
+</ul>
+<h4 id="_8">現在の動作<a class="headerlink" href="#_8" title="Permanent link">&para;</a></h4>
+<ul>
+<li>OOXML: <code>&lt;c:min&gt;</code> / <code>&lt;c:max&gt;</code> 要素が存在する場合のみ値を返す</li>
+<li>自動スケールの場合は空リスト <code>[]</code> を返す</li>
+</ul>
+<hr />
+<h3 id="2">2. セル参照から解決されたタイトル/ラベル<a class="headerlink" href="#2" title="Permanent link">&para;</a></h3>
+<h4 id="_9">機能概要<a class="headerlink" href="#_9" title="Permanent link">&para;</a></h4>
+<p>チャートのタイトルや軸ラベルは、セル参照（例: <code>=Sheet1!$A$1</code>）で指定できます。</p>
+<h4 id="com_16">COM 実装<a class="headerlink" href="#com_16" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">title = chart_com.ChartTitle.Text  # 解決済みの文字列
+</code></pre>
+<ul>
+<li>Excel が参照を解決し、実際のテキストを返す</li>
+</ul>
+<h4 id="ooxml_19">OOXML の制限<a class="headerlink" href="#ooxml_19" title="Permanent link">&para;</a></h4>
+<pre><code class="language-xml">&lt;c:title&gt;
+  &lt;c:tx&gt;
+    &lt;c:strRef&gt;
+      &lt;c:f&gt;Sheet1!$A$1&lt;/c:f&gt;
+      &lt;!-- キャッシュがない場合、値が不明 --&gt;
+    &lt;/c:strRef&gt;
+  &lt;/c:tx&gt;
+&lt;/c:title&gt;
+</code></pre>
+<h4 id="_10">実装困難な理由<a class="headerlink" href="#_10" title="Permanent link">&para;</a></h4>
+<ul>
+<li>OOXML にはセル参照の数式のみが保存される</li>
+<li>参照先のセル値を取得するには、シートデータ（<code>xl/worksheets/sheet*.xml</code>）をパースする必要がある</li>
+<li>数式が複雑な場合（例: <code>=CONCATENATE(A1, B1)</code>）、数式エンジンが必要</li>
+<li>現在の実装では <code>&lt;c:strCache&gt;</code> のキャッシュ値を使用するが、キャッシュが古い可能性がある</li>
+</ul>
+<h4 id="_11">現在の動作<a class="headerlink" href="#_11" title="Permanent link">&para;</a></h4>
+<ul>
+<li>OOXML: キャッシュ値 <code>&lt;c:strCache&gt;&lt;c:pt&gt;&lt;c:v&gt;</code> を優先的に使用</li>
+<li>キャッシュがない場合は <code>None</code> を返す</li>
+</ul>
+<hr />
+<h3 id="3_1">3. 動的に計算されるフォント/スタイル情報<a class="headerlink" href="#3_1" title="Permanent link">&para;</a></h3>
+<h4 id="_12">機能概要<a class="headerlink" href="#_12" title="Permanent link">&para;</a></h4>
+<p>図形のテキストには、テーマやスタイルに基づいて動的に決定されるフォント情報があります。</p>
+<h4 id="com_17">COM 実装<a class="headerlink" href="#com_17" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">font = shp.api.TextFrame.Characters.Font
+font_name = font.Name  # 解決済みのフォント名
+font_size = font.Size  # 解決済みのサイズ
+</code></pre>
+<h4 id="ooxml_20">OOXML の制限<a class="headerlink" href="#ooxml_20" title="Permanent link">&para;</a></h4>
+<pre><code class="language-xml">&lt;a:rPr&gt;
+  &lt;a:latin typeface=&quot;+mn-lt&quot;/&gt;  &lt;!-- テーマフォント参照 --&gt;
+&lt;/a:rPr&gt;
+</code></pre>
+<h4 id="_13">実装困難な理由<a class="headerlink" href="#_13" title="Permanent link">&para;</a></h4>
+<ul>
+<li><code>+mn-lt</code> はテーマの「本文フォント（ラテン文字）」への参照</li>
+<li>実際のフォント名を解決するには <code>xl/theme/theme1.xml</code> のパースが必要</li>
+<li>テーマの継承、オーバーライド、ロケール依存の処理が複雑</li>
+<li>ExStruct の現在のスコープ外（テキスト内容のみ抽出）</li>
+</ul>
+<h4 id="_14">現在の動作<a class="headerlink" href="#_14" title="Permanent link">&para;</a></h4>
+<ul>
+<li>OOXML: フォント情報は抽出しない（テキスト内容のみ）</li>
+</ul>
+<hr />
+<h3 id="4-ole">4. OLE オブジェクト / 埋め込みオブジェクト<a class="headerlink" href="#4-ole" title="Permanent link">&para;</a></h3>
+<h4 id="_15">機能概要<a class="headerlink" href="#_15" title="Permanent link">&para;</a></h4>
+<p>Excel には他のアプリケーション（Word、PowerPoint、PDF など）のオブジェクトを埋め込むことができます。</p>
+<h4 id="com_18">COM 実装<a class="headerlink" href="#com_18" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">if shp.api.Type == 12:  # msoOLEControlObject
+    ole = shp.api.OLEFormat
+    # OLE オブジェクトにアクセス可能
+</code></pre>
+<h4 id="ooxml_21">OOXML の制限<a class="headerlink" href="#ooxml_21" title="Permanent link">&para;</a></h4>
+<pre><code class="language-xml">&lt;mc:AlternateContent&gt;
+  &lt;mc:Choice Requires=&quot;v&quot;&gt;
+    &lt;!-- VML 形式の OLE オブジェクト --&gt;
+  &lt;/mc:Choice&gt;
+&lt;/mc:AlternateContent&gt;
+</code></pre>
+<h4 id="_16">実装不可能な理由<a class="headerlink" href="#_16" title="Permanent link">&para;</a></h4>
+<ul>
+<li>OLE オブジェクトはバイナリ形式で埋め込まれる</li>
+<li>オブジェクトの内容を解釈するには、各アプリケーション固有のパーサーが必要</li>
+<li>セキュリティ上の理由から、OLE オブジェクトの自動実行は危険</li>
+<li>ExStruct のスコープ外（Shape/Chart のみ対象）</li>
+</ul>
+<h4 id="_17">現在の動作<a class="headerlink" href="#_17" title="Permanent link">&para;</a></h4>
+<ul>
+<li>OOXML: OLE オブジェクトはスキップ（抽出対象外）</li>
+</ul>
+<hr />
+<h3 id="5-vba">5. マクロ / VBA コード<a class="headerlink" href="#5-vba" title="Permanent link">&para;</a></h3>
+<h4 id="_18">機能概要<a class="headerlink" href="#_18" title="Permanent link">&para;</a></h4>
+<p><code>.xlsm</code> ファイルには VBA マクロが含まれる場合があります。</p>
+<h4 id="com_19">COM 実装<a class="headerlink" href="#com_19" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python"># VBA プロジェクトにアクセス可能（セキュリティ設定による）
+vba = workbook.api.VBProject
+</code></pre>
+<h4 id="ooxml_22">OOXML の制限<a class="headerlink" href="#ooxml_22" title="Permanent link">&para;</a></h4>
+<ul>
+<li>VBA コードは <code>xl/vbaProject.bin</code> にバイナリ形式で保存</li>
+<li>OOXML 標準の一部ではない（Microsoft 拡張）</li>
+</ul>
+<h4 id="_19">実装不可能な理由<a class="headerlink" href="#_19" title="Permanent link">&para;</a></h4>
+<ul>
+<li>VBA バイナリ形式は非公開仕様</li>
+<li>マクロの実行には VBA ランタイムが必要</li>
+<li>セキュリティリスクが高い</li>
+<li>ExStruct のスコープ外</li>
+</ul>
+<h4 id="_20">現在の動作<a class="headerlink" href="#_20" title="Permanent link">&para;</a></h4>
+<ul>
+<li>OOXML: マクロは無視（データ抽出のみ）</li>
+</ul>
+<hr />
+<h3 id="6">6. 条件付き書式の評価結果<a class="headerlink" href="#6" title="Permanent link">&para;</a></h3>
+<h4 id="_21">機能概要<a class="headerlink" href="#_21" title="Permanent link">&para;</a></h4>
+<p>セルや図形には条件付き書式が適用され、データに応じて色やスタイルが変化します。</p>
+<h4 id="com_20">COM 実装<a class="headerlink" href="#com_20" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python"># 現在の表示状態を取得
+interior_color = cell.api.DisplayFormat.Interior.Color
+</code></pre>
+<h4 id="ooxml_23">OOXML の制限<a class="headerlink" href="#ooxml_23" title="Permanent link">&para;</a></h4>
+<pre><code class="language-xml">&lt;conditionalFormatting&gt;
+  &lt;cfRule type=&quot;cellIs&quot; operator=&quot;greaterThan&quot;&gt;
+    &lt;formula&gt;100&lt;/formula&gt;
+  &lt;/cfRule&gt;
+&lt;/conditionalFormatting&gt;
+</code></pre>
+<h4 id="_22">実装不可能な理由<a class="headerlink" href="#_22" title="Permanent link">&para;</a></h4>
+<ul>
+<li>OOXML にはルール定義のみが保存される</li>
+<li>実際の評価結果は Excel が動的に計算</li>
+<li>条件式の評価には数式エンジンが必要</li>
+<li>ExStruct のスコープ外（書式情報は抽出対象外）</li>
+</ul>
+<h4 id="_23">現在の動作<a class="headerlink" href="#_23" title="Permanent link">&para;</a></h4>
+<ul>
+<li>OOXML: 条件付き書式は無視</li>
+</ul>
+<hr />
+<h3 id="7">7. 数式の計算結果（キャッシュなしの場合）<a class="headerlink" href="#7" title="Permanent link">&para;</a></h3>
+<h4 id="_24">機能概要<a class="headerlink" href="#_24" title="Permanent link">&para;</a></h4>
+<p>セルに数式が含まれる場合、計算結果が必要になることがあります。</p>
+<h4 id="com_21">COM 実装<a class="headerlink" href="#com_21" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">value = cell.value  # 計算済みの値
+formula = cell.formula  # 数式
+</code></pre>
+<h4 id="ooxml_24">OOXML の制限<a class="headerlink" href="#ooxml_24" title="Permanent link">&para;</a></h4>
+<pre><code class="language-xml">&lt;c:v&gt;123&lt;/c:v&gt;  &lt;!-- キャッシュ値 --&gt;
+&lt;c:f&gt;SUM(A1:A10)&lt;/c:f&gt;  &lt;!-- 数式 --&gt;
+</code></pre>
+<h4 id="_25">実装困難な理由<a class="headerlink" href="#_25" title="Permanent link">&para;</a></h4>
+<ul>
+<li>OOXML にはキャッシュ値が保存されるが、ファイル保存後に元データが変更された場合は古い</li>
+<li>数式を再計算するには完全な数式エンジンが必要</li>
+<li>Excel の数式は 400 以上の関数をサポート</li>
+<li>外部参照、名前付き範囲、配列数式など複雑な機能がある</li>
+</ul>
+<h4 id="_26">現在の動作<a class="headerlink" href="#_26" title="Permanent link">&para;</a></h4>
+<ul>
+<li>OOXML: キャッシュ値を使用（存在する場合）</li>
+<li>キャッシュがない場合は数式文字列を返す</li>
+</ul>
+<hr />
+<h3 id="8">8. 複合チャートの詳細な種別判定<a class="headerlink" href="#8" title="Permanent link">&para;</a></h3>
+<h4 id="_27">機能概要<a class="headerlink" href="#_27" title="Permanent link">&para;</a></h4>
+<p>Excel では複数のチャート種別を組み合わせた複合チャートを作成できます。</p>
+<h4 id="com_22">COM 実装<a class="headerlink" href="#com_22" title="Permanent link">&para;</a></h4>
+<pre><code class="language-python">chart_type = chart_com.ChartType  # 主要なチャート種別
+# 各系列ごとの種別も取得可能
+for series in chart_com.SeriesCollection():
+    series_type = series.ChartType
+</code></pre>
+<h4 id="ooxml_25">OOXML の制限<a class="headerlink" href="#ooxml_25" title="Permanent link">&para;</a></h4>
+<pre><code class="language-xml">&lt;c:plotArea&gt;
+  &lt;c:barChart&gt;...&lt;/c:barChart&gt;
+  &lt;c:lineChart&gt;...&lt;/c:lineChart&gt;  &lt;!-- 複数のチャート要素 --&gt;
+&lt;/c:plotArea&gt;
+</code></pre>
+<h4 id="_28">実装困難な理由<a class="headerlink" href="#_28" title="Permanent link">&para;</a></h4>
+<ul>
+<li>OOXML では複数のチャート要素が並列に存在</li>
+<li>どれが「主要」かの判定ロジックが不明確</li>
+<li>COM は Excel の内部判定結果を返すが、そのアルゴリズムは非公開</li>
+</ul>
+<h4 id="_29">現在の動作<a class="headerlink" href="#_29" title="Permanent link">&para;</a></h4>
+<ul>
+<li>OOXML: 最初に見つかったチャート種別を返す</li>
+<li>複合チャートの場合、実際の主要種別と異なる可能性がある</li>
+</ul>
+<hr />
+<h2 id="_30">制限事項と注意点<a class="headerlink" href="#_30" title="Permanent link">&para;</a></h2>
+<h3 id="ooxml_26">OOXML 実装の制限（その他）<a class="headerlink" href="#ooxml_26" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>座標精度</strong></li>
+<li>EMU → ピクセル変換で若干の誤差が生じる可能性</li>
+<li>
+<p>COM は Excel 内部の正確な値を取得</p>
+</li>
+<li>
+<p><strong>図形種別マッピング</strong></p>
+</li>
+<li>全ての <code>MsoAutoShapeType</code> に対応するマッピングが必要</li>
+<li>
+<p>未知の種別は <code>AutoShape-{prst}</code> 形式で出力</p>
+</li>
+<li>
+<p><strong>チャート種別</strong></p>
+</li>
+<li>複合チャートの場合、最初に見つかった種別を返す</li>
+<li>COM は主要なチャート種別を返す</li>
+</ol>
+<h3 id="_31">使い分けの指針<a class="headerlink" href="#_31" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>環境</th>
+<th>推奨実装</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows + Excel</td>
+<td>COM</td>
+<td>高精度、全機能対応</td>
+</tr>
+<tr>
+<td>Windows (Excel なし)</td>
+<td>OOXML</td>
+<td>Excel 不要</td>
+</tr>
+<tr>
+<td>Linux / macOS</td>
+<td>OOXML</td>
+<td>唯一の選択肢</td>
+</tr>
+<tr>
+<td>CI/CD 環境</td>
+<td>OOXML</td>
+<td>ヘッドレス実行可能</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_32">フォールバック動作<a class="headerlink" href="#_32" title="Permanent link">&para;</a></h3>
+<p><code>integrate.py</code> では自動的にフォールバックが行われます：</p>
+<pre><code class="language-python"># COM が利用可能な場合
+if _is_com_available():
+    shapes = get_shapes_with_position(workbook, mode)
+    charts = get_charts(sheet, mode)
+# COM が利用不可の場合
+else:
+    shapes = get_shapes_ooxml(xlsx_path, mode)
+    charts = get_charts_ooxml(xlsx_path, mode)
+</code></pre>
+<hr />
+<h2 id="_33">参考資料<a class="headerlink" href="#_33" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="https://www.ecma-international.org/publications-and-standards/standards/ecma-376/">ECMA-376 Office Open XML File Formats</a></li>
+<li><a href="https://docs.microsoft.com/en-us/openspecs/office_standards/ms-odrawxml/">DrawingML Reference</a></li>
+<li><a href="https://docs.xlwings.org/">xlwings Documentation</a></li>
+<li><a href="https://docs.microsoft.com/en-us/office/vba/api/office.msoshapetype">MsoShapeType Enumeration</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
