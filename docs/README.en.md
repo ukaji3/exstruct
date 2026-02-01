@@ -1,6 +1,6 @@
 # ExStruct — Excel Structured Extraction Engine
 
-[![PyPI version](https://badge.fury.io/py/exstruct.svg)](https://pypi.org/project/exstruct/) [![PyPI Downloads](https://static.pepy.tech/personalized-badge/exstruct?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/exstruct) ![Licence: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue?style=flat-square) [![pytest](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml/badge.svg)](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/e081cb4f634e4175b259eb7c34f54f60)](https://app.codacy.com/gh/harumiWeb/exstruct/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) [![codecov](https://codecov.io/gh/harumiWeb/exstruct/graph/badge.svg?token=2XI1O8TTA9)](https://codecov.io/gh/harumiWeb/exstruct)
+[![PyPI version](https://badge.fury.io/py/exstruct.svg)](https://pypi.org/project/exstruct/) [![PyPI Downloads](https://static.pepy.tech/personalized-badge/exstruct?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/exstruct) ![Licence: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue?style=flat-square) [![pytest](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml/badge.svg)](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/e081cb4f634e4175b259eb7c34f54f60)](https://app.codacy.com/gh/harumiWeb/exstruct/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) [![codecov](https://codecov.io/gh/harumiWeb/exstruct/graph/badge.svg?token=2XI1O8TTA9)](https://codecov.io/gh/harumiWeb/exstruct) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/harumiWeb/exstruct)
 
 ![ExStruct Image](assets/icon.webp)
 
@@ -11,12 +11,22 @@ ExStruct reads Excel workbooks and outputs structured data (cells, table candida
 ## Features
 
 - **Excel → Structured JSON**: cells, shapes, charts, smartart, table candidates, print areas/views, and auto page-break areas per sheet.
-- **Output modes**: `light` (cells + table candidates + print areas; no COM, shapes/charts empty), `standard` (texted shapes + arrows, charts, smartart, merged cell ranges, print areas), `verbose` (all shapes with width/height, charts with size, merged cell ranges, print areas). Verbose also emits cell hyperlinks and `colors_map`. Size output is flag-controlled.
+- **Output modes**: `light` (cells + table candidates + print areas; no COM, shapes/charts empty), `standard` (texted shapes + arrows, charts, smartart, merged cell ranges, print areas), `verbose` (all shapes with width/height, charts with size, merged cell ranges, print areas). Verbose also emits cell hyperlinks, `colors_map`, and `formulas_map`. Size output is flag-controlled.
+- **Formula map extraction**: emits `formulas_map` (formula string -> cell coordinates) via openpyxl/COM; enabled by default in `verbose` or via `include_formulas_map`.
 - **Auto page-break export (COM only)**: capture Excel-computed auto page breaks and write per-area JSON/YAML/TOON when requested (CLI option appears only when COM is available).
 - **Formats**: JSON (compact by default, `--pretty` available), YAML, TOON (optional dependencies).
 - **Table detection tuning**: adjust heuristics at runtime via API.
 - **CLI rendering** (Excel required): optional PDF and per-sheet PNGs.
 - **Graceful fallback**: if Excel COM is unavailable, extraction falls back to cells + table candidates without crashing.
+
+## Benchmark
+
+![Benchmark Chart](../benchmark/public/plots/markdown_quality.png)
+
+This repository includes benchmark reports focused on RAG/LLM preprocessing of Excel documents.
+We track two perspectives: (1) core extraction accuracy and (2) reconstruction utility for downstream structure queries (RUB).
+See `benchmark/REPORT.md` for the working summary and `benchmark/public/REPORT.md` for the public bundle.
+Current results are based on n=12 cases and will be expanded.
 
 ## Installation
 
@@ -50,6 +60,30 @@ exstruct input.xlsx --pdf --image          # PDF and PNGs (Excel required)
 ```
 
 Auto page-break exports are available via API and CLI when Excel/COM is available; the CLI exposes `--auto-page-breaks-dir` only in COM-capable environments.
+
+## MCP Server (stdio)
+
+Install the MCP extras and run the stdio server:
+
+```bash
+pip install exstruct[mcp]
+exstruct-mcp --root C:\data --log-file C:\logs\exstruct-mcp.log --on-conflict rename
+```
+
+Available tools:
+
+- `exstruct_extract`
+- `exstruct_read_json_chunk`
+- `exstruct_validate_input`
+
+Notes:
+
+- Logs go to stderr (and optionally `--log-file`) to avoid contaminating stdio responses.
+- On Windows with Excel, standard/verbose can use COM for richer extraction. On non-Windows, COM is unavailable and extraction uses openpyxl-based fallbacks.
+
+MCP Setup Guide for Each AI Agent:
+
+[MCP Server](https://harumiweb.github.io/exstruct/mcp/)
 
 ## Quick Start (Python)
 
@@ -134,7 +168,7 @@ Use higher thresholds to reduce false positives; lower them if true tables are m
 
 - **light**: cells + table candidates (no COM needed).
 - **standard**: texted shapes + arrows, charts (COM if available), merged cell ranges, table candidates. Hyperlinks are off unless `include_cell_links=True`.
-- **verbose**: all shapes (with width/height), charts, merged cell ranges, table candidates, cell hyperlinks, and `colors_map`.
+- **verbose**: all shapes (with width/height), charts, merged cell ranges, table candidates, cell hyperlinks, `colors_map`, and `formulas_map`.
 
 ## Error Handling / Fallbacks
 
@@ -335,7 +369,6 @@ flowchart TD
     I --> J
 ```
 ````
-
 
 ## Example 2: General Application Form
 

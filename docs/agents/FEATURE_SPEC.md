@@ -4,43 +4,85 @@
 
 ---
 
-## セル結合データのコンテキスト量圧縮
+## MCPサーバー機能追加
 
-- 現状の `merged_cells` がコンテキスト量を非常に多く持っているため、データ構造の見直しで圧縮する
-- `rows` と `merged_cells` でセル値を重複して持っているため、出力時に `rows` 側の結合セル値を落とす運用を検討する
+### 目的
 
-### 仕様（v1.1 予定）
+- MCP クライアント（Codex / Claude / VS Code Copilot / Gemini CLI 等）から ExStruct を「ツール」として安全に呼び出せるようにする
+- 推論はエージェント側で行い、MCP は制御面（実行・結果参照）に徹する
 
-- `merged_cells` を **schema + items** 形式へ変更して冗長なキーを削減する
-- 結合セルの値は `merged_cells` に集約し、`rows` 側に保持するかはフラグで切替可能にする
+### スコープ（MVP）
 
-#### merged_cells の新フォーマット（例）
+- stdio トランスポートの MCP サーバー
+- ツール: `exstruct_extract`
+- 抽出結果は **必ずファイル出力**（MCP 応答はパス + 軽いメタ情報）
+- 安全なパス制約（allowlist / deny glob）
 
-```json
-{
-  "merged_cells": {
-    "schema": ["r1", "c1", "r2", "c2", "v"],
-    "items": [
-      [1, 0, 2, 1, "A1-B2 merged"],
-      [3, 4, 3, 6, "merged value"]
-    ]
-  }
-}
+### 前提・制約
+
+- 1MB 程度の Excel を想定
+- 処理時間は長くなっても高品質重視
+- Windows 以外は COM なしの簡易読み取り（ライブラリのスタンスに準拠）
+
+### 出力 JSON の仕様
+
+- `mode` で出力粒度を選択: `light` / `standard` / `verbose`
+- 互換方針: 追加は OK、破壊的変更は NG
+
+#### `light`
+
+- 軽量メタデータ中心（シート名、件数、主要範囲など）
+- 大きなセル本文や詳細構造は含めない
+
+#### `standard`
+
+- 通常運用向けの基本情報
+- セル情報は要約・圧縮前提
+
+#### `verbose`
+
+- 詳細な構造情報を含む
+- 大容量になりやすいため、ファイル出力＋チャンク取得前提
+
+### MCP ツール仕様（案）
+
+#### `exstruct_extract`
+
+- 入力: `xlsx_path`, `mode`, `format`, `out_dir?`, `out_name?`, `options?`
+- 出力: `out_path`, `workbook_meta`, `warnings`, `engine`
+- 実装: 内部 API を優先、フォールバックで CLI サブプロセス
+
+#### `exstruct_read_json_chunk`（実用化フェーズ）
+
+- 入力: `out_path`, `sheet?`, `max_bytes?`, `filter?`, `cursor?`
+- 出力: `chunk`, `next_cursor?`
+- 方針: 返却サイズを抑制し、段階的に取得できること
+
+#### `exstruct_validate_input`（実用化フェーズ）
+
+- 入力: `xlsx_path`
+- 出力: `is_readable`, `warnings`, `errors`
+
+### サーバー設計
+
+- stdio 優先
+- ログは stderr / ファイル（stdio を汚さない）
+- `--root` によりアクセス範囲を固定
+- `--deny-glob` により防御的に除外
+- `--on-conflict` で出力衝突方針を指定（overwrite / skip / rename）
+
+### ディレクトリ構成（案）
+
 ```
-
-- `r1/c1/r2/c2` は従来同様の座標（row: 1-based, col: 0-based）
-- `v` は結合セルの代表値（セル値がない場合でも `" "` を出力する）
-
-#### rows 側の結合セル値の扱い
-
-- 新しいフラグ `include_merged_values_in_rows: bool` を導入
-- `True` の場合は互換モード（従来どおり `rows` に結合セル値を残す）
-- `False` の場合は `rows` から結合セル値を排除し、`merged_cells` のみで値を保持
-
-#### 互換性
-
-- デフォルトは `True` として破壊的変更を回避
-- 将来的にデフォルト切替の可能性があるため、出力仕様に明記する
+src/exstruct/
+  mcp/
+    __init__.py
+    server.py          # MCP server entrypoint (stdio)
+    tools.py           # tool definitions + handlers
+    io.py              # path validation, safe read/write
+    extract_runner.py  # internal API call or subprocess fallback
+    chunk_reader.py    # JSON partial read / pointer / sheet filters
+```
 
 ---
 

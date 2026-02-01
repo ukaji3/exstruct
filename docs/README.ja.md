@@ -1,6 +1,6 @@
 # ExStruct — Excel 構造化抽出エンジン
 
-[![PyPI version](https://badge.fury.io/py/exstruct.svg)](https://pypi.org/project/exstruct/) [![PyPI Downloads](https://static.pepy.tech/personalized-badge/exstruct?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/exstruct) ![Licence: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue?style=flat-square) [![pytest](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml/badge.svg)](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/e081cb4f634e4175b259eb7c34f54f60)](https://app.codacy.com/gh/harumiWeb/exstruct/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) [![codecov](https://codecov.io/gh/harumiWeb/exstruct/graph/badge.svg?token=2XI1O8TTA9)](https://codecov.io/gh/harumiWeb/exstruct)
+[![PyPI version](https://badge.fury.io/py/exstruct.svg)](https://pypi.org/project/exstruct/) [![PyPI Downloads](https://static.pepy.tech/personalized-badge/exstruct?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/exstruct) ![Licence: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue?style=flat-square) [![pytest](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml/badge.svg)](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/e081cb4f634e4175b259eb7c34f54f60)](https://app.codacy.com/gh/harumiWeb/exstruct/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) [![codecov](https://codecov.io/gh/harumiWeb/exstruct/graph/badge.svg?token=2XI1O8TTA9)](https://codecov.io/gh/harumiWeb/exstruct) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/harumiWeb/exstruct)
 
 ![ExStruct Image](/assets/icon.webp)
 
@@ -9,12 +9,22 @@ ExStruct は Excel ワークブックを読み取り、構造化データ（セ�
 ## 主な特徴
 
 - **Excel → 構造化 JSON**: セル、図形、チャート、SmartArt、テーブル候補、セル結合範囲、印刷範囲/自動改ページ範囲（PrintArea/PrintAreaView）をシート単位・範囲単位で出力。
-- **出力モード**: `light`（セル＋テーブル候補のみ）、`standard`（テキスト付き図形＋矢印、チャート、SmartArt、セル結合範囲）、`verbose`（全図形を幅高さ付きで出力、セルのハイパーリンクも出力）。
+- **出力モード**: `light`（セル＋テーブル候補のみ）、`standard`（テキスト付き図形＋矢印、チャート、SmartArt、セル結合範囲）、`verbose`（全図形を幅高さ付きで出力、セルのハイパーリンク/`colors_map`/`formulas_map`も出力）。
+- **数式取得**: `formulas_map`（数式文字列 → セル座標）を openpyxl/COM で取得。`verbose` 既定、`include_formulas_map` で制御。
 - **フォーマット**: JSON（デフォルトはコンパクト、`--pretty` で整形）、YAML、TOON（任意依存）。
 - **テーブル検出のチューニング**: API でヒューリスティックを動的に変更可能。
 - **ハイパーリンク抽出**: `verbose` モード（または `include_cell_links=True` 指定）でセルのリンクを `links` に出力。
 - **CLI レンダリング**（Excel 必須）: PDF とシート画像を生成可能。
 - **安全なフォールバック**: Excel COM 不在でもプロセスは落ちず、セル＋テーブル候補＋印刷範囲に切り替え（図形・チャートは空）。
+
+## ベンチマーク
+
+![Benchmark Chart](../benchmark/public/plots/markdown_quality.png)
+
+このリポジトリには、ExcelドキュメントのRAG/LLM前処理に焦点を当てたベンチマークレポートが含まれています。
+私たちは2つの視点から追跡しています。(1) コア抽出精度と (2) 下流構造クエリのための再構築ユーティリティ (RUB) です。
+作業サマリーについては`benchmark/REPORT.md`を、公開バンドルについては`benchmark/public/REPORT.md`を参照してください。
+現在の結果はn=12のケースに基づいており、今後さらに拡張される予定です。
 
 ## インストール
 
@@ -47,6 +57,30 @@ exstruct input.xlsx --pdf --image          # PDF と PNG（Excel 必須）
 ```
 
 自動改ページ範囲の書き出しは API/CLI 両方に対応（Excel/COM が必要）し、CLI は利用可能な環境でのみ `--auto-page-breaks-dir` を表示します。
+
+## MCPサーバー (標準入出力)
+
+MCPの拡張機能をインストールし、標準入出力サーバーを実行します。
+
+```bash
+pip install exstruct[mcp]
+exstruct-mcp --root C:\data --log-file C:\logs\exstruct-mcp.log --on-conflict rename
+```
+
+利用可能なツール:
+
+- `exstruct_extract`
+- `exstruct_read_json_chunk`
+- `exstruct_validate_input`
+
+注意点:
+
+- 標準入出力の応答を汚染しないよう、ログは標準エラー出力（およびオプションで`--log-file`で指定したファイル）に出力されます。
+- WindowsのExcel環境では、標準/詳細モードでCOMを利用して、よりリッチな抽出が可能です。Windows以外ではCOMは利用できず、抽出はopenpyxlベースのフォールバック機能を使用します。
+
+各AIエージェントでのMCP設定ガイド:
+
+[MCPサーバー](https://harumiweb.github.io/exstruct/mcp/)
 
 ## クイックスタート Python
 
@@ -131,7 +165,7 @@ set_table_detection_params(
 
 - **light**: セル＋テーブル候補のみ（COM 不要）。
 - **standard**: テキスト付き図形＋矢印、チャート（COM ありで取得）、テーブル候補。セルのハイパーリンクは `include_cell_links=True` を指定したときのみ出力。
-- **verbose**: all shapes, charts, table_candidates, hyperlinks, and `colors_map`.
+- **verbose**: 全図形（幅高さ付き）、チャート、`table_candidates`、ハイパーリンク、`colors_map`、`formulas_map` を出力。
 
 ## エラーハンドリング / フォールバック
 

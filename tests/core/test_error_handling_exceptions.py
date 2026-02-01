@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 from pathlib import Path
+from typing import Literal, cast
 
 import pytest
 
@@ -24,8 +25,9 @@ def _minimal_workbook() -> WorkbookData:
 def test_serialize_workbook_unsupported_format() -> None:
     """Unsupported formats should raise SerializationError."""
     workbook = _minimal_workbook()
+    invalid_format = cast(Literal["json", "yaml", "yml", "toon"], "invalid")
     with pytest.raises(SerializationError):
-        serialize_workbook(workbook, fmt="invalid")
+        serialize_workbook(workbook, fmt=invalid_format)
 
 
 def test_save_as_yaml_missing_dependency(

@@ -5,14 +5,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 import logging
 from pathlib import Path
+from typing import Literal
 
 from ...models import PrintArea
 from ..cells import (
     WorkbookColorsMap,
+    WorkbookFormulasMap,
     detect_tables_openpyxl,
     extract_sheet_cells,
     extract_sheet_cells_with_links,
     extract_sheet_colors_map,
+    extract_sheet_formulas_map,
     extract_sheet_merged_cells,
 )
 from ..ranges import parse_range_zero_based
@@ -99,17 +102,40 @@ class OpenpyxlBackend:
         except Exception:
             return {}
 
-    def detect_tables(self, sheet_name: str) -> list[str]:
-        """Detect table candidates for a single sheet.
-
-        Args:
-            sheet_name: Target worksheet name.
+    def extract_formulas_map(self) -> WorkbookFormulasMap | None:
+        """
+        Extract a mapping of workbook formulas for each sheet.
 
         Returns:
-            List of table candidate ranges.
+            WorkbookFormulasMap | None: A mapping from sheet name to its formulas, or `None` if extraction fails.
         """
         try:
-            return detect_tables_openpyxl(self.file_path, sheet_name)
+            return extract_sheet_formulas_map(self.file_path)
+        except Exception as exc:
+            logger.warning(
+                "Formula map extraction failed; skipping formulas_map. (%r)", exc
+            )
+            return None
+
+    def detect_tables(
+        self,
+        sheet_name: str,
+        *,
+        mode: Literal["light", "standard", "verbose"] = "standard",
+    ) -> list[str]:
+        """
+        Detects table candidate ranges within the specified worksheet.
+
+        Parameters:
+            sheet_name (str): Name of the worksheet to analyze for table candidates.
+            mode (Literal["light", "standard", "verbose"]): Extraction mode, used to
+                adjust scan limits in openpyxl-based detection.
+
+        Returns:
+            list[str]: Detected table candidate ranges as A1-style range strings; empty list if none are found or detection fails.
+        """
+        try:
+            return detect_tables_openpyxl(self.file_path, sheet_name, mode=mode)
         except Exception:
             return []
 

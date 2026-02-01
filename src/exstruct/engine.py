@@ -24,6 +24,8 @@ ExtractionMode = Literal["light", "standard", "verbose"]
 
 
 class TableParams(TypedDict, total=False):
+    """Table detection parameter overrides."""
+
     table_score_threshold: float
     density_min: float
     coverage_min: float
@@ -70,6 +72,7 @@ class StructOptions:
                       before extraction. Use this to tweak table detection heuristics
                       per engine instance without touching global state.
         include_colors_map: Whether to extract background color maps.
+        include_formulas_map: Whether to extract formulas map.
         include_merged_cells: Whether to extract merged cell ranges.
         include_merged_values_in_rows: Whether to keep merged values in rows.
         colors: Color extraction options.
@@ -81,6 +84,7 @@ class StructOptions:
     )
     include_cell_links: bool | None = None  # None -> auto: verbose=True, others=False
     include_colors_map: bool | None = None  # None -> auto: verbose=True, others=False
+    include_formulas_map: bool | None = None  # None -> auto: verbose=True, others=False
     include_merged_cells: bool | None = None  # None -> auto: light=False, others=True
     include_merged_values_in_rows: bool = True
     colors: ColorsOptions = field(default_factory=ColorsOptions)
@@ -196,6 +200,7 @@ class ExStructEngine:
         options: StructOptions | None = None,
         output: OutputOptions | None = None,
     ) -> None:
+        """Initialize the engine with optional struct/output options."""
         self.options = options or StructOptions()
         self.output = output or OutputOptions()
 
@@ -205,6 +210,7 @@ class ExStructEngine:
         return ExStructEngine()
 
     def _apply_table_params(self) -> None:
+        """Apply table parameter overrides if configured."""
         if self.options.table_params:
             set_table_detection_params(**self.options.table_params)
 
@@ -259,6 +265,24 @@ class ExStructEngine:
     def _filter_sheet(
         self, sheet: SheetData, include_auto_override: bool | None = None
     ) -> SheetData:
+        """
+        Return a filtered copy of a SheetData according to the engine's output filters and resolved size/print-area flags.
+
+        Parameters:
+            sheet: The original SheetData to filter.
+            include_auto_override: If not None, overrides the engine's automatic decision for including auto page-break areas; if None, the engine's auto rule is used.
+
+        Returns:
+            A new SheetData where:
+              - rows are kept only if include_rows is enabled; otherwise an empty list.
+              - shapes are kept only if include_shapes is enabled; when kept and shape-size inclusion is disabled, each shape's width and height are cleared.
+              - charts are kept only if include_charts is enabled; when kept and chart-size inclusion is disabled, each chart's width and height are cleared.
+              - table_candidates are kept only if include_tables is enabled; otherwise an empty list.
+              - colors_map and formulas_map are preserved as-is.
+              - print_areas are kept only if print areas are included by the engine; otherwise an empty list.
+              - auto_print_areas are kept only if auto page-break areas are included (after applying include_auto_override); otherwise an empty list.
+              - merged_cells are kept only if include_merged_cells is enabled; otherwise set to None.
+        """
         include_shape_size, include_chart_size = self._resolve_size_flags()
         include_print_areas = self._include_print_areas()
         include_auto_print_areas = (
@@ -284,6 +308,7 @@ class ExStructEngine:
             if self.output.filters.include_tables
             else [],
             colors_map=sheet.colors_map,
+            formulas_map=sheet.formulas_map,
             print_areas=sheet.print_areas if include_print_areas else [],
             auto_print_areas=sheet.auto_print_areas if include_auto_print_areas else [],
             merged_cells=sheet.merged_cells
@@ -294,6 +319,15 @@ class ExStructEngine:
     def _filter_workbook(
         self, wb: WorkbookData, *, include_auto_override: bool | None = None
     ) -> WorkbookData:
+        """Return a filtered workbook based on output flags.
+
+        Args:
+            wb: Original workbook data.
+            include_auto_override: Optional override for auto print areas.
+
+        Returns:
+            Filtered WorkbookData.
+        """
         filtered = {
             name: self._filter_sheet(sheet, include_auto_override=include_auto_override)
             for name, sheet in wb.sheets.items()
@@ -332,15 +366,15 @@ class ExStructEngine:
         self, file_path: str | Path, *, mode: ExtractionMode | None = None
     ) -> WorkbookData:
         """
-        Extract a workbook and return normalized workbook data.
+        Produce a normalized WorkbookData extracted from the given workbook file.
 
-        Args:
-            file_path: Path to the .xlsx/.xlsm/.xls file to extract.
-            mode: Extraction mode; defaults to the engine's StructOptions.mode.
-                - light: COM-free; cells, table candidates, and print areas only.
-                - standard: Shapes with text/arrows plus charts; print areas included;
-                  size fields retained but hidden from default output.
-                - verbose: All shapes (with size) and charts (with size).
+        Parameters:
+            file_path (str | Path): Path to the .xlsx/.xlsm/.xls file to extract.
+            mode (ExtractionMode | None): Extraction mode to use; if None the engine's configured mode is used.
+                Modes: "light", "standard", "verbose".
+
+        Returns:
+            WorkbookData: Normalized workbook data extracted from the file.
         """
         chosen_mode = mode or self.options.mode
         include_auto_page_breaks = (
@@ -358,6 +392,7 @@ class ExStructEngine:
                 include_colors_map=self.options.include_colors_map,
                 include_default_background=self.options.colors.include_default_background,
                 ignore_colors=self.options.colors.ignore_colors_set(),
+                include_formulas_map=self.options.include_formulas_map,
                 include_merged_cells=self.options.include_merged_cells,
                 include_merged_values_in_rows=self.options.include_merged_values_in_rows,
             )

@@ -27,6 +27,7 @@ class SheetRawData:
         table_candidates: Detected table ranges.
         print_areas: Extracted print areas.
         auto_print_areas: Extracted auto page-break areas.
+        formulas_map: Mapping of formula strings to (row, column) positions.
         colors_map: Mapping of color keys to (row, column) positions.
         merged_cells: Extracted merged cell ranges.
     """
@@ -37,6 +38,7 @@ class SheetRawData:
     table_candidates: list[str]
     print_areas: list[PrintArea]
     auto_print_areas: list[PrintArea]
+    formulas_map: dict[str, list[tuple[int, int]]]
     colors_map: dict[str, list[tuple[int, int]]]
     merged_cells: list[MergedCellRange]
 
@@ -70,6 +72,7 @@ def build_sheet_data(raw: SheetRawData) -> SheetData:
         table_candidates=raw.table_candidates,
         print_areas=raw.print_areas,
         auto_print_areas=raw.auto_print_areas,
+        formulas_map=raw.formulas_map,
         colors_map=raw.colors_map,
         merged_cells=_build_merged_cells(raw.merged_cells),
     )

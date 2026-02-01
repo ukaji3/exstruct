@@ -9,7 +9,12 @@ from typing import Any, cast
 import xlwings as xw
 
 from ...models import PrintArea
-from ..cells import WorkbookColorsMap, extract_sheet_colors_map_com
+from ..cells import (
+    WorkbookColorsMap,
+    WorkbookFormulasMap,
+    extract_sheet_colors_map_com,
+    extract_sheet_formulas_map_com,
+)
 from ..ranges import parse_range_zero_based
 from .base import MergedCellData, PrintAreaData
 
@@ -58,14 +63,15 @@ class ComBackend:
     def extract_colors_map(
         self, *, include_default_background: bool, ignore_colors: set[str] | None
     ) -> WorkbookColorsMap | None:
-        """Extract colors_map via COM; logs and skips on failure.
+        """
+        Extract a workbook colors map using the Excel COM API.
 
-        Args:
-            include_default_background: Whether to include default backgrounds.
-            ignore_colors: Optional set of color keys to ignore.
+        Parameters:
+            include_default_background (bool): Include the workbook's default background color in the resulting map.
+            ignore_colors (set[str] | None): Optional set of color keys to exclude from the map.
 
         Returns:
-            WorkbookColorsMap or None when extraction fails.
+            WorkbookColorsMap | None: A mapping of workbook color definitions when extraction succeeds, or `None` if COM extraction fails.
         """
         try:
             return extract_sheet_colors_map_com(
@@ -80,11 +86,30 @@ class ComBackend:
             )
             return None
 
-    def extract_auto_page_breaks(self) -> PrintAreaData:
-        """Compute auto page-break rectangles per sheet using Excel COM.
+    def extract_formulas_map(self) -> WorkbookFormulasMap | None:
+        """
+        Extracts the workbook's formulas map using COM.
 
         Returns:
-            Mapping of sheet name to auto page-break areas.
+            WorkbookFormulasMap or None: The extracted formulas map, or `None` if extraction failed.
+        """
+        try:
+            return extract_sheet_formulas_map_com(self.workbook)
+        except Exception as exc:
+            logger.warning(
+                "COM formula map extraction failed; skipping formulas_map. (%r)",
+                exc,
+            )
+            return None
+
+    def extract_auto_page_breaks(self) -> PrintAreaData:
+        """
+        Compute auto page-break rectangles for each worksheet using Excel COM.
+
+        For each sheet, determine the sheet's print area (PageSetup.PrintArea or the used range) and split it into sub-rectangles along Excel's horizontal and vertical page breaks; parts that reference a different sheet are ignored. If extraction for a sheet fails, the sheet is skipped and a warning is logged.
+
+        Returns:
+            Mapping from sheet name to a list of PrintArea entries. Each PrintArea describes a rectangular region with `r1` and `r2` as 1-based row indices and `c1` and `c2` as 0-based column indices.
         """
         results: PrintAreaData = {}
         for sheet in self.workbook.sheets:

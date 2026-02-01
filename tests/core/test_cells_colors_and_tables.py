@@ -138,7 +138,7 @@ def test_table_signal_score_prefers_header_and_coverage() -> None:
 
 def test_count_nonempty_cells() -> None:
     """非空セル数のカウントを確認する。"""
-    values = [["", None, "x"], ["y", " ", 0]]
+    values: list[list[object]] = [["", None, "x"], ["y", " ", 0]]
     assert _count_nonempty_cells(values) == 3
 
 
