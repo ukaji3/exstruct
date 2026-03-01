@@ -27,8 +27,11 @@ coverage.xml
 errors.txt
 htmlcov/
 .tmp_mcp_test/
+sample.md
+review.md
 
 .mypy_cache
 .ruff_cache
 .serena
+.cocoindex_code/
 kiromon.log

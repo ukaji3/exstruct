@@ -11,6 +11,15 @@ from exstruct.mcp.chunk_reader import (
     ReadJsonChunkResult,
 )
 from exstruct.mcp.extract_runner import ExtractRequest, ExtractResult
+from exstruct.mcp.patch_runner import MakeRequest, PatchRequest, PatchResult
+from exstruct.mcp.sheet_reader import (
+    ReadCellsRequest,
+    ReadCellsResult,
+    ReadFormulasRequest,
+    ReadFormulasResult,
+    ReadRangeRequest,
+    ReadRangeResult,
+)
 from exstruct.mcp.validate_input import ValidateInputRequest, ValidateInputResult
 
 
@@ -74,6 +83,71 @@ def test_run_read_json_chunk_tool_builds_request(
     assert request.filter is not None
 
 
+def test_run_read_range_tool_builds_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_read_range(
+        request: ReadRangeRequest, *, policy: object | None = None
+    ) -> ReadRangeResult:
+        captured["request"] = request
+        return ReadRangeResult(
+            book_name="book",
+            sheet_name="Sheet1",
+            range="A1:B2",
+            cells=[],
+        )
+
+    monkeypatch.setattr(tools, "read_range", _fake_read_range)
+    payload = tools.ReadRangeToolInput(out_path="out.json", range="A1:B2")
+    tools.run_read_range_tool(payload)
+    request = captured["request"]
+    assert isinstance(request, ReadRangeRequest)
+    assert request.out_path == Path("out.json")
+    assert request.range == "A1:B2"
+
+
+def test_run_read_cells_tool_builds_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_read_cells(
+        request: ReadCellsRequest, *, policy: object | None = None
+    ) -> ReadCellsResult:
+        captured["request"] = request
+        return ReadCellsResult(book_name="book", sheet_name="Sheet1", cells=[])
+
+    monkeypatch.setattr(tools, "read_cells", _fake_read_cells)
+    payload = tools.ReadCellsToolInput(out_path="out.json", addresses=["A1", "B2"])
+    tools.run_read_cells_tool(payload)
+    request = captured["request"]
+    assert isinstance(request, ReadCellsRequest)
+    assert request.out_path == Path("out.json")
+    assert request.addresses == ["A1", "B2"]
+
+
+def test_run_read_formulas_tool_builds_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_read_formulas(
+        request: ReadFormulasRequest, *, policy: object | None = None
+    ) -> ReadFormulasResult:
+        captured["request"] = request
+        return ReadFormulasResult(book_name="book", sheet_name="Sheet1", formulas=[])
+
+    monkeypatch.setattr(tools, "read_formulas", _fake_read_formulas)
+    payload = tools.ReadFormulasToolInput(out_path="out.json", range="J2:J20")
+    tools.run_read_formulas_tool(payload)
+    request = captured["request"]
+    assert isinstance(request, ReadFormulasRequest)
+    assert request.out_path == Path("out.json")
+    assert request.range == "J2:J20"
+
+
 def test_run_validate_input_tool_builds_request(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -91,3 +165,167 @@ def test_run_validate_input_tool_builds_request(
     request = captured["request"]
     assert isinstance(request, ValidateInputRequest)
     assert request.xlsx_path == Path("input.xlsx")
+
+
+def test_run_patch_tool_builds_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_run_patch(
+        request: PatchRequest, *, policy: object | None = None
+    ) -> PatchResult:
+        captured["request"] = request
+        return PatchResult(out_path="out.xlsx", patch_diff=[], engine="openpyxl")
+
+    monkeypatch.setattr(tools, "run_patch", _fake_run_patch)
+    payload = tools.PatchToolInput(
+        xlsx_path="input.xlsx",
+        sheet="Sheet1",
+        ops=[{"op": "add_sheet", "sheet": "New"}],
+        dry_run=True,
+        return_inverse_ops=True,
+        preflight_formula_check=True,
+    )
+    tools.run_patch_tool(payload, on_conflict="rename")
+    request = captured["request"]
+    assert isinstance(request, PatchRequest)
+    assert request.xlsx_path == Path("input.xlsx")
+    assert request.on_conflict == "rename"
+    assert request.dry_run is True
+    assert request.return_inverse_ops is True
+    assert request.preflight_formula_check is True
+    assert request.backend == "auto"
+    assert request.sheet == "Sheet1"
+
+
+def test_run_patch_tool_mirrors_artifact_when_enabled(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    source = tmp_path / "out.xlsx"
+    source.write_text("dummy", encoding="utf-8")
+
+    def _fake_run_patch(
+        request: PatchRequest, *, policy: object | None = None
+    ) -> PatchResult:
+        return PatchResult(out_path=str(source), patch_diff=[], engine="openpyxl")
+
+    monkeypatch.setattr(tools, "run_patch", _fake_run_patch)
+    bridge_dir = tmp_path / "bridge"
+    payload = tools.PatchToolInput(
+        xlsx_path="input.xlsx",
+        ops=[{"op": "add_sheet", "sheet": "New"}],
+        mirror_artifact=True,
+    )
+    result = tools.run_patch_tool(payload, artifact_bridge_dir=bridge_dir)
+    assert result.mirrored_out_path is not None
+    assert Path(result.mirrored_out_path).exists()
+    assert result.warnings == []
+
+
+def test_run_make_tool_warns_when_bridge_is_not_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _fake_run_make(
+        request: MakeRequest, *, policy: object | None = None
+    ) -> PatchResult:
+        return PatchResult(out_path="out.xlsx", patch_diff=[], engine="openpyxl")
+
+    monkeypatch.setattr(tools, "run_make", _fake_run_make)
+    payload = tools.MakeToolInput(
+        out_path="output.xlsx",
+        ops=[{"op": "add_sheet", "sheet": "New"}],
+        mirror_artifact=True,
+    )
+    result = tools.run_make_tool(payload)
+    assert result.mirrored_out_path is None
+    assert any("artifact-bridge-dir" in warning for warning in result.warnings)
+
+
+def test_run_patch_tool_warns_when_mirror_copy_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    source = tmp_path / "out.xlsx"
+    source.write_text("dummy", encoding="utf-8")
+
+    def _fake_run_patch(
+        request: PatchRequest, *, policy: object | None = None
+    ) -> PatchResult:
+        return PatchResult(out_path=str(source), patch_diff=[], engine="openpyxl")
+
+    def _raise_copy_error(src: Path, dst: Path) -> None:
+        raise OSError("copy failed")
+
+    monkeypatch.setattr(tools, "run_patch", _fake_run_patch)
+    monkeypatch.setattr("exstruct.mcp.tools.shutil.copy2", _raise_copy_error)
+    payload = tools.PatchToolInput(
+        xlsx_path="input.xlsx",
+        ops=[{"op": "add_sheet", "sheet": "New"}],
+        mirror_artifact=True,
+    )
+    result = tools.run_patch_tool(payload, artifact_bridge_dir=tmp_path / "bridge")
+    assert result.mirrored_out_path is None
+    assert any("Failed to mirror artifact" in warning for warning in result.warnings)
+
+
+def test_run_make_tool_builds_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def _fake_run_make(
+        request: MakeRequest, *, policy: object | None = None
+    ) -> PatchResult:
+        captured["request"] = request
+        return PatchResult(out_path="out.xlsx", patch_diff=[], engine="openpyxl")
+
+    monkeypatch.setattr(tools, "run_make", _fake_run_make)
+    payload = tools.MakeToolInput(
+        out_path="output.xlsx",
+        sheet="Sheet1",
+        ops=[{"op": "add_sheet", "sheet": "New"}],
+        dry_run=True,
+        return_inverse_ops=True,
+        preflight_formula_check=True,
+    )
+    tools.run_make_tool(payload, on_conflict="rename")
+    request = captured["request"]
+    assert isinstance(request, MakeRequest)
+    assert request.out_path == Path("output.xlsx")
+    assert request.on_conflict == "rename"
+    assert request.dry_run is True
+    assert request.return_inverse_ops is True
+    assert request.preflight_formula_check is True
+    assert request.backend == "auto"
+    assert request.sheet == "Sheet1"
+
+
+def test_run_list_ops_tool_returns_known_ops() -> None:
+    result = tools.run_list_ops_tool()
+    op_names = [item.op for item in result.ops]
+    assert "set_value" in op_names
+    assert "set_style" in op_names
+    assert "apply_table_style" in op_names
+    assert "create_chart" in op_names
+    assert "auto_fit_columns" in op_names
+
+
+def test_run_describe_op_tool_returns_schema_details() -> None:
+    result = tools.run_describe_op_tool(tools.DescribeOpToolInput(op="set_fill_color"))
+    assert result.required == ["sheet (or top-level sheet)", "fill_color"]
+    assert "cell" in result.optional
+    assert result.aliases == {"color": "fill_color"}
+    assert result.example["op"] == "set_fill_color"
+
+
+def test_run_describe_op_tool_create_chart_lists_extended_types() -> None:
+    result = tools.run_describe_op_tool(tools.DescribeOpToolInput(op="create_chart"))
+    assert (
+        "chart_type in {'line','column','bar','area','pie','doughnut','scatter','radar'}"
+        in result.constraints
+    )
+
+
+def test_run_describe_op_tool_rejects_unknown_op() -> None:
+    with pytest.raises(ValueError, match="Unknown op"):
+        tools.run_describe_op_tool(tools.DescribeOpToolInput(op="unknown_op"))

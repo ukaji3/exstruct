@@ -6,7 +6,68 @@ All notable changes to this project are documented in this file. This changelog 
 
 ### Added
 
-- _No unreleased changes yet._
+- None.
+
+### Changed
+
+- None.
+
+## [0.5.2] - 2026-02-28
+
+### Fixed
+
+- Restored support for mixed `create_chart` + `apply_table_style` requests in one run when backend resolves to COM (`backend="com"` or `backend="auto"` with COM available).
+- Improved mixed-op error behavior when COM is unavailable by returning a clear COM-required message for `create_chart` + `apply_table_style` requests.
+
+### Changed
+
+- Updated MCP/README docs to reflect mixed chart+table request support and backend requirements.
+
+## [0.5.1] - 2026-02-26
+
+### Added
+
+- Added explicit service-level guard for mixed backend-only patch ops:
+  `create_chart` and `apply_table_style` can no longer be combined in one request.
+
+### Changed
+
+- Updated MCP docs and README pages to document `create_chart` backend constraints
+  (COM-only, flag limitations, and incompatibility with `apply_table_style` in one request).
+
+## [0.5.0] - 2026-02-24
+
+### Added
+
+- Added MCP `exstruct_make` for one-call workbook creation plus `ops` apply (`out_path` required, `ops` optional), including `.xlsx`/`.xlsm`/`.xls` support and `.xls` COM constraints.
+- Expanded MCP `exstruct_patch` with design editing operations: `draw_grid_border`, `set_bold`, `set_font_size`, `set_font_color`, `set_fill_color`, `set_dimensions`, `auto_fit_columns`, `merge_cells`, `unmerge_cells`, `set_alignment`, `set_style`, `apply_table_style`, and inverse restore op `restore_design_snapshot`.
+- Added MCP operation schema discovery tools: `exstruct_list_ops` and `exstruct_describe_op`.
+- Added MCP runtime diagnostics tool: `exstruct_get_runtime_info`.
+- Added top-level `sheet` fallback for `exstruct_patch`/`exstruct_make` (non-`add_sheet` ops), with `op.sheet` precedence when both are provided.
+- Added artifact mirroring support via `mirror_artifact` and server `--artifact-bridge-dir`.
+
+### Changed
+
+- Updated patch backend controls for MCP `exstruct_patch`/`exstruct_make`: `backend` input (`auto`/`com`/`openpyxl`) and `engine` output (`com`/`openpyxl`).
+- Updated patch backend policy: `auto` now prefers COM when available, with controlled fallback to openpyxl for `.xlsx`/`.xlsm` when COM execution fails.
+- Updated `apply_table_style` behavior: when `backend="com"` is requested, execution falls back to openpyxl with a warning.
+- Refactored MCP patch internals into layered modules (`patch.service` / `patch.engine.*` / `patch.ops.*` / `patch.runtime`) while keeping tool interfaces stable.
+- Updated MCP docs/README pages to include `exstruct_make` behavior and constraints.
+
+## [0.4.4] - 2026-02-16
+
+### Added
+
+- Added an MVP of Excel editing for MCP via `exstruct_patch`, including atomic apply semantics and expanded operations: `set_range_values`, `fill_formula`, `set_value_if`, and `set_formula_if`.
+- Added direct A1-oriented MCP read tools for extracted JSON: `exstruct_read_range`, `exstruct_read_cells`, and `exstruct_read_formulas`.
+- Added patch safety/review options: `dry_run`, `return_inverse_ops`, `preflight_formula_check`, and `auto_formula`.
+
+### Changed
+
+- Improved `exstruct_patch` input compatibility: `ops` now accepts both object lists (recommended) and JSON object strings.
+- Enabled `alpha_col` support more broadly across extraction/read flows, and added `merged_ranges` output support for alpha-column mode.
+- Updated MCP documentation and chunking guidance, including clearer error messages and mode guidance.
+- Changed MCP default conflict policy to `overwrite` for output handling.
 
 ## [0.4.2] - 2026-01-23
 

@@ -1,6 +1,7 @@
 # ExStruct — Excel 構造化抽出エンジン
 
-[![PyPI version](https://badge.fury.io/py/exstruct.svg)](https://pypi.org/project/exstruct/) [![PyPI Downloads](https://static.pepy.tech/personalized-badge/exstruct?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/exstruct) ![Licence: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue?style=flat-square) [![pytest](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml/badge.svg)](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/e081cb4f634e4175b259eb7c34f54f60)](https://app.codacy.com/gh/harumiWeb/exstruct/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) [![codecov](https://codecov.io/gh/harumiWeb/exstruct/graph/badge.svg?token=2XI1O8TTA9)](https://codecov.io/gh/harumiWeb/exstruct) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/harumiWeb/exstruct)
+[![PyPI version](https://badge.fury.io/py/exstruct.svg)](https://pypi.org/project/exstruct/) [![PyPI Downloads](https://static.pepy.tech/personalized-badge/exstruct?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/exstruct) ![Licence: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue?style=flat-square) [![pytest](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml/badge.svg)](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/e081cb4f634e4175b259eb7c34f54f60)](https://app.codacy.com/gh/harumiWeb/exstruct/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) [![codecov](https://codecov.io/gh/harumiWeb/exstruct/graph/badge.svg?token=2XI1O8TTA9)](https://codecov.io/gh/harumiWeb/exstruct) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/harumiWeb/exstruct) ![GitHub Repo stars](https://img.shields.io/github/stars/harumiWeb/exstruct)
+
 
 ![ExStruct Image](docs/assets/icon.webp)
 
@@ -52,15 +53,34 @@ exstruct input.xlsx --format yaml          # YAML（pyyaml が必要）
 exstruct input.xlsx --format toon          # TOON（python-toon が必要）
 exstruct input.xlsx --sheets-dir sheets/   # シートごとに分割出力
 exstruct input.xlsx --auto-page-breaks-dir auto_areas/  # COM 限定（利用可能な環境のみ表示）
+exstruct input.xlsx --alpha-col           # 列キーを A, B, ..., AA 形式で出力
 exstruct input.xlsx --mode light           # セル＋テーブル候補のみ
 exstruct input.xlsx --pdf --image          # PDF と PNG（Excel 必須）
 ```
 
 自動改ページ範囲の書き出しは API/CLI 両方に対応（Excel/COM が必要）し、CLI は利用可能な環境でのみ `--auto-page-breaks-dir` を表示します。
+CLI の既定では列キーは従来どおり 0 始まりの数値文字列（`"0"`, `"1"`, ...）です。Excel 形式（`"A"`, `"B"`, ...）が必要な場合は `--alpha-col` を指定してください。
+注意: MCP の `exstruct_extract` は `options.alpha_col=true` が既定で、CLI の既定（`false`）とは異なります。
 
 ## MCPサーバー (標準入出力)
 
-MCPの拡張機能をインストールし、標準入出力サーバーを実行します。
+### uvx を使ったクイックスタート（推奨）
+
+インストール不要で直接実行できます：
+
+```bash
+uvx --from 'exstruct[mcp]' exstruct-mcp --root C:\data --log-file C:\logs\exstruct-mcp.log --on-conflict rename
+```
+
+利点：
+- `pip install` が不要
+- 依存関係の自動管理
+- 環境の分離
+- バージョン指定が簡単: `uvx --from 'exstruct[mcp]==0.4.4' exstruct-mcp`
+
+### 従来のインストール方法
+
+pip でインストールすることもできます：
 
 ```bash
 pip install exstruct[mcp]
@@ -70,6 +90,8 @@ exstruct-mcp --root C:\data --log-file C:\logs\exstruct-mcp.log --on-conflict re
 利用可能なツール:
 
 - `exstruct_extract`
+- `exstruct_make`
+- `exstruct_patch`
 - `exstruct_read_json_chunk`
 - `exstruct_validate_input`
 
@@ -77,6 +99,23 @@ exstruct-mcp --root C:\data --log-file C:\logs\exstruct-mcp.log --on-conflict re
 
 - 標準入出力の応答を汚染しないよう、ログは標準エラー出力（およびオプションで`--log-file`で指定したファイル）に出力されます。
 - WindowsのExcel環境では、標準/詳細モードでCOMを利用して、よりリッチな抽出が可能です。Windows以外ではCOMは利用できず、抽出はopenpyxlベースのフォールバック機能を使用します。
+- `exstruct_patch` は `backend` 指定をサポートします。
+  - `auto`（既定）: COM が使える場合は COM を優先し、不可なら openpyxl
+  - `com`: COM を強制（`dry_run` / `return_inverse_ops` / `preflight_formula_check` は指定不可）
+  - `openpyxl`: openpyxl を強制（`.xls` は非対応）
+- `create_chart` は COM 専用です（`create_chart` を含むリクエストでは `backend="openpyxl"` は指定不可）。また、`dry_run` / `return_inverse_ops` / `preflight_formula_check` も指定できません。
+- `create_chart` の `chart_type` は `line` / `column` / `bar` / `area` / `pie` / `doughnut` / `scatter` / `radar` に対応します（エイリアス: `column_clustered` / `bar_clustered` / `xy_scatter` / `donut`）。
+- `create_chart` の `data_range` は単一範囲文字列または `list[str]`（複数系列）を受け付け、`data_range` / `category_range` ともにシート名付き範囲（`Sheet2!A1:B10`, `'Sales Data'!A1:B10`）を指定できます。
+- `create_chart` では `chart_title` / `x_axis_title` / `y_axis_title` による明示タイトル設定が可能です。
+- `create_chart` と `apply_table_style` は、バックエンドが COM に解決される場合（`backend="com"` または COM 利用可能な `backend="auto"`）は1回のリクエストで同時指定できます。
+- Windows で `apply_table_style` を COM で安定実行するには、デスクトップ版 Excel が起動可能で、`range` がヘッダー行を含む連続 A1 範囲であることを確認してください。
+- `exstruct_patch` のエラー詳細には `error_code` / `failed_field` / `raw_com_message` が含まれる場合があります。テーブル関連コードは `table_style_invalid` / `list_object_add_failed` / `com_api_missing` です。
+- `exstruct_patch` の応答には実際に使われたバックエンドを示す `engine`（`com` / `openpyxl`）が含まれます。`restore_design_snapshot` は引き続き openpyxl 専用です。
+- 新規ブック作成は `exstruct_make`、既存ブック編集は `exstruct_patch` を使い分けてください。
+- `exstruct_make` は新規ブック作成と `ops` 適用を1回で実行します（`out_path` 必須、`ops` は任意）。
+  - 対応拡張子: `.xlsx` / `.xlsm` / `.xls`
+  - 初期シート名は `Sheet1` に正規化されます
+  - `.xls` は COM 必須で、`backend=openpyxl` は指定できません
 
 各AIエージェントでのMCP設定ガイド:
 

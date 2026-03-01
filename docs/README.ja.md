@@ -1,8 +1,9 @@
 # ExStruct — Excel 構造化抽出エンジン
 
-[![PyPI version](https://badge.fury.io/py/exstruct.svg)](https://pypi.org/project/exstruct/) [![PyPI Downloads](https://static.pepy.tech/personalized-badge/exstruct?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/exstruct) ![Licence: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue?style=flat-square) [![pytest](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml/badge.svg)](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/e081cb4f634e4175b259eb7c34f54f60)](https://app.codacy.com/gh/harumiWeb/exstruct/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) [![codecov](https://codecov.io/gh/harumiWeb/exstruct/graph/badge.svg?token=2XI1O8TTA9)](https://codecov.io/gh/harumiWeb/exstruct) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/harumiWeb/exstruct)
+[![PyPI version](https://badge.fury.io/py/exstruct.svg)](https://pypi.org/project/exstruct/) [![PyPI Downloads](https://static.pepy.tech/personalized-badge/exstruct?period=total&units=INTERNATIONAL_SYSTEM&left_color=BLACK&right_color=GREEN&left_text=downloads)](https://pepy.tech/projects/exstruct) ![Licence: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue?style=flat-square) [![pytest](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml/badge.svg)](https://github.com/harumiWeb/exstruct/actions/workflows/pytest.yml) [![Codacy Badge](https://app.codacy.com/project/badge/Grade/e081cb4f634e4175b259eb7c34f54f60)](https://app.codacy.com/gh/harumiWeb/exstruct/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade) [![codecov](https://codecov.io/gh/harumiWeb/exstruct/graph/badge.svg?token=2XI1O8TTA9)](https://codecov.io/gh/harumiWeb/exstruct) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/harumiWeb/exstruct) ![GitHub Repo stars](https://img.shields.io/github/stars/harumiWeb/exstruct)
 
-![ExStruct Image](/assets/icon.webp)
+
+![ExStruct Image](assets/icon.webp)
 
 ExStruct は Excel ワークブックを読み取り、構造化データ（セル・テーブル候補・図形・チャート・SmartArt・印刷範囲ビュー）をデフォルトで JSON に出力します。必要に応じて YAML/TOON も選択でき、COM/Excel 環境ではリッチ抽出、非 COM 環境ではセル＋テーブル候補＋印刷範囲へのフォールバックで安全に動作します。LLM/RAG 向けに検出ヒューリスティックや出力モードを調整可能です。
 
@@ -52,11 +53,14 @@ exstruct input.xlsx --format yaml          # YAML（pyyaml が必要）
 exstruct input.xlsx --format toon          # TOON（python-toon が必要）
 exstruct input.xlsx --sheets-dir sheets/   # シートごとに分割出力
 exstruct input.xlsx --auto-page-breaks-dir auto_areas/  # COM 限定（利用可能な環境のみ表示）
+exstruct input.xlsx --alpha-col           # 列キーを A, B, ..., AA 形式で出力
 exstruct input.xlsx --mode light           # セル＋テーブル候補のみ
 exstruct input.xlsx --pdf --image          # PDF と PNG（Excel 必須）
 ```
 
 自動改ページ範囲の書き出しは API/CLI 両方に対応（Excel/COM が必要）し、CLI は利用可能な環境でのみ `--auto-page-breaks-dir` を表示します。
+CLI の既定では列キーは従来どおり 0 始まりの数値文字列（`"0"`, `"1"`, ...）です。Excel 形式（`"A"`, `"B"`, ...）が必要な場合は `--alpha-col` を指定してください。
+注意: MCP の `exstruct_extract` は `options.alpha_col=true` が既定で、CLI の既定（`false`）とは異なります。
 
 ## MCPサーバー (標準入出力)
 
@@ -70,8 +74,24 @@ exstruct-mcp --root C:\data --log-file C:\logs\exstruct-mcp.log --on-conflict re
 利用可能なツール:
 
 - `exstruct_extract`
+- `exstruct_make`
+- `exstruct_patch`
 - `exstruct_read_json_chunk`
+- `exstruct_read_range`
+- `exstruct_read_cells`
+- `exstruct_read_formulas`
 - `exstruct_validate_input`
+
+- `exstruct_read_range` / `exstruct_read_cells` / `exstruct_read_formulas` は v0.4.4 で追加され、MCPサーバー実装とテストに登録済みです。
+- MCPでは `exstruct_extract` の `options.alpha_col=true` が既定です（列キーは `A`, `B`, ...）。従来の0始まり数値キーが必要な場合は `options.alpha_col=false` を指定してください。
+- `exstruct_make` は新規ブック作成と `ops` 適用を1回で実行します（`out_path` 必須、`ops` は任意）。
+  - 対応拡張子: `.xlsx` / `.xlsm` / `.xls`
+  - 初期シート名は `Sheet1` に正規化されます
+  - `.xls` は COM 必須で、`backend=openpyxl` は指定できません
+- `create_chart` は COM 専用です（`create_chart` を含むリクエストでは `backend="openpyxl"` は指定不可）。また、`dry_run` / `return_inverse_ops` / `preflight_formula_check` も指定できません。
+- `create_chart.chart_type` は `line` / `column` / `bar` / `area` / `pie` / `doughnut` / `scatter` / `radar` をサポートします。
+- `create_chart.chart_type` の alias は `column_clustered` -> `column`、`bar_clustered` -> `bar`、`xy_scatter` -> `scatter`、`donut` -> `doughnut` です。
+- `create_chart` と `apply_table_style` は、バックエンドが COM に解決される場合（`backend="com"` または COM 利用可能な `backend="auto"`）は1回のリクエストで同時指定できます。
 
 注意点:
 
@@ -641,3 +661,9 @@ BSD-3-Clause. See `LICENSE` for details.
 
 - API リファレンス (GitHub Pages): https://harumiweb.github.io/exstruct/
 - JSON Schema は `schemas/` にモデルごとに配置しています。モデル変更後は `python scripts/gen_json_schema.py` で再生成してください。
+
+## MCP追加メモ（UX Hardening）
+
+- `exstruct_get_runtime_info` を追加しました。`root` / `cwd` / `platform` / `path_examples` を1回で確認できます。
+- `exstruct_make` の相対 `out_path` は MCP の `--root` 基準で解決されます。
+- 色指定は `color`（文字色）と `fill_color`（背景色）を分離し、`RRGGBB` / `AARRGGBB`（`#` あり・なし）を受け付けます。
