@@ -3,7 +3,9 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from copy import copy
+from dataclasses import dataclass
 from pathlib import Path
+import os
 import re
 from typing import Any, Protocol, cast, runtime_checkable
 from uuid import uuid4
@@ -663,6 +665,18 @@ class PatchOp(BaseModel):
         default=None,
         description="Optional Y-axis title text for create_chart.",
     )
+    shape_type: str | None = Field(
+        default=None,
+        description=(
+            "Preset geometry for create_shape: rect, roundRect, ellipse, "
+            "diamond, rightArrow, flowChartProcess, flowChartDecision, "
+            "flowChartTerminator."
+        ),
+    )
+    text: str | None = Field(
+        default=None,
+        description="Text content for create_shape.",
+    )
 
     @field_validator("sheet")
     @classmethod
@@ -856,6 +870,7 @@ def _validator_for_op(op_type: PatchOpType) -> Callable[[PatchOp], None] | None:
         "set_style": _validate_set_style,
         "apply_table_style": _validate_apply_table_style,
         "create_chart": _validate_create_chart,
+        "create_shape": _validate_create_shape,
         "restore_design_snapshot": _validate_restore_design_snapshot,
     }
     return validators.get(op_type)
@@ -1374,6 +1389,30 @@ def _validate_create_chart(op: PatchOp) -> None:
         op.series_from_rows = False
 
 
+SUPPORTED_SHAPE_TYPES: frozenset[str] = frozenset({
+    "rect", "roundRect", "ellipse", "diamond",
+    "rightArrow", "leftArrow", "upArrow", "downArrow",
+    "flowChartProcess", "flowChartDecision", "flowChartTerminator",
+    "flowChartDocument", "flowChartPredefinedProcess",
+})
+
+
+def _validate_create_shape(op: PatchOp) -> None:
+    """Validate create_shape operation."""
+    if op.shape_type is None:
+        raise ValueError("create_shape requires shape_type.")
+    if op.shape_type not in SUPPORTED_SHAPE_TYPES:
+        raise ValueError(
+            f"create_shape shape_type must be one of: {', '.join(sorted(SUPPORTED_SHAPE_TYPES))}."
+        )
+    if op.anchor_cell is None:
+        raise ValueError("create_shape requires anchor_cell.")
+    if op.cell is not None or op.range is not None or op.base_cell is not None:
+        raise ValueError("create_shape does not accept cell/range/base_cell.")
+    if op.chart_type is not None or op.data_range is not None:
+        raise ValueError("create_shape does not accept chart_type/data_range.")
+
+
 def _validate_no_legacy_edit_fields(
     op: PatchOp,
     *,
@@ -1572,10 +1611,6 @@ def _validate_backend_feature_constraints(
 ) -> None:
     """Validate backend-specific feature constraints for patch/make requests."""
     has_create_chart = any(op.op == "create_chart" for op in ops)
-    if has_create_chart and backend == "openpyxl":
-        raise ValueError(
-            "create_chart is supported only on COM backend; backend='openpyxl' is not allowed."
-        )
     if backend == "com":
         if dry_run or return_inverse_ops or preflight_formula_check:
             raise ValueError(
@@ -1843,8 +1878,6 @@ def _select_patch_engine(
     has_create_chart = _contains_create_chart_op(request.ops)
     has_apply_table_style = _contains_apply_table_style_op(request.ops)
     if request.backend == "openpyxl":
-        if has_create_chart:
-            raise ValueError("create_chart is supported only on COM backend.")
         if extension == ".xls":
             raise ValueError("backend='openpyxl' cannot edit .xls files.")
         return "openpyxl"
@@ -1859,17 +1892,9 @@ def _select_patch_engine(
             )
         return "com"
     if _requires_openpyxl_backend(request):
-        if has_create_chart:
-            raise ValueError(
-                "create_chart does not support dry_run, return_inverse_ops, or preflight_formula_check."
-            )
         return "openpyxl"
     if com_available:
         return "com"
-    if has_create_chart:
-        _raise_create_chart_com_unavailable_error(
-            has_apply_table_style=has_apply_table_style
-        )
     return "openpyxl"
 
 
@@ -2084,6 +2109,286 @@ def _next_available_path(path: Path) -> Path:
     return _shared_next_available_path(path)
 
 
+# ---------------------------------------------------------------------------
+# OOXML shape injection (post-process xlsx ZIP)
+# ---------------------------------------------------------------------------
+
+_XDR_NS = "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"
+_A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+_R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_CT_NS = "http://schemas.openxmlformats.org/package/2006/content-types"
+_RELS_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
+_DRAWING_REL_TYPE = (
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing"
+)
+
+
+@dataclass
+class _ShapeSpec:
+    """Specification for a shape to inject into an xlsx drawing."""
+
+    sheet: str
+    shape_type: str
+    anchor_col: int
+    anchor_row: int
+    width_emu: int
+    height_emu: int
+    text: str | None
+    fill_color: str | None
+
+
+def _points_to_emu(points: float) -> int:
+    """Convert points to EMU (English Metric Units)."""
+    return int(points * 12700)
+
+
+def _parse_anchor_cell(anchor_cell: str) -> tuple[int, int]:
+    """Parse A1 reference into (col_0based, row_0based)."""
+    import re
+
+    m = re.match(r"([A-Za-z]+)(\d+)", anchor_cell)
+    if m is None:
+        raise ValueError(f"Invalid anchor_cell: {anchor_cell}")
+    col_str, row_str = m.group(1).upper(), m.group(2)
+    col = 0
+    for ch in col_str:
+        col = col * 26 + (ord(ch) - ord("A") + 1)
+    return col - 1, int(row_str) - 1
+
+
+def _build_shape_xml(spec: _ShapeSpec, shape_id: int) -> str:
+    """Build OOXML oneCellAnchor XML for a shape."""
+    fill_xml = ""
+    if spec.fill_color:
+        color = spec.fill_color.lstrip("#")
+        fill_xml = f'<a:solidFill><a:srgbClr val="{color}"/></a:solidFill>'
+    else:
+        fill_xml = (
+            '<a:solidFill><a:schemeClr val="accent1"/></a:solidFill>'
+        )
+
+    text_xml = ""
+    if spec.text:
+        escaped = (
+            spec.text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+        text_xml = (
+            f"<xdr:txBody>"
+            f'<a:bodyPr vertOverflow="clip" wrap="square" rtlCol="0" anchor="ctr"/>'
+            f"<a:lstStyle/>"
+            f"<a:p><a:pPr algn=\"ctr\"/><a:r><a:rPr lang=\"en-US\" sz=\"1100\"/>"
+            f"<a:t>{escaped}</a:t></a:r></a:p>"
+            f"</xdr:txBody>"
+        )
+
+    return (
+        f"<xdr:oneCellAnchor>"
+        f"<xdr:from>"
+        f"<xdr:col>{spec.anchor_col}</xdr:col><xdr:colOff>0</xdr:colOff>"
+        f"<xdr:row>{spec.anchor_row}</xdr:row><xdr:rowOff>0</xdr:rowOff>"
+        f"</xdr:from>"
+        f'<xdr:ext cx="{spec.width_emu}" cy="{spec.height_emu}"/>'
+        f"<xdr:sp>"
+        f"<xdr:nvSpPr>"
+        f'<xdr:cNvPr id="{shape_id}" name="Shape {shape_id}"/>'
+        f"<xdr:cNvSpPr/>"
+        f"</xdr:nvSpPr>"
+        f"<xdr:spPr>"
+        f'<a:xfrm><a:off x="0" y="0"/>'
+        f'<a:ext cx="{spec.width_emu}" cy="{spec.height_emu}"/></a:xfrm>'
+        f'<a:prstGeom prst="{spec.shape_type}"><a:avLst/></a:prstGeom>'
+        f"{fill_xml}"
+        f"<a:ln><a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill></a:ln>"
+        f"</xdr:spPr>"
+        f"{text_xml}"
+        f"</xdr:sp>"
+        f"<xdr:clientData/>"
+        f"</xdr:oneCellAnchor>"
+    )
+
+
+def _inject_shapes_into_xlsx(xlsx_path: Path, shapes: list[_ShapeSpec]) -> None:
+    """Inject shapes into an xlsx file by modifying its ZIP contents.
+
+    Args:
+        xlsx_path: Path to the xlsx file to modify.
+        shapes: List of shape specifications to inject.
+    """
+    import shutil
+    import tempfile
+    import zipfile
+    from xml.etree import ElementTree as ET
+
+    if not shapes:
+        return
+
+    # Group shapes by sheet name
+    shapes_by_sheet: dict[str, list[_ShapeSpec]] = {}
+    for spec in shapes:
+        shapes_by_sheet.setdefault(spec.sheet, []).append(spec)
+
+    tmp_fd, tmp_path_str = tempfile.mkstemp(suffix=".xlsx")
+    tmp_path = Path(tmp_path_str)
+    os.close(tmp_fd)
+
+    try:
+        with zipfile.ZipFile(xlsx_path, "r") as zin, zipfile.ZipFile(
+            tmp_path, "w", zipfile.ZIP_DEFLATED
+        ) as zout:
+            # Build sheet name -> sheet index mapping from workbook.xml
+            wb_xml = ET.fromstring(zin.read("xl/workbook.xml"))
+            ns_wb = {"": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+            sheet_name_to_idx: dict[str, int] = {}
+            for i, sheet_el in enumerate(
+                wb_xml.findall(".//{%s}sheet" % ns_wb[""]), start=1
+            ):
+                name = sheet_el.get("name", "")
+                sheet_name_to_idx[name] = i
+
+            modified_files: set[str] = set()
+
+            for sheet_name, sheet_shapes in shapes_by_sheet.items():
+                sheet_idx = sheet_name_to_idx.get(sheet_name)
+                if sheet_idx is None:
+                    raise ValueError(f"Sheet not found: {sheet_name}")
+
+                sheet_path = f"xl/worksheets/sheet{sheet_idx}.xml"
+                rels_path = f"xl/worksheets/_rels/sheet{sheet_idx}.xml.rels"
+                drawing_path = f"xl/drawings/drawing{sheet_idx}.xml"
+
+                # Check if drawing already exists
+                existing_drawing = drawing_path in zin.namelist()
+                has_rels = rels_path in zin.namelist()
+
+                # Find next shape id
+                next_id = 100
+
+                if existing_drawing:
+                    # Append shapes to existing drawing
+                    drawing_content = zin.read(drawing_path).decode("utf-8")
+                    close_tag = "</wsDr>"
+                    if close_tag not in drawing_content:
+                        close_tag = f"</{_XDR_NS.split('/')[-1]}:wsDr>"
+                    insert_pos = drawing_content.rfind("</")
+                    # Find the closing </wsDr> or </xdr:wsDr>
+                    for tag in ["</wsDr>", "</xdr:wsDr>"]:
+                        pos = drawing_content.rfind(tag)
+                        if pos >= 0:
+                            insert_pos = pos
+                            close_tag = tag
+                            break
+
+                    shape_xmls = []
+                    for i, spec in enumerate(sheet_shapes):
+                        shape_xmls.append(
+                            _build_shape_xml(spec, next_id + i)
+                        )
+                    new_drawing = (
+                        drawing_content[:insert_pos]
+                        + "".join(shape_xmls)
+                        + drawing_content[insert_pos:]
+                    )
+                    modified_files.add(drawing_path)
+                else:
+                    # Create new drawing
+                    shape_xmls = []
+                    for i, spec in enumerate(sheet_shapes):
+                        shape_xmls.append(
+                            _build_shape_xml(spec, next_id + i)
+                        )
+                    new_drawing = (
+                        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                        f'<xdr:wsDr xmlns:xdr="{_XDR_NS}" xmlns:a="{_A_NS}">'
+                        + "".join(shape_xmls)
+                        + "</xdr:wsDr>"
+                    )
+                    modified_files.add(drawing_path)
+
+                    # Add drawing relationship to sheet rels
+                    if has_rels:
+                        rels_content = zin.read(rels_path).decode("utf-8")
+                        # Find next rId
+                        import re
+
+                        existing_ids = re.findall(r'Id="rId(\d+)"', rels_content)
+                        next_rid = max((int(x) for x in existing_ids), default=0) + 1
+                        insert_pos = rels_content.rfind("</Relationships>")
+                        new_rel = (
+                            f'<Relationship Id="rId{next_rid}" '
+                            f'Type="{_DRAWING_REL_TYPE}" '
+                            f'Target="/xl/drawings/drawing{sheet_idx}.xml"/>'
+                        )
+                        rels_content = (
+                            rels_content[:insert_pos]
+                            + new_rel
+                            + rels_content[insert_pos:]
+                        )
+                    else:
+                        rels_content = (
+                            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                            f'<Relationships xmlns="{_RELS_NS}">'
+                            f'<Relationship Id="rId1" '
+                            f'Type="{_DRAWING_REL_TYPE}" '
+                            f'Target="/xl/drawings/drawing{sheet_idx}.xml"/>'
+                            f"</Relationships>"
+                        )
+                    modified_files.add(rels_path)
+                    zout.writestr(rels_path, rels_content)
+
+                    # Add drawing reference to sheet XML
+                    sheet_content = zin.read(sheet_path).decode("utf-8")
+                    rid = "rId1" if not has_rels else f"rId{next_rid}"
+                    drawing_ref = f'<drawing r:id="{rid}"/>'
+                    # Insert before closing </worksheet>
+                    close_ws = "</worksheet>"
+                    pos = sheet_content.rfind(close_ws)
+                    if pos >= 0:
+                        # Ensure r namespace is declared
+                        if f'xmlns:r="{_R_NS}"' not in sheet_content:
+                            sheet_content = sheet_content.replace(
+                                "<worksheet",
+                                f'<worksheet xmlns:r="{_R_NS}"',
+                                1,
+                            )
+                            pos = sheet_content.rfind(close_ws)
+                        sheet_content = (
+                            sheet_content[:pos]
+                            + drawing_ref
+                            + sheet_content[pos:]
+                        )
+                    modified_files.add(sheet_path)
+                    zout.writestr(sheet_path, sheet_content)
+
+                    # Update [Content_Types].xml
+                    ct_content = zin.read("[Content_Types].xml").decode("utf-8")
+                    drawing_ct = (
+                        f'<Override PartName="/xl/drawings/drawing{sheet_idx}.xml" '
+                        f'ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
+                    )
+                    if drawing_ct not in ct_content:
+                        pos = ct_content.rfind("</Types>")
+                        ct_content = (
+                            ct_content[:pos] + drawing_ct + ct_content[pos:]
+                        )
+                        modified_files.add("[Content_Types].xml")
+                        zout.writestr("[Content_Types].xml", ct_content)
+
+                zout.writestr(drawing_path, new_drawing)
+
+            # Copy all unmodified files
+            for item in zin.namelist():
+                if item not in modified_files:
+                    zout.writestr(item, zin.read(item))
+
+        shutil.move(str(tmp_path), str(xlsx_path))
+    except Exception:
+        if tmp_path.exists():
+            tmp_path.unlink()
+        raise
+
+
 def _apply_ops_openpyxl(
     request: PatchRequest,
     input_path: Path,
@@ -2102,12 +2407,15 @@ def _apply_ops_openpyxl(
         workbook = load_workbook(input_path, keep_vba=True)
     else:
         workbook = load_workbook(input_path)
+
+    pending_shapes: list[_ShapeSpec] = []
     try:
         diff, inverse_ops, op_warnings = _apply_ops_to_openpyxl_workbook(
             workbook,
             request.ops,
             request.auto_formula,
             return_inverse_ops=request.return_inverse_ops,
+            pending_shapes=pending_shapes,
         )
         formula_issues = (
             _collect_formula_issues_openpyxl(workbook)
@@ -2121,6 +2429,11 @@ def _apply_ops_openpyxl(
             workbook.save(output_path)
     finally:
         workbook.close()
+
+    # Post-process: inject shapes via OOXML XML manipulation
+    if pending_shapes and not request.dry_run:
+        _inject_shapes_into_xlsx(output_path, pending_shapes)
+
     return diff, inverse_ops, formula_issues, op_warnings
 
 
@@ -2130,6 +2443,7 @@ def _apply_ops_to_openpyxl_workbook(
     auto_formula: bool,
     *,
     return_inverse_ops: bool,
+    pending_shapes: list[_ShapeSpec] | None = None,
 ) -> tuple[list[PatchDiffItem], list[PatchOp], list[str]]:
     """Apply ops to an openpyxl workbook instance."""
     sheets = _openpyxl_sheet_map(workbook)
@@ -2139,7 +2453,8 @@ def _apply_ops_to_openpyxl_workbook(
     for index, op in enumerate(ops):
         try:
             item, inverse = _apply_openpyxl_op(
-                workbook, sheets, op, index, auto_formula, op_warnings
+                workbook, sheets, op, index, auto_formula, op_warnings,
+                pending_shapes=pending_shapes,
             )
             diff.append(item)
             if return_inverse_ops and item.status == "applied" and inverse is not None:
@@ -2168,6 +2483,7 @@ def _apply_openpyxl_op(
     index: int,
     auto_formula: bool,
     warnings: list[str],
+    pending_shapes: list[_ShapeSpec] | None = None,
 ) -> tuple[PatchDiffItem, PatchOp | None]:
     """Apply a single op to openpyxl workbook."""
     if op.op == "add_sheet":
@@ -2176,6 +2492,15 @@ def _apply_openpyxl_op(
     existing_sheet = sheets.get(op.sheet)
     if existing_sheet is None:
         raise ValueError(f"Sheet not found: {op.sheet}")
+
+    if op.op == "create_chart":
+        return _apply_openpyxl_create_chart(workbook, existing_sheet, op, index)
+
+    if op.op == "create_shape":
+        if pending_shapes is None:
+            pending_shapes = []
+        return _apply_openpyxl_create_shape(op, index, pending_shapes)
+
     return _apply_openpyxl_sheet_op(
         existing_sheet,
         op,
@@ -2791,11 +3116,180 @@ def _apply_openpyxl_restore_design_snapshot(
     )
 
 
-def _apply_openpyxl_create_chart(op: PatchOp) -> tuple[PatchDiffItem, PatchOp | None]:
-    """Reject create_chart on openpyxl backend."""
-    raise ValueError(
-        f"create_chart is supported only on COM backend (sheet={op.sheet})."
+def _apply_openpyxl_create_shape(
+    op: PatchOp,
+    index: int,
+    pending_shapes: list[_ShapeSpec],
+) -> tuple[PatchDiffItem, PatchOp | None]:
+    """Record a create_shape op for post-save OOXML injection.
+
+    Args:
+        op: The patch operation with shape parameters.
+        index: Operation index for diff tracking.
+        pending_shapes: Mutable list to collect shapes for post-processing.
+
+    Returns:
+        Tuple of diff item and None (no inverse op).
+    """
+    if op.shape_type is None or op.anchor_cell is None:
+        raise ValueError("create_shape requires shape_type and anchor_cell.")
+
+    col, row = _parse_anchor_cell(op.anchor_cell)
+    width_emu = _points_to_emu(op.width if op.width is not None else 120.0)
+    height_emu = _points_to_emu(op.height if op.height is not None else 60.0)
+
+    fill_color = op.fill_color
+    if fill_color is not None:
+        fill_color = _normalize_hex_input(fill_color, field_name="fill_color")
+
+    spec = _ShapeSpec(
+        sheet=op.sheet,
+        shape_type=op.shape_type,
+        anchor_col=col,
+        anchor_row=row,
+        width_emu=width_emu,
+        height_emu=height_emu,
+        text=op.text,
+        fill_color=fill_color,
     )
+    pending_shapes.append(spec)
+
+    shape_summary = f"type={op.shape_type};anchor={op.anchor_cell}"
+    if op.text:
+        shape_summary += f";text={op.text}"
+    return PatchDiffItem(
+        op_index=index,
+        op=op.op,
+        sheet=op.sheet,
+        cell=op.anchor_cell,
+        before=None,
+        after=PatchValue(kind="shape", value=shape_summary),
+    ), None
+
+
+def _apply_openpyxl_create_chart(
+    workbook: OpenpyxlWorkbookProtocol,
+    sheet: OpenpyxlWorksheetProtocol,
+    op: PatchOp,
+    index: int,
+) -> tuple[PatchDiffItem, PatchOp | None]:
+    """Apply create_chart using openpyxl.chart (cross-platform).
+
+    Args:
+        workbook: The openpyxl workbook instance.
+        sheet: The target worksheet.
+        op: The patch operation with chart parameters.
+        index: Operation index for diff tracking.
+
+    Returns:
+        Tuple of diff item and optional inverse op (always None for charts).
+    """
+    from openpyxl.chart import (
+        AreaChart,
+        BarChart,
+        DoughnutChart,
+        LineChart,
+        PieChart,
+        RadarChart,
+        Reference,
+        ScatterChart,
+    )
+    from openpyxl.utils import range_boundaries
+
+    if op.chart_type is None or op.data_range is None or op.anchor_cell is None:
+        raise ValueError(
+            "create_chart requires chart_type, data_range, and anchor_cell."
+        )
+
+    chart_class_map: dict[str, type] = {
+        "line": LineChart,
+        "column": BarChart,
+        "bar": BarChart,
+        "area": AreaChart,
+        "pie": PieChart,
+        "doughnut": DoughnutChart,
+        "scatter": ScatterChart,
+        "radar": RadarChart,
+    }
+    normalized_type = normalize_chart_type(op.chart_type)
+    if normalized_type is None or normalized_type not in chart_class_map:
+        raise ValueError(
+            f"create_chart chart_type must be one of: {SUPPORTED_CHART_TYPES_CSV}."
+        )
+
+    chart = chart_class_map[normalized_type]()
+    if normalized_type == "column":
+        chart.type = "col"
+        chart.grouping = "clustered"
+    elif normalized_type == "bar":
+        chart.type = "bar"
+        chart.grouping = "clustered"
+
+    if op.width is not None:
+        chart.width = op.width / 72 * 2.54  # points to cm
+    if op.height is not None:
+        chart.height = op.height / 72 * 2.54
+
+    def _resolve_ws(sheet_name: str | None) -> object:
+        """Resolve worksheet by name, falling back to current sheet."""
+        if sheet_name is None:
+            return sheet
+        try:
+            return workbook[sheet_name]  # type: ignore[index]
+        except KeyError:
+            raise ValueError(f"Sheet not found for chart range: {sheet_name}")
+
+    def _make_ref(range_ref: str) -> Reference:
+        """Parse A1 range (with optional sheet qualifier) into Reference."""
+        ref_sheet_name, local_range = _split_chart_range_reference(range_ref)
+        ws = _resolve_ws(ref_sheet_name)
+        min_col, min_row, max_col, max_row = range_boundaries(local_range)
+        return Reference(ws, min_col=min_col, min_row=min_row, max_col=max_col, max_row=max_row)
+
+    normalized_data_ranges = _normalize_chart_data_ranges(op.data_range)
+    titles_from_data = op.titles_from_data if op.titles_from_data is not None else True
+
+    if len(normalized_data_ranges) == 1:
+        data_ref = _make_ref(normalized_data_ranges[0])
+        chart.add_data(data_ref, titles_from_data=titles_from_data)
+    else:
+        category_range = op.category_range
+        if category_range is None:
+            category_range = normalized_data_ranges[0]
+            value_ranges = normalized_data_ranges[1:]
+        else:
+            value_ranges = normalized_data_ranges
+        for vr in value_ranges:
+            data_ref = _make_ref(vr)
+            chart.add_data(data_ref, titles_from_data=titles_from_data)
+
+    if op.category_range is not None:
+        cat_ref = _make_ref(op.category_range)
+        chart.set_categories(cat_ref)
+
+    if op.chart_title is not None:
+        chart.title = op.chart_title
+    if op.x_axis_title is not None and hasattr(chart, "x_axis"):
+        chart.x_axis.title = op.x_axis_title
+    if op.y_axis_title is not None and hasattr(chart, "y_axis"):
+        chart.y_axis.title = op.y_axis_title
+
+    sheet.add_chart(chart, op.anchor_cell)  # type: ignore[arg-type]
+
+    if isinstance(op.data_range, list):
+        data_summary = ",".join(op.data_range)
+    else:
+        data_summary = op.data_range
+    chart_label = op.chart_name or "Chart"
+    chart_summary = f"type={op.chart_type};data={data_summary};anchor={op.anchor_cell};name={chart_label}"
+    return PatchDiffItem(
+        op_index=index,
+        op=op.op,
+        sheet=op.sheet,
+        cell=op.anchor_cell,
+        before=None,
+        after=PatchValue(kind="chart", value=chart_summary),
+    ), None
 
 
 def _apply_openpyxl_cell_op(

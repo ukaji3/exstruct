@@ -23,10 +23,11 @@ PatchOpType = Literal[
     "set_style",
     "apply_table_style",
     "create_chart",
+    "create_shape",
     "restore_design_snapshot",
 ]
 PatchStatus = Literal["applied", "skipped"]
-PatchValueKind = Literal["value", "formula", "sheet", "style", "dimension", "chart"]
+PatchValueKind = Literal["value", "formula", "sheet", "style", "dimension", "chart", "shape"]
 PatchBackend = Literal["auto", "com", "openpyxl"]
 PatchEngine = Literal["com", "openpyxl"]
 FormulaIssueLevel = Literal["warning", "error"]

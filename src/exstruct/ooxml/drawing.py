@@ -38,7 +38,7 @@ def _resolve_relative_path(target: str, base_dir: str) -> str:
             clean = clean[3:]
         return f"xl/{clean}"
     if target.startswith("/"):
-        return f"{base_dir}{target}"
+        return target.lstrip("/")
     return f"{base_dir}/{target}"
 
 

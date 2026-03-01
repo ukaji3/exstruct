@@ -565,7 +565,7 @@ def test_service_run_patch_allows_mixed_request_on_backend_com(
 def test_service_run_patch_mixed_request_requires_com_when_auto_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Verify mixed chart/table ops fail clearly when COM is unavailable."""
+    """Verify mixed chart/table ops succeed via openpyxl when COM is unavailable."""
     input_path = tmp_path / "book.xlsx"
     _create_workbook(input_path)
 
@@ -575,32 +575,26 @@ def test_service_run_patch_mixed_request_requires_com_when_auto_unavailable(
         lambda: ComAvailability(available=False, reason="not available"),
     )
 
-    with pytest.raises(
-        ValueError,
-        match=(
-            r"create_chart \+ apply_table_style requests require "
-            r"Windows Excel COM availability"
-        ),
-    ):
-        service.run_patch(
-            PatchRequest(
-                xlsx_path=input_path,
-                ops=[
-                    PatchOp(
-                        op="create_chart",
-                        sheet="Sheet1",
-                        chart_type="line",
-                        data_range="A1:B2",
-                        anchor_cell="D2",
-                    ),
-                    PatchOp(
-                        op="apply_table_style",
-                        sheet="Sheet1",
-                        range="A1:B2",
-                        style="TableStyleMedium2",
-                    ),
-                ],
-                on_conflict="rename",
-                backend="auto",
-            )
+    result = service.run_patch(
+        PatchRequest(
+            xlsx_path=input_path,
+            ops=[
+                PatchOp(
+                    op="create_chart",
+                    sheet="Sheet1",
+                    chart_type="line",
+                    data_range="A1:B2",
+                    anchor_cell="D2",
+                ),
+                PatchOp(
+                    op="apply_table_style",
+                    sheet="Sheet1",
+                    range="A1:B2",
+                    style="TableStyleMedium2",
+                ),
+            ],
+            on_conflict="rename",
+            backend="auto",
         )
+    )
+    assert result.engine == "openpyxl"

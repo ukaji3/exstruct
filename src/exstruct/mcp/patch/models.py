@@ -562,6 +562,18 @@ class PatchOp(BaseModel):
         default=None,
         description="Optional Y-axis title text for create_chart.",
     )
+    shape_type: str | None = Field(
+        default=None,
+        description=(
+            "Preset geometry for create_shape: rect, roundRect, ellipse, "
+            "diamond, rightArrow, flowChartProcess, flowChartDecision, "
+            "flowChartTerminator."
+        ),
+    )
+    text: str | None = Field(
+        default=None,
+        description="Text content for create_shape.",
+    )
 
     @field_validator("sheet")
     @classmethod
@@ -755,6 +767,7 @@ def _validator_for_op(op_type: PatchOpType) -> Callable[[PatchOp], None] | None:
         "set_style": _validate_set_style,
         "apply_table_style": _validate_apply_table_style,
         "create_chart": _validate_create_chart,
+        "create_shape": _validate_create_shape,
         "restore_design_snapshot": _validate_restore_design_snapshot,
     }
     return validators.get(op_type)
@@ -1273,6 +1286,30 @@ def _validate_create_chart(op: PatchOp) -> None:
         op.series_from_rows = False
 
 
+SUPPORTED_SHAPE_TYPES: frozenset[str] = frozenset({
+    "rect", "roundRect", "ellipse", "diamond",
+    "rightArrow", "leftArrow", "upArrow", "downArrow",
+    "flowChartProcess", "flowChartDecision", "flowChartTerminator",
+    "flowChartDocument", "flowChartPredefinedProcess",
+})
+
+
+def _validate_create_shape(op: PatchOp) -> None:
+    """Validate create_shape operation."""
+    if op.shape_type is None:
+        raise ValueError("create_shape requires shape_type.")
+    if op.shape_type not in SUPPORTED_SHAPE_TYPES:
+        raise ValueError(
+            f"create_shape shape_type must be one of: {', '.join(sorted(SUPPORTED_SHAPE_TYPES))}."
+        )
+    if op.anchor_cell is None:
+        raise ValueError("create_shape requires anchor_cell.")
+    if op.cell is not None or op.range is not None or op.base_cell is not None:
+        raise ValueError("create_shape does not accept cell/range/base_cell.")
+    if op.chart_type is not None or op.data_range is not None:
+        raise ValueError("create_shape does not accept chart_type/data_range.")
+
+
 def _validate_no_legacy_edit_fields(
     op: PatchOp,
     *,
@@ -1479,10 +1516,6 @@ class PatchRequest(BaseModel):
     @model_validator(mode="after")
     def _validate_backend_constraints(self) -> PatchRequest:
         has_create_chart = any(op.op == "create_chart" for op in self.ops)
-        if has_create_chart and self.backend == "openpyxl":
-            raise ValueError(
-                "create_chart is supported only on COM backend; backend='openpyxl' is not allowed."
-            )
         if self.backend == "com":
             if self.dry_run or self.return_inverse_ops or self.preflight_formula_check:
                 raise ValueError(
@@ -1518,10 +1551,6 @@ class MakeRequest(BaseModel):
     @model_validator(mode="after")
     def _validate_backend_constraints(self) -> MakeRequest:
         has_create_chart = any(op.op == "create_chart" for op in self.ops)
-        if has_create_chart and self.backend == "openpyxl":
-            raise ValueError(
-                "create_chart is supported only on COM backend; backend='openpyxl' is not allowed."
-            )
         if self.backend == "com":
             if self.dry_run or self.return_inverse_ops or self.preflight_formula_check:
                 raise ValueError(

@@ -429,6 +429,30 @@ _PATCH_OP_SCHEMA_BY_NAME: dict[str, PatchOpSchema] = {
             "y_axis_title": "Amount",
         },
     ),
+    "create_shape": PatchOpSchema(
+        op="create_shape",
+        description="Create a shape on a worksheet (openpyxl/OOXML, cross-platform).",
+        required=["sheet", "shape_type", "anchor_cell"],
+        optional=["text", "width", "height", "fill_color"],
+        constraints=[
+            "shape_type in {'rect','roundRect','ellipse','diamond','rightArrow',"
+            "'leftArrow','upArrow','downArrow','flowChartProcess',"
+            "'flowChartDecision','flowChartTerminator','flowChartDocument',"
+            "'flowChartPredefinedProcess'}",
+            "width/height in points (default 120x60)",
+            "fill_color as hex color (e.g. '#4472C4')",
+        ],
+        example={
+            "op": "create_shape",
+            "sheet": "Sheet1",
+            "shape_type": "flowChartProcess",
+            "anchor_cell": "C2",
+            "text": "Process Step",
+            "width": 150,
+            "height": 80,
+            "fill_color": "#4472C4",
+        },
+    ),
     "restore_design_snapshot": PatchOpSchema(
         op="restore_design_snapshot",
         description="Internal inverse op to restore style snapshot.",
