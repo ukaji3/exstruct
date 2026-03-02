@@ -68,3 +68,63 @@
   - Closed both review findings for render and MCP timeout readers.
 - Verification:
   - `uv run pytest tests/render/test_render_init.py tests/mcp/test_server.py -q`
+
+## Rollout Plan (capture_sheet_images limited release, 2026-02-28)
+
+- [x] `tasks/feature_spec.md` に限定提供（experimental）方針・運用ポリシー・GA基準を確定反映
+- [x] MCPサーバー起動経路で `EXSTRUCT_RENDER_SUBPROCESS=0` を既定化（MCP実行時のみ）
+- [x] `docs/mcp.md` に Experimental 表記、推奨環境変数、既知制約を追記
+- [x] `README.md` / `README.ja.md` に運用注意（限定提供・依存条件）を追記
+- [x] サブプロセスハング切り分け用の計測ログポイントを `render` 側に追加（export/join/queue/write）
+- [x] サブプロセス経路の再現テストを追加（MCPコンテキスト相当でのタイムアウト/エラー検証）
+- [x] 成功率評価用の代表Workbookセットと計測手順を `tasks/` に定義
+
+## Rollout Verification
+
+- [x] `uv run pytest tests/mcp/test_server.py tests/render/test_render_init.py`
+- [x] `uv run task precommit-run`
+- [ ] 手動確認: `exstruct_capture_sheet_images` を最小範囲 `sheet=Sheet1, range=A1:A1` で実行し、120sタイムアウトが解消していること
+
+## Rollout Review (template)
+
+- Summary:
+  - MCP runtime で `EXSTRUCT_RENDER_SUBPROCESS=0` を既定化し、`capture_sheet_images` の限定提供方針を docs/README に反映。
+  - `render` に段階ログ（export/subprocess/worker）を追加し、MCPコンテキスト相当のエラー伝播テストを追加。
+  - 成功率評価の代表Workbookセットと手順を `tasks/capture_sheet_images_eval.md` として定義。
+- Verification:
+  - `uv run pytest tests/mcp/test_server.py tests/render/test_render_init.py -q` -> 78 passed
+  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
+- Risks:
+  - `EXSTRUCT_RENDER_SUBPROCESS=0` はクラッシュ分離を弱めるため、長時間運用時のメモリ観測が必要。
+- Follow-ups:
+  - 実環境での手動確認（最小範囲ケース）を実施し、失敗時はログをもとに subprocess 経路根治へ移行。
+
+## Subprocess Stabilization Plan (2026-03-02)
+
+- [ ] `tasks/feature_spec.md` の 2026-03-02 Addendum をベースに実装方針を確定
+- [ ] `src/exstruct/render/` にサブプロセス worker 専用エントリポイントを追加（親の `stdin/-c` 実行に非依存）
+- [ ] `src/exstruct/render/__init__.py` の `_render_pdf_pages_subprocess` を結果先行フローへ変更（join先行を廃止）
+- [ ] startup/result/join の3段階タイムアウトと stage-aware エラー整形を実装
+- [ ] 例外/タイムアウト時のプロセス終了手順を統一（terminate/kill/cleanup）
+- [ ] `tests/render/test_render_init.py` に回帰テストを追加（worker結果返却済み + join遅延ケースで成功扱い）
+- [ ] `tests/render/test_render_init.py` に回帰テストを追加（worker bootstrapping 失敗時に actionable メッセージ）
+- [ ] `tests/render/test_render_init.py` に回帰テストを追加（result timeout / join timeout のエラーステージ区別）
+- [ ] `tests/mcp/test_server.py` に `EXSTRUCT_RENDER_SUBPROCESS=1` 相当の伝播/失敗メッセージ検証を追加
+- [ ] 代表Workbookセットで手動再検証（`EXSTRUCT_RENDER_SUBPROCESS=1`）
+- [ ] docs 更新（`docs/mcp.md`, `README.md`, `README.ja.md`）: サブプロセス再有効化条件と既知制約
+
+## Subprocess Stabilization Verification
+
+- [ ] `uv run pytest tests/render/test_render_init.py tests/mcp/test_server.py -q`
+- [ ] `uv run task precommit-run`
+
+## Subprocess Stabilization Review (template)
+
+- Summary:
+  - 
+- Verification:
+  - 
+- Risks:
+  - 
+- Follow-ups:
+  - 

@@ -10,7 +10,8 @@ All notable changes to this project are documented in this file. This changelog 
 
 ### Changed
 
-- None.
+- MCP runtime now defaults `EXSTRUCT_RENDER_SUBPROCESS=0` to stabilize `exstruct_capture_sheet_images` in environments where subprocess rendering can hang.
+- Marked MCP `exstruct_capture_sheet_images` as Experimental in docs, including recommended timeout/runtime settings.
 
 ## [0.5.2] - 2026-02-28
 

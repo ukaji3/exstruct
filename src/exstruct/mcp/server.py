@@ -110,9 +110,14 @@ def run_server(config: ServerConfig) -> None:
         config: Server configuration.
     """
     os.environ.setdefault("EXSTRUCT_BORDER_CLUSTER_BACKEND", "python")
+    os.environ.setdefault("EXSTRUCT_RENDER_SUBPROCESS", "0")
     logger.info(
         "Border cluster backend set to %s for MCP.",
         os.getenv("EXSTRUCT_BORDER_CLUSTER_BACKEND"),
+    )
+    logger.info(
+        "Render subprocess mode for MCP set to %s.",
+        os.getenv("EXSTRUCT_RENDER_SUBPROCESS"),
     )
     _import_mcp()
     policy = PathPolicy(root=config.root, deny_globs=config.deny_globs)

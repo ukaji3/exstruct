@@ -74,7 +74,7 @@ exstruct-mcp --root C:\\data --log-file C:\\logs\\exstruct-mcp.log --on-conflict
 - `exstruct_validate_input`
 - `exstruct_get_runtime_info`
 
-### `exstruct_capture_sheet_images` (COM only)
+### `exstruct_capture_sheet_images` (COM only, Experimental)
 
 - Purpose: export worksheet images as PNG through the existing PDF -> PNG pipeline.
 - Input:
@@ -90,10 +90,14 @@ exstruct-mcp --root C:\\data --log-file C:\\logs\\exstruct-mcp.log --on-conflict
 - Notes:
   - If `out_dir` is omitted, a unique `<workbook_stem>_images` directory is created under MCP `--root`.
   - COM/Excel desktop is required.
+  - This tool is currently shipped as `experimental` in MCP deployments.
+  - Recommended MCP runtime setting: `EXSTRUCT_RENDER_SUBPROCESS=0` (in-process PDF->PNG) to avoid subprocess-hang timeouts observed in some MCP contexts.
   - Timeout tuning:
+    - `EXSTRUCT_RENDER_SUBPROCESS` (recommended `0` for MCP runtime)
     - `EXSTRUCT_MCP_CAPTURE_SHEET_IMAGES_TIMEOUT_SEC` (default `120`)
     - `EXSTRUCT_RENDER_SUBPROCESS_JOIN_TIMEOUT_SEC` (default `120`)
     - `EXSTRUCT_RENDER_SUBPROCESS_RESULT_TIMEOUT_SEC` (default `5`)
+  - Known trade-off for `EXSTRUCT_RENDER_SUBPROCESS=0`: lower crash isolation and potentially higher long-running process memory pressure.
 
 Example:
 

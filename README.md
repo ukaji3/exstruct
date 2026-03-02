@@ -105,7 +105,9 @@ Available tools:
 Notes:
 
 - In MCP, `exstruct_extract` defaults to `options.alpha_col=true` (column keys: `A`, `B`, ...). Set `options.alpha_col=false` for legacy 0-based numeric string keys.
-- `exstruct_capture_sheet_images` is COM-only and supports optional `sheet` / `range` targeting (`A1:B2`, `Sheet1!A1:B2`, `'Sheet 1'!A1:B2`). When `out_dir` is omitted, it creates a unique `<workbook_stem>_images` directory under MCP `--root`.
+- `exstruct_capture_sheet_images` is COM-only (Experimental) and supports optional `sheet` / `range` targeting (`A1:B2`, `Sheet1!A1:B2`, `'Sheet 1'!A1:B2`). When `out_dir` is omitted, it creates a unique `<workbook_stem>_images` directory under MCP `--root`.
+- For MCP runtime stability, prefer `EXSTRUCT_RENDER_SUBPROCESS=0` (in-process PDF->PNG). Keep `EXSTRUCT_MCP_CAPTURE_SHEET_IMAGES_TIMEOUT_SEC` at `>=180` for large workbooks.
+- Trade-off of `EXSTRUCT_RENDER_SUBPROCESS=0`: less crash isolation and higher memory pressure risk in long-running processes.
 - Logs go to stderr (and optionally `--log-file`) to avoid contaminating stdio responses.
 - On Windows with Excel, standard/verbose can use COM for richer extraction. On non-Windows, COM is unavailable and extraction uses openpyxl-based fallbacks.
 - `exstruct_patch` supports `backend` selection:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import builtins
 from collections.abc import Callable
+import logging
 from pathlib import Path
 import shutil
 import sys
@@ -543,6 +544,38 @@ def test_render_pdf_pages_subprocess_success(tmp_path: Path) -> None:
         )
 
     assert result == [output_dir / "01_Sheet1.png"]
+
+
+def test_render_pdf_pages_subprocess_emits_stage_logs(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """_render_pdf_pages_subprocess emits start/join/done stage logs."""
+    queue = FakeQueue()
+    process = FakeProcess(
+        queue,
+        exitcode=0,
+        payload={"paths": [str(tmp_path / "images" / "01_Sheet1.png")]},
+    )
+    context = FakeContext(queue, process)
+    render_mp = cast(Any, render).mp
+
+    def _get_context(_: str) -> FakeContext:
+        return context
+
+    pdf_path = tmp_path / "sheet_01.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4")
+    output_dir = tmp_path / "images"
+
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(render_mp, "get_context", _get_context)
+        caplog.set_level(logging.INFO, logger=render.__name__)
+        render._render_pdf_pages_subprocess(pdf_path, output_dir, 0, "Sheet1", 144)
+
+    log_text = caplog.text
+    assert "render-stage=subprocess.start" in log_text
+    assert "render-stage=subprocess.joined" in log_text
+    assert "render-stage=subprocess.done" in log_text
 
 
 def test_render_pdf_pages_subprocess_error(tmp_path: Path) -> None:

@@ -8,6 +8,7 @@ from pathlib import Path
 import re
 import shutil
 import tempfile
+import time
 from types import ModuleType
 from typing import Protocol, cast
 
@@ -419,6 +420,7 @@ def _export_sheet_pdf(
         ignore_print_areas (bool): If True, request that Excel ignore sheet print areas during export.
         print_area (str | None): Optional print area string to apply for this export; if None, the sheet's current print area is left unchanged.
     """
+    start_time = time.perf_counter()
     original_print_area: object | None = None
     page_setup = None
     if print_area is not None:
@@ -431,6 +433,12 @@ def _export_sheet_pdf(
             logger.debug("Failed to set PrintArea. (%r)", exc)
             page_setup = None
     try:
+        logger.debug(
+            "render-stage=export_pdf.start path=%s ignore_print_areas=%s has_print_area=%s",
+            pdf_path,
+            ignore_print_areas,
+            print_area is not None,
+        )
         sheet_api.ExportAsFixedFormat(
             0, str(pdf_path), IgnorePrintAreas=ignore_print_areas
         )
@@ -449,6 +457,13 @@ def _export_sheet_pdf(
                 page_setup.PrintArea = original_print_area
             except Exception as exc:
                 logger.debug("Failed to restore PrintArea. (%r)", exc)
+    elapsed_seconds = time.perf_counter() - start_time
+    logger.debug(
+        "render-stage=export_pdf.done path=%s elapsed_sec=%.3f exists=%s",
+        pdf_path,
+        elapsed_seconds,
+        pdf_path.exists(),
+    )
 
 
 def _ensure_pdfium(use_subprocess: bool) -> ModuleType | None:
@@ -713,6 +728,7 @@ def _render_pdf_pages_subprocess(
     dpi: int,
 ) -> list[Path]:
     """Render PDF pages to PNGs in a subprocess for memory isolation."""
+    start_time = time.perf_counter()
     ctx = mp.get_context("spawn")
     queue: mp.Queue[dict[str, list[str] | str]] = ctx.Queue()
     process = ctx.Process(
@@ -721,8 +737,24 @@ def _render_pdf_pages_subprocess(
     )
     join_timeout_seconds = _get_render_subprocess_join_timeout_seconds()
     result_timeout_seconds = _get_render_subprocess_result_timeout_seconds()
+    logger.info(
+        "render-stage=subprocess.start pdf=%s out_dir=%s sheet_index=%d dpi=%d "
+        "join_timeout_sec=%.1f result_timeout_sec=%.1f",
+        pdf_path,
+        output_dir,
+        sheet_index,
+        dpi,
+        join_timeout_seconds,
+        result_timeout_seconds,
+    )
     process.start()
     process.join(timeout=join_timeout_seconds)
+    logger.info(
+        "render-stage=subprocess.joined pdf=%s exitcode=%s alive=%s",
+        pdf_path,
+        process.exitcode,
+        process.is_alive(),
+    )
     if process.is_alive():
         _terminate_subprocess(process)
         raise RenderError(
@@ -734,6 +766,13 @@ def _render_pdf_pages_subprocess(
         message = result.get("error", "subprocess failed")
         raise RenderError(f"Failed to render PDF pages: {message}")
     paths = result.get("paths", [])
+    elapsed_seconds = time.perf_counter() - start_time
+    logger.info(
+        "render-stage=subprocess.done pdf=%s output_count=%d elapsed_sec=%.3f",
+        pdf_path,
+        len(paths),
+        elapsed_seconds,
+    )
     return [Path(path) for path in paths]
 
 
@@ -770,6 +809,14 @@ def _render_pdf_pages_worker(
 ) -> None:
     """Worker process to render PDF pages into PNG files."""
     try:
+        start_time = time.perf_counter()
+        logger.debug(
+            "render-stage=worker.start pdf=%s out_dir=%s sheet_index=%d dpi=%d",
+            pdf_path,
+            output_dir,
+            sheet_index,
+            dpi,
+        )
         import pypdfium2 as pdfium
 
         scale = dpi / 72.0
@@ -787,6 +834,13 @@ def _render_pdf_pages_worker(
                 pil_image.save(img_path, format="PNG", dpi=(dpi, dpi))
                 written.append(str(img_path))
         queue.put({"paths": written})
+        elapsed_seconds = time.perf_counter() - start_time
+        logger.debug(
+            "render-stage=worker.done pdf=%s output_count=%d elapsed_sec=%.3f",
+            pdf_path,
+            len(written),
+            elapsed_seconds,
+        )
     except Exception as exc:
         queue.put({"error": str(exc)})
 

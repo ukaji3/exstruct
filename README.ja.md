@@ -101,7 +101,9 @@ exstruct-mcp --root C:\data --log-file C:\logs\exstruct-mcp.log --on-conflict re
 
 注意点:
 
-- `exstruct_capture_sheet_images` は COM 専用で、`sheet` / `range`（`A1:B2`, `Sheet1!A1:B2`, `'Sheet 1'!A1:B2`）の指定に対応します。`out_dir` 未指定時は MCP `--root` 配下に一意な `<workbook_stem>_images` ディレクトリを作成します。
+- `exstruct_capture_sheet_images` は COM 専用（Experimental）で、`sheet` / `range`（`A1:B2`, `Sheet1!A1:B2`, `'Sheet 1'!A1:B2`）の指定に対応します。`out_dir` 未指定時は MCP `--root` 配下に一意な `<workbook_stem>_images` ディレクトリを作成します。
+- MCP 実行時の安定性を優先する場合は `EXSTRUCT_RENDER_SUBPROCESS=0`（PDF->PNG を同一プロセスで実行）を推奨します。大きいブックでは `EXSTRUCT_MCP_CAPTURE_SHEET_IMAGES_TIMEOUT_SEC` を `180` 以上に設定してください。
+- `EXSTRUCT_RENDER_SUBPROCESS=0` のトレードオフ: クラッシュ分離が弱くなり、長時間稼働時のメモリ圧迫リスクが上がります。
 - 標準入出力の応答を汚染しないよう、ログは標準エラー出力（およびオプションで`--log-file`で指定したファイル）に出力されます。
 - WindowsのExcel環境では、標準/詳細モードでCOMを利用して、よりリッチな抽出が可能です。Windows以外ではCOMは利用できず、抽出はopenpyxlベースのフォールバック機能を使用します。
 - `exstruct_patch` は `backend` 指定をサポートします。
