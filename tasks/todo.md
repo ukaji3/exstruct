@@ -29,8 +29,8 @@
 - [x] LibreOffice UNO から draw-page shapes を取得する backend を追加する
   - `LibreOfficeSession.extract_draw_page_shapes(...)` と bridge payload を実装する
   - `LibreOfficeRichBackend.extract_shapes(...)` が UNO draw-page 順を canonical source として使う
-- [ ] LibreOffice bridge payload に draw-page shape と connector direct-ref を追加する
-- [ ] LibreOffice backend で UNO draw-page payload を shape metadata と connector 解決に統合する
+- [x] LibreOffice bridge payload に draw-page shape と connector direct-ref を追加する
+- [x] LibreOffice backend で UNO draw-page payload を shape metadata と connector 解決に統合する
 - [x] non-connector shape のみシート内連番 `id` を振る仕様を実装する
 - [x] connector 解決を `OOXML explicit ref -> UNO direct ref -> geometry heuristic` の優先順で実装する
   - OOXML connector match が取れない場合でも UNO `StartShape/EndShape` を使って begin/end を復元する
@@ -79,7 +79,7 @@
   - `pytest.mark.libreoffice` smoke test と `RUN_LIBREOFFICE_SMOKE=1` gate を追加
   - LibreOffice runtime あり環境で smoke test を実行して通過
 
-- 実装状態: 進行中
+- 実装状態: 完了
 - この時点で完了済み:
   - issue 56 の仕様整理
   - `feature_spec.md` 作成
@@ -96,4 +96,3 @@
   - UNO API の環境差
   - connector heuristic の誤接続
   - chart geometry の pairing ずれ
-  - 現状は OOXML anchor 中心の実装で、UNO 直接 geometry 取得は未完了
