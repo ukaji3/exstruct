@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 import math
 import os
 from pathlib import Path
 import shutil
+import socket
 import subprocess
 from tempfile import mkdtemp
+import time
+from typing import Literal
 
 _DEFAULT_STARTUP_TIMEOUT_SEC = 15.0
 _DEFAULT_EXEC_TIMEOUT_SEC = 30.0
@@ -14,6 +18,31 @@ _DEFAULT_EXEC_TIMEOUT_SEC = 30.0
 
 class LibreOfficeUnavailableError(RuntimeError):
     """Raised when the LibreOffice runtime is not available."""
+
+
+@dataclass(frozen=True)
+class LibreOfficeChartGeometry:
+    name: str
+    persist_name: str | None = None
+    left: int | None = None
+    top: int | None = None
+    width: int | None = None
+    height: int | None = None
+
+
+@dataclass(frozen=True)
+class LibreOfficeDrawPageShape:
+    name: str
+    shape_type: str | None = None
+    text: str = ""
+    left: int | None = None
+    top: int | None = None
+    width: int | None = None
+    height: int | None = None
+    rotation: float | None = None
+    is_connector: bool = False
+    start_shape_name: str | None = None
+    end_shape_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -30,6 +59,10 @@ class LibreOfficeSession:
     def __init__(self, config: LibreOfficeSessionConfig) -> None:
         self.config = config
         self._temp_profile_dir: Path | None = None
+        self._soffice_process: subprocess.Popen[str] | None = None
+        self._accept_port: int | None = None
+        self._python_path = _resolve_python_path(config.soffice_path)
+        self._bridge_payload_cache: dict[str, object] = {}
 
     @classmethod
     def from_env(cls) -> LibreOfficeSession:
@@ -59,6 +92,10 @@ class LibreOfficeSession:
         if not self.config.soffice_path.exists():
             raise LibreOfficeUnavailableError(
                 f"LibreOffice runtime is unavailable: '{self.config.soffice_path}' was not found."
+            )
+        if self._python_path is None or not self._python_path.exists():
+            raise LibreOfficeUnavailableError(
+                "LibreOffice runtime is unavailable: bundled python was not found."
             )
         profile_root = self.config.profile_root
         if profile_root is not None:
@@ -93,14 +130,56 @@ class LibreOfficeSession:
                     "LibreOffice runtime is unavailable: soffice version probe failed."
                 ) from exc
             raise
+        self._accept_port = _reserve_tcp_port()
+        try:
+            self._soffice_process = subprocess.Popen(
+                [
+                    str(self.config.soffice_path),
+                    "--headless",
+                    "--nologo",
+                    "--nodefault",
+                    "--norestore",
+                    "--nolockcheck",
+                    f"-env:UserInstallation={self._temp_profile_dir.as_uri()}",
+                    (
+                        "--accept="
+                        "socket,host=127.0.0.1,"
+                        f"port={self._accept_port};urp;StarOffice.ComponentContext"
+                    ),
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+            _wait_for_socket(
+                host="127.0.0.1",
+                port=self._accept_port,
+                timeout_sec=self.config.startup_timeout_sec,
+                process=self._soffice_process,
+            )
+        except Exception:
+            self.__exit__(None, None, None)
+            raise
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
         _ = exc_type
         _ = exc
         _ = tb
+        if self._soffice_process is not None:
+            self._soffice_process.terminate()
+            try:
+                self._soffice_process.wait(timeout=5.0)
+            except subprocess.TimeoutExpired:
+                self._soffice_process.kill()
+                try:
+                    self._soffice_process.wait(timeout=5.0)
+                except subprocess.TimeoutExpired:
+                    pass
+            self._soffice_process = None
+        self._accept_port = None
         if self._temp_profile_dir is not None:
-            shutil.rmtree(self._temp_profile_dir, ignore_errors=True)
+            _cleanup_profile_dir(self._temp_profile_dir)
             self._temp_profile_dir = None
 
     def load_workbook(self, file_path: Path) -> object:
@@ -110,6 +189,77 @@ class LibreOfficeSession:
     def close_workbook(self, workbook: object) -> None:
         """Close a workbook token returned by ``load_workbook``."""
         _ = workbook
+
+    def extract_draw_page_shapes(
+        self, file_path: Path
+    ) -> dict[str, list[LibreOfficeDrawPageShape]]:
+        """Extract best-effort draw-page shapes from the workbook."""
+        payload = self._run_bridge(file_path, kind="draw-page")
+        return _parse_draw_page_payload(payload)
+
+    def extract_chart_geometries(
+        self, file_path: Path
+    ) -> dict[str, list[LibreOfficeChartGeometry]]:
+        """Extract chart geometry candidates from the workbook draw pages."""
+        payload = self._run_bridge(file_path, kind="charts")
+        return _parse_chart_payload(payload)
+
+    def _run_bridge(
+        self,
+        file_path: Path,
+        *,
+        kind: Literal["charts", "draw-page"],
+    ) -> object:
+        if self._accept_port is None or self._python_path is None:
+            raise RuntimeError("LibreOfficeSession must be entered before extraction.")
+        cache_key = f"{kind}:{file_path.resolve()}"
+        if cache_key in self._bridge_payload_cache:
+            return self._bridge_payload_cache[cache_key]
+        bridge_path = Path(__file__).with_name("_libreoffice_bridge.py")
+        env = dict(os.environ)
+        env["PYTHONIOENCODING"] = "utf-8"
+        try:
+            completed = subprocess.run(
+                [
+                    str(self._python_path),
+                    str(bridge_path),
+                    "--host",
+                    "127.0.0.1",
+                    "--port",
+                    str(self._accept_port),
+                    "--file",
+                    str(file_path.resolve()),
+                    "--kind",
+                    kind,
+                ],
+                capture_output=True,
+                check=True,
+                text=True,
+                encoding="utf-8",
+                timeout=self.config.exec_timeout_sec,
+                env=env,
+            )
+        except FileNotFoundError as exc:
+            raise LibreOfficeUnavailableError(
+                "LibreOffice runtime is unavailable: bundled python could not be executed."
+            ) from exc
+        except subprocess.TimeoutExpired as exc:
+            raise LibreOfficeUnavailableError(
+                "LibreOffice runtime is unavailable: UNO bridge extraction timed out."
+            ) from exc
+        except subprocess.CalledProcessError as exc:
+            detail = exc.stderr.strip() or exc.stdout.strip() or "unknown error"
+            raise RuntimeError(
+                f"LibreOffice UNO bridge extraction failed: {detail}"
+            ) from exc
+        try:
+            payload = json.loads(completed.stdout)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                "LibreOffice UNO bridge extraction returned invalid JSON."
+            ) from exc
+        self._bridge_payload_cache[cache_key] = payload
+        return payload
 
 
 def _which_soffice() -> Path | None:
@@ -138,3 +288,161 @@ def _get_optional_path(name: str) -> Path | None:
     if raw is None or not raw.strip():
         return None
     return Path(raw)
+
+
+def _resolve_python_path(soffice_path: Path) -> Path | None:
+    override = os.getenv("EXSTRUCT_LIBREOFFICE_PYTHON_PATH")
+    if override:
+        return Path(override)
+    program_dir = soffice_path.parent
+    for candidate in ("python.exe", "python.bin", "python"):
+        path = program_dir / candidate
+        if path.exists():
+            return path
+    return None
+
+
+def _reserve_tcp_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def _wait_for_socket(
+    *,
+    host: str,
+    port: int,
+    timeout_sec: float,
+    process: subprocess.Popen[str] | None,
+) -> None:
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        if process is not None and process.poll() is not None:
+            raise LibreOfficeUnavailableError(
+                "LibreOffice runtime is unavailable: soffice exited during startup."
+            )
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(0.2)
+            try:
+                sock.connect((host, port))
+            except OSError:
+                time.sleep(0.1)
+                continue
+        return
+    raise LibreOfficeUnavailableError(
+        "LibreOffice runtime is unavailable: soffice socket startup timed out."
+    )
+
+
+def _cleanup_profile_dir(path: Path) -> None:
+    deadline = time.monotonic() + 5.0
+    while True:
+        shutil.rmtree(path, ignore_errors=True)
+        if not path.exists() or time.monotonic() >= deadline:
+            return
+        time.sleep(0.1)
+
+
+def _parse_chart_payload(
+    payload: object,
+) -> dict[str, list[LibreOfficeChartGeometry]]:
+    if not isinstance(payload, dict):
+        raise RuntimeError(
+            "LibreOffice UNO chart extraction returned a non-object payload."
+        )
+    sheets_payload = payload.get("sheets")
+    if not isinstance(sheets_payload, dict):
+        raise RuntimeError(
+            "LibreOffice UNO chart extraction payload is missing sheets."
+        )
+    result: dict[str, list[LibreOfficeChartGeometry]] = {}
+    for sheet_name, items in sheets_payload.items():
+        if not isinstance(sheet_name, str) or not isinstance(items, list):
+            continue
+        geometries: list[LibreOfficeChartGeometry] = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            name = item.get("name")
+            if not isinstance(name, str) or not name:
+                continue
+            persist_name = item.get("persist_name")
+            geometries.append(
+                LibreOfficeChartGeometry(
+                    name=name,
+                    persist_name=persist_name
+                    if isinstance(persist_name, str)
+                    else None,
+                    left=_coerce_int(item.get("left")),
+                    top=_coerce_int(item.get("top")),
+                    width=_coerce_int(item.get("width")),
+                    height=_coerce_int(item.get("height")),
+                )
+            )
+        result[sheet_name] = geometries
+    return result
+
+
+def _parse_draw_page_payload(
+    payload: object,
+) -> dict[str, list[LibreOfficeDrawPageShape]]:
+    if not isinstance(payload, dict):
+        raise RuntimeError(
+            "LibreOffice UNO draw-page extraction returned a non-object payload."
+        )
+    sheets_payload = payload.get("sheets")
+    if not isinstance(sheets_payload, dict):
+        raise RuntimeError(
+            "LibreOffice UNO draw-page extraction payload is missing sheets."
+        )
+    result: dict[str, list[LibreOfficeDrawPageShape]] = {}
+    for sheet_name, items in sheets_payload.items():
+        if not isinstance(sheet_name, str) or not isinstance(items, list):
+            continue
+        shapes: list[LibreOfficeDrawPageShape] = []
+        for index, item in enumerate(items, start=1):
+            if not isinstance(item, dict):
+                continue
+            raw_name = item.get("name")
+            name = (
+                raw_name if isinstance(raw_name, str) and raw_name else f"Shape {index}"
+            )
+            shape_type = item.get("shape_type")
+            start_shape_name = item.get("start_shape_name")
+            end_shape_name = item.get("end_shape_name")
+            text = item.get("text")
+            shapes.append(
+                LibreOfficeDrawPageShape(
+                    name=name,
+                    shape_type=shape_type if isinstance(shape_type, str) else None,
+                    text=text if isinstance(text, str) else "",
+                    left=_coerce_int(item.get("left")),
+                    top=_coerce_int(item.get("top")),
+                    width=_coerce_int(item.get("width")),
+                    height=_coerce_int(item.get("height")),
+                    rotation=_coerce_rotation(item.get("rotation")),
+                    is_connector=bool(item.get("is_connector")),
+                    start_shape_name=start_shape_name
+                    if isinstance(start_shape_name, str)
+                    else None,
+                    end_shape_name=end_shape_name
+                    if isinstance(end_shape_name, str)
+                    else None,
+                )
+            )
+        result[sheet_name] = shapes
+    return result
+
+
+def _coerce_int(value: object) -> int | None:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(round(value))
+    return None
+
+
+def _coerce_rotation(value: object) -> float | None:
+    if isinstance(value, int | float):
+        return float(value)
+    return None

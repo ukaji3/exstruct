@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 import math
 from pathlib import Path
 
 from ...models import Arrow, Chart, Shape, SmartArt
-from ..libreoffice import LibreOfficeSession
+from ..libreoffice import (
+    LibreOfficeChartGeometry,
+    LibreOfficeDrawPageShape,
+    LibreOfficeSession,
+)
 from ..ooxml_drawing import OoxmlConnectorInfo, OoxmlShapeInfo, read_sheet_drawings
 from ..shapes import angle_to_compass, compute_line_angle_deg
 from .base import ChartData, RichBackend, ShapeData
@@ -23,67 +27,34 @@ class LibreOfficeRichBackend(RichBackend):
         self.file_path = file_path
         self._session_factory = session_factory
         self._runtime_checked = False
+        self._chart_geometries: dict[str, list[LibreOfficeChartGeometry]] | None = None
+        self._draw_page_shapes: dict[str, list[LibreOfficeDrawPageShape]] | None = None
 
     def extract_shapes(self, *, mode: str) -> dict[str, list[Shape | Arrow | SmartArt]]:
         if mode != "libreoffice":
             raise ValueError("LibreOfficeRichBackend only supports libreoffice mode.")
         self._ensure_runtime()
         drawings = read_sheet_drawings(self.file_path)
+        draw_page_shapes = self._read_draw_page_shapes()
         shape_data: ShapeData = {}
-        for sheet_name, drawing in drawings.items():
-            emitted: list[Shape | Arrow | SmartArt] = []
-            drawing_to_shape_id: dict[int, int] = {}
-            shape_boxes: dict[int, _ShapeBox] = {}
-            next_shape_id = 0
-            for shape_info in drawing.shapes:
-                next_shape_id += 1
-                shape_id = next_shape_id
-                drawing_to_shape_id[shape_info.ref.drawing_id] = shape_id
-                box = _to_shape_box(shape_info, shape_id=shape_id)
-                if box is not None:
-                    shape_boxes[shape_id] = box
-                emitted.append(
-                    Shape(
-                        id=shape_id,
-                        text=shape_info.text,
-                        l=shape_info.ref.left or 0,
-                        t=shape_info.ref.top or 0,
-                        w=shape_info.ref.width,
-                        h=shape_info.ref.height,
-                        rotation=shape_info.rotation,
-                        type=shape_info.shape_type,
-                        provenance="libreoffice_uno",
-                        approximation_level="partial",
-                        confidence=0.75,
-                    )
+        sheet_names = list(dict.fromkeys([*drawings.keys(), *draw_page_shapes.keys()]))
+        for sheet_name in sheet_names:
+            drawing = drawings.get(sheet_name)
+            snapshots = draw_page_shapes.get(sheet_name, [])
+            if snapshots:
+                shape_data[sheet_name] = _build_shapes_from_draw_page(
+                    snapshots,
+                    drawing_shapes=drawing.shapes if drawing is not None else [],
+                    drawing_connectors=drawing.connectors
+                    if drawing is not None
+                    else [],
                 )
-            for connector_info in drawing.connectors:
-                begin_id, end_id, approximation_level, confidence = _resolve_connector(
-                    connector_info,
-                    drawing_to_shape_id=drawing_to_shape_id,
-                    shape_boxes=shape_boxes,
+                continue
+            if drawing is not None:
+                shape_data[sheet_name] = _build_shapes_from_ooxml(
+                    drawing.shapes,
+                    drawing.connectors,
                 )
-                direction = _resolve_direction(connector_info)
-                emitted.append(
-                    Arrow(
-                        id=None,
-                        text=connector_info.text,
-                        l=connector_info.ref.left or 0,
-                        t=connector_info.ref.top or 0,
-                        w=connector_info.ref.width,
-                        h=connector_info.ref.height,
-                        rotation=connector_info.rotation,
-                        begin_arrow_style=connector_info.begin_arrow_style,
-                        end_arrow_style=connector_info.end_arrow_style,
-                        begin_id=begin_id,
-                        end_id=end_id,
-                        direction=direction,
-                        provenance="libreoffice_uno",
-                        approximation_level=approximation_level,
-                        confidence=confidence,
-                    )
-                )
-            shape_data[sheet_name] = emitted
         return shape_data
 
     def extract_charts(self, *, mode: str) -> dict[str, list[Chart]]:
@@ -91,10 +62,28 @@ class LibreOfficeRichBackend(RichBackend):
             raise ValueError("LibreOfficeRichBackend only supports libreoffice mode.")
         self._ensure_runtime()
         drawings = read_sheet_drawings(self.file_path)
+        chart_geometries = self._read_chart_geometries()
         chart_data: ChartData = {}
         for sheet_name, drawing in drawings.items():
             charts: list[Chart] = []
-            for chart_info in drawing.charts:
+            geometry_matches = _match_chart_geometries(
+                drawing.charts,
+                chart_geometries.get(sheet_name, []),
+            )
+            for chart_info, geometry in zip(
+                drawing.charts, geometry_matches, strict=False
+            ):
+                left = chart_info.anchor_left or 0
+                top = chart_info.anchor_top or 0
+                width = chart_info.anchor_width
+                height = chart_info.anchor_height
+                confidence = 0.5
+                if geometry is not None:
+                    left = geometry.left if geometry.left is not None else left
+                    top = geometry.top if geometry.top is not None else top
+                    width = geometry.width if geometry.width is not None else width
+                    height = geometry.height if geometry.height is not None else height
+                    confidence = 0.8
                 charts.append(
                     Chart(
                         name=chart_info.name,
@@ -102,14 +91,14 @@ class LibreOfficeRichBackend(RichBackend):
                         title=chart_info.title,
                         y_axis_title=chart_info.y_axis_title,
                         y_axis_range=chart_info.y_axis_range,
-                        w=chart_info.anchor_width,
-                        h=chart_info.anchor_height,
+                        w=width,
+                        h=height,
                         series=chart_info.series,
-                        l=chart_info.anchor_left or 0,
-                        t=chart_info.anchor_top or 0,
+                        l=left,
+                        t=top,
                         provenance="libreoffice_uno",
                         approximation_level="partial",
-                        confidence=0.5,
+                        confidence=confidence,
                     )
                 )
             chart_data[sheet_name] = charts
@@ -123,48 +112,316 @@ class LibreOfficeRichBackend(RichBackend):
             session.close_workbook(workbook)
         self._runtime_checked = True
 
+    def _read_chart_geometries(self) -> dict[str, list[LibreOfficeChartGeometry]]:
+        if self._chart_geometries is not None:
+            return self._chart_geometries
+        with self._session_factory() as session:
+            if hasattr(session, "extract_chart_geometries"):
+                self._chart_geometries = session.extract_chart_geometries(
+                    self.file_path
+                )
+            else:
+                self._chart_geometries = {}
+        return self._chart_geometries
+
+    def _read_draw_page_shapes(self) -> dict[str, list[LibreOfficeDrawPageShape]]:
+        if self._draw_page_shapes is not None:
+            return self._draw_page_shapes
+        with self._session_factory() as session:
+            if hasattr(session, "extract_draw_page_shapes"):
+                self._draw_page_shapes = session.extract_draw_page_shapes(
+                    self.file_path
+                )
+            else:
+                self._draw_page_shapes = {}
+        return self._draw_page_shapes
+
+
+def _build_shapes_from_ooxml(
+    shapes: Sequence[OoxmlShapeInfo],
+    connectors: Sequence[OoxmlConnectorInfo],
+) -> list[Shape | Arrow | SmartArt]:
+    emitted: list[Shape | Arrow | SmartArt] = []
+    drawing_to_shape_id: dict[int, int] = {}
+    shape_boxes: dict[int, _ShapeBox] = {}
+    next_shape_id = 0
+    for shape_info in shapes:
+        next_shape_id += 1
+        shape_id = next_shape_id
+        drawing_to_shape_id[shape_info.ref.drawing_id] = shape_id
+        box = _to_shape_box(
+            shape_id=shape_id,
+            left=shape_info.ref.left,
+            top=shape_info.ref.top,
+            width=shape_info.ref.width,
+            height=shape_info.ref.height,
+        )
+        if box is not None:
+            shape_boxes[shape_id] = box
+        emitted.append(
+            Shape(
+                id=shape_id,
+                text=shape_info.text,
+                l=shape_info.ref.left or 0,
+                t=shape_info.ref.top or 0,
+                w=shape_info.ref.width,
+                h=shape_info.ref.height,
+                rotation=shape_info.rotation,
+                type=shape_info.shape_type,
+                provenance="libreoffice_uno",
+                approximation_level="partial",
+                confidence=0.75,
+            )
+        )
+    for connector_info in connectors:
+        begin_id, end_id, approximation_level, confidence = _resolve_connector(
+            connector_info,
+            uno_connector=None,
+            drawing_to_shape_id=drawing_to_shape_id,
+            shape_name_to_id={},
+            shape_boxes=shape_boxes,
+        )
+        emitted.append(
+            Arrow(
+                id=None,
+                text=connector_info.text,
+                l=connector_info.ref.left or 0,
+                t=connector_info.ref.top or 0,
+                w=connector_info.ref.width,
+                h=connector_info.ref.height,
+                rotation=connector_info.rotation,
+                begin_arrow_style=connector_info.begin_arrow_style,
+                end_arrow_style=connector_info.end_arrow_style,
+                begin_id=begin_id,
+                end_id=end_id,
+                direction=_resolve_direction(
+                    connector_info=connector_info,
+                    uno_connector=None,
+                ),
+                provenance="libreoffice_uno",
+                approximation_level=approximation_level,
+                confidence=confidence,
+            )
+        )
+    return emitted
+
+
+def _build_shapes_from_draw_page(
+    snapshots: Sequence[LibreOfficeDrawPageShape],
+    *,
+    drawing_shapes: Sequence[OoxmlShapeInfo],
+    drawing_connectors: Sequence[OoxmlConnectorInfo],
+) -> list[Shape | Arrow | SmartArt]:
+    emitted: list[Shape | Arrow | SmartArt] = []
+    snapshot_shapes = [snapshot for snapshot in snapshots if not snapshot.is_connector]
+    snapshot_connectors = [snapshot for snapshot in snapshots if snapshot.is_connector]
+    matched_shapes = _match_shape_infos(snapshot_shapes, drawing_shapes)
+    matched_connectors = _match_connector_infos(snapshot_connectors, drawing_connectors)
+    drawing_to_shape_id: dict[int, int] = {}
+    shape_name_to_id: dict[str, int] = {}
+    shape_boxes: dict[int, _ShapeBox] = {}
+    next_shape_id = 0
+    assigned_shapes: list[
+        tuple[LibreOfficeDrawPageShape, OoxmlShapeInfo | None, int]
+    ] = []
+
+    for snapshot, shape_info in zip(snapshot_shapes, matched_shapes, strict=False):
+        next_shape_id += 1
+        shape_id = next_shape_id
+        assigned_shapes.append((snapshot, shape_info, shape_id))
+        if shape_info is not None:
+            drawing_to_shape_id[shape_info.ref.drawing_id] = shape_id
+        shape_name_to_id[snapshot.name] = shape_id
+        box = _to_shape_box(
+            shape_id=shape_id,
+            left=snapshot.left,
+            top=snapshot.top,
+            width=snapshot.width,
+            height=snapshot.height,
+        )
+        if box is not None:
+            shape_boxes[shape_id] = box
+
+    shape_index = 0
+    connector_index = 0
+
+    for snapshot in snapshots:
+        if snapshot.is_connector:
+            connector_info = matched_connectors[connector_index]
+            connector_index += 1
+            begin_id, end_id, approximation_level, confidence = _resolve_connector(
+                connector_info,
+                uno_connector=snapshot,
+                drawing_to_shape_id=drawing_to_shape_id,
+                shape_name_to_id=shape_name_to_id,
+                shape_boxes=shape_boxes,
+            )
+            emitted.append(
+                Arrow(
+                    id=None,
+                    text=snapshot.text
+                    or (connector_info.text if connector_info else ""),
+                    l=_first_int(
+                        snapshot.left,
+                        connector_info.ref.left if connector_info else None,
+                        default=0,
+                    ),
+                    t=_first_int(
+                        snapshot.top,
+                        connector_info.ref.top if connector_info else None,
+                        default=0,
+                    ),
+                    w=_first_optional_int(
+                        snapshot.width,
+                        connector_info.ref.width if connector_info else None,
+                    ),
+                    h=_first_optional_int(
+                        snapshot.height,
+                        connector_info.ref.height if connector_info else None,
+                    ),
+                    rotation=_first_optional_float(
+                        snapshot.rotation,
+                        connector_info.rotation if connector_info else None,
+                    ),
+                    begin_arrow_style=connector_info.begin_arrow_style
+                    if connector_info is not None
+                    else None,
+                    end_arrow_style=connector_info.end_arrow_style
+                    if connector_info is not None
+                    else None,
+                    begin_id=begin_id,
+                    end_id=end_id,
+                    direction=_resolve_direction(
+                        connector_info=connector_info,
+                        uno_connector=snapshot,
+                    ),
+                    provenance="libreoffice_uno",
+                    approximation_level=approximation_level,
+                    confidence=confidence,
+                )
+            )
+            continue
+
+        shape_snapshot, shape_info, shape_id = assigned_shapes[shape_index]
+        shape_index += 1
+        emitted.append(
+            Shape(
+                id=shape_id,
+                text=shape_snapshot.text or (shape_info.text if shape_info else ""),
+                l=_first_int(
+                    shape_snapshot.left,
+                    shape_info.ref.left if shape_info else None,
+                    default=0,
+                ),
+                t=_first_int(
+                    shape_snapshot.top,
+                    shape_info.ref.top if shape_info else None,
+                    default=0,
+                ),
+                w=_first_optional_int(
+                    shape_snapshot.width,
+                    shape_info.ref.width if shape_info else None,
+                ),
+                h=_first_optional_int(
+                    shape_snapshot.height,
+                    shape_info.ref.height if shape_info else None,
+                ),
+                rotation=_first_optional_float(
+                    shape_snapshot.rotation,
+                    shape_info.rotation if shape_info else None,
+                ),
+                type=shape_info.shape_type
+                if shape_info is not None and shape_info.shape_type
+                else _shape_type_from_uno(shape_snapshot.shape_type),
+                provenance="libreoffice_uno",
+                approximation_level="partial",
+                confidence=0.75,
+            )
+        )
+    return emitted
+
 
 def _resolve_connector(
-    connector_info: OoxmlConnectorInfo,
+    connector_info: OoxmlConnectorInfo | None,
     *,
+    uno_connector: LibreOfficeDrawPageShape | None,
     drawing_to_shape_id: dict[int, int],
+    shape_name_to_id: dict[str, int],
     shape_boxes: dict[int, _ShapeBox],
 ) -> tuple[int | None, int | None, str, float]:
-    start_id = connector_info.connection.start_drawing_id
-    end_id = connector_info.connection.end_drawing_id
-    begin_id = drawing_to_shape_id.get(start_id) if start_id is not None else None
-    end_id_resolved = drawing_to_shape_id.get(end_id) if end_id is not None else None
-    if begin_id is not None or end_id_resolved is not None:
-        return (begin_id, end_id_resolved, "direct", 1.0)
+    if connector_info is not None:
+        start_id = connector_info.connection.start_drawing_id
+        end_id = connector_info.connection.end_drawing_id
+        begin_id = drawing_to_shape_id.get(start_id) if start_id is not None else None
+        end_id_resolved = (
+            drawing_to_shape_id.get(end_id) if end_id is not None else None
+        )
+        if begin_id is not None or end_id_resolved is not None:
+            return (begin_id, end_id_resolved, "direct", 1.0)
 
-    start_point, end_point = _connector_endpoints(connector_info)
+    if uno_connector is not None:
+        begin_id = (
+            shape_name_to_id.get(uno_connector.start_shape_name)
+            if uno_connector.start_shape_name is not None
+            else None
+        )
+        end_id_resolved = (
+            shape_name_to_id.get(uno_connector.end_shape_name)
+            if uno_connector.end_shape_name is not None
+            else None
+        )
+        if begin_id is not None or end_id_resolved is not None:
+            return (begin_id, end_id_resolved, "direct", 0.9)
+
+    start_point, end_point = _connector_endpoints(
+        connector_info=connector_info,
+        uno_connector=uno_connector,
+    )
     heuristic_begin = _nearest_shape_id(start_point, shape_boxes)
     heuristic_end = _nearest_shape_id(end_point, shape_boxes)
     return (heuristic_begin, heuristic_end, "heuristic", 0.6)
 
 
 def _resolve_direction(
-    connector_info: OoxmlConnectorInfo,
+    *,
+    connector_info: OoxmlConnectorInfo | None,
+    uno_connector: LibreOfficeDrawPageShape | None,
 ) -> str | None:
+    if connector_info is None:
+        return _direction_from_box(uno_connector)
     dx = connector_info.direction_dx
     dy = connector_info.direction_dy
     if dx is None or dy is None:
-        return None
+        return _direction_from_box(uno_connector)
     angle = compute_line_angle_deg(float(dx), float(dy))
     return angle_to_compass(angle)
 
 
 def _connector_endpoints(
-    connector_info: OoxmlConnectorInfo,
+    *,
+    connector_info: OoxmlConnectorInfo | None,
+    uno_connector: LibreOfficeDrawPageShape | None,
 ) -> tuple[tuple[float, float] | None, tuple[float, float] | None]:
-    left = connector_info.ref.left
-    top = connector_info.ref.top
-    dx = connector_info.direction_dx
-    dy = connector_info.direction_dy
-    if left is None or top is None or dx is None or dy is None:
+    if connector_info is not None:
+        left = connector_info.ref.left
+        top = connector_info.ref.top
+        dx = connector_info.direction_dx
+        dy = connector_info.direction_dy
+        if left is not None and top is not None and dx is not None and dy is not None:
+            start = (float(left), float(top))
+            end = (float(left + dx), float(top + dy))
+            return (start, end)
+
+    if uno_connector is None:
+        return (None, None)
+    left = uno_connector.left
+    top = uno_connector.top
+    width = uno_connector.width
+    height = uno_connector.height
+    if left is None or top is None or width is None or height is None:
         return (None, None)
     start = (float(left), float(top))
-    end = (float(left + dx), float(top + dy))
+    end = (float(left + width), float(top + height))
     return (start, end)
 
 
@@ -190,11 +447,14 @@ def _distance_to_box(x: float, y: float, box: _ShapeBox) -> float:
     return math.hypot(dx, dy)
 
 
-def _to_shape_box(shape_info: OoxmlShapeInfo, *, shape_id: int) -> _ShapeBox | None:
-    left = shape_info.ref.left
-    top = shape_info.ref.top
-    width = shape_info.ref.width
-    height = shape_info.ref.height
+def _to_shape_box(
+    *,
+    shape_id: int,
+    left: int | None,
+    top: int | None,
+    width: int | None,
+    height: int | None,
+) -> _ShapeBox | None:
     if left is None or top is None or width is None or height is None:
         return None
     return _ShapeBox(
@@ -204,6 +464,142 @@ def _to_shape_box(shape_info: OoxmlShapeInfo, *, shape_id: int) -> _ShapeBox | N
         right=float(left + width),
         bottom=float(top + height),
     )
+
+
+def _match_shape_infos(
+    snapshots: Sequence[LibreOfficeDrawPageShape],
+    candidates: Sequence[OoxmlShapeInfo],
+) -> list[OoxmlShapeInfo | None]:
+    return [
+        candidates[index] if index is not None else None
+        for index in _match_by_name_then_order(
+            [snapshot.name for snapshot in snapshots],
+            [candidate.ref.name for candidate in candidates],
+        )
+    ]
+
+
+def _match_connector_infos(
+    snapshots: Sequence[LibreOfficeDrawPageShape],
+    candidates: Sequence[OoxmlConnectorInfo],
+) -> list[OoxmlConnectorInfo | None]:
+    return [
+        candidates[index] if index is not None else None
+        for index in _match_by_name_then_order(
+            [snapshot.name for snapshot in snapshots],
+            [candidate.ref.name for candidate in candidates],
+        )
+    ]
+
+
+def _match_by_name_then_order(
+    snapshot_names: Sequence[str],
+    candidate_names: Sequence[str],
+) -> list[int | None]:
+    matches: list[int | None] = [None] * len(snapshot_names)
+    unused = list(range(len(candidate_names)))
+
+    for index, snapshot_name in enumerate(snapshot_names):
+        matched_index = next(
+            (
+                candidate_index
+                for candidate_index in unused
+                if candidate_names[candidate_index] == snapshot_name
+            ),
+            None,
+        )
+        if matched_index is None:
+            continue
+        matches[index] = matched_index
+        unused.remove(matched_index)
+
+    remaining_snapshot_indexes = [
+        index for index, match in enumerate(matches) if match is None
+    ]
+    if remaining_snapshot_indexes and len(remaining_snapshot_indexes) == len(unused):
+        for snapshot_index, candidate_index in zip(
+            remaining_snapshot_indexes, unused, strict=False
+        ):
+            matches[snapshot_index] = candidate_index
+
+    return matches
+
+
+def _shape_type_from_uno(shape_type: str | None) -> str | None:
+    if not shape_type:
+        return None
+    return shape_type.rsplit(".", 1)[-1]
+
+
+def _direction_from_box(
+    connector: LibreOfficeDrawPageShape | None,
+) -> str | None:
+    if connector is None:
+        return None
+    if connector.width is None or connector.height is None:
+        return None
+    if connector.width == 0 and connector.height == 0:
+        return None
+    angle = compute_line_angle_deg(float(connector.width), float(connector.height))
+    return angle_to_compass(angle)
+
+
+def _match_chart_geometries(
+    charts: Sequence[object],
+    candidates: Sequence[LibreOfficeChartGeometry],
+) -> list[LibreOfficeChartGeometry | None]:
+    matches: list[LibreOfficeChartGeometry | None] = [None] * len(charts)
+    unused = list(range(len(candidates)))
+
+    for index, chart in enumerate(charts):
+        chart_name = getattr(chart, "name", None)
+        if not isinstance(chart_name, str):
+            continue
+        matched_index = next(
+            (
+                candidate_index
+                for candidate_index in unused
+                if candidates[candidate_index].name == chart_name
+                or candidates[candidate_index].persist_name == chart_name
+            ),
+            None,
+        )
+        if matched_index is None:
+            continue
+        matches[index] = candidates[matched_index]
+        unused.remove(matched_index)
+
+    remaining_chart_indexes = [
+        index for index, match in enumerate(matches) if match is None
+    ]
+    if remaining_chart_indexes and len(remaining_chart_indexes) == len(unused):
+        for chart_index, candidate_index in zip(
+            remaining_chart_indexes, unused, strict=False
+        ):
+            matches[chart_index] = candidates[candidate_index]
+
+    return matches
+
+
+def _first_int(*values: int | None, default: int) -> int:
+    for value in values:
+        if value is not None:
+            return value
+    return default
+
+
+def _first_optional_int(*values: int | None) -> int | None:
+    for value in values:
+        if value is not None:
+            return value
+    return None
+
+
+def _first_optional_float(*values: float | None) -> float | None:
+    for value in values:
+        if value is not None:
+            return value
+    return None
 
 
 class _ShapeBox:

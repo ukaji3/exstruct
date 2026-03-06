@@ -26,16 +26,22 @@
 ## Phase 3: Shape / Connector
 
 - [x] OOXML drawing helper を追加し、shape / connector / chart anchor 情報を読めるようにする
-- [ ] LibreOffice UNO から draw-page shapes を取得する backend を追加する
+- [x] LibreOffice UNO から draw-page shapes を取得する backend を追加する
+  - `LibreOfficeSession.extract_draw_page_shapes(...)` と bridge payload を実装する
+  - `LibreOfficeRichBackend.extract_shapes(...)` が UNO draw-page 順を canonical source として使う
+- [ ] LibreOffice bridge payload に draw-page shape と connector direct-ref を追加する
+- [ ] LibreOffice backend で UNO draw-page payload を shape metadata と connector 解決に統合する
 - [x] non-connector shape のみシート内連番 `id` を振る仕様を実装する
-- [ ] connector 解決を `OOXML explicit ref -> UNO direct ref -> geometry heuristic` の優先順で実装する
+- [x] connector 解決を `OOXML explicit ref -> UNO direct ref -> geometry heuristic` の優先順で実装する
+  - OOXML connector match が取れない場合でも UNO `StartShape/EndShape` を使って begin/end を復元する
+  - direct ref 不可時のみ geometry heuristic に落とす回帰 test を追加する
 - [x] `BaseShape` metadata (`provenance`, `approximation_level`, `confidence`) を追加し、COM / LibreOffice 両経路で埋める
 
 ## Phase 4: Chart
 
 - [x] OOXML / openpyxl から chart の semantic 情報を抽出する helper を追加する
-- [ ] LibreOffice UNO から chart geometry 候補を取得する
-- [ ] OOXML chart と UNO geometry を順序で pairing し、geometry を `Chart` に反映する
+- [x] LibreOffice UNO から chart geometry 候補を取得する
+- [x] OOXML chart と UNO geometry を順序で pairing し、geometry を `Chart` に反映する
 - [x] UNO geometry が無い場合は openpyxl anchor を geometry fallback として使う
 - [x] `Chart` metadata (`provenance`, `approximation_level`, `confidence`) を追加する
 
@@ -58,6 +64,16 @@
 - [x] rendering と auto page-break が v1 対象外であることを明記する
 
 ## Review
+
+- 2026-03-06 draw-page / connector follow-up:
+  - LibreOffice bridge に `--kind draw-page` を追加し、`DrawPage` 由来の shape / connector payload を取得可能にした
+  - `extract_shapes(mode="libreoffice")` は UNO draw-page 順を canonical source にしつつ、OOXML を type / arrowhead / explicit ref 補完に限定して使う
+  - connector 解決順を `OOXML explicit ref -> UNO direct ref -> geometry heuristic` に固定し、UNO-only と explicit-priority の unit test を追加した
+  - `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_pipeline_fallbacks.py tests/core/test_mode_output.py -k libreoffice -q` と `RUN_LIBREOFFICE_SMOKE=1` 付き smoke、`uv run task precommit-run` を通した
+- 2026-03-06 chart geometry follow-up:
+  - LibreOffice 同梱 Python bridge subprocess を追加し、`sheet.getCharts()` + `DrawPage` `OLE2Shape` から chart geometry 候補を取得
+  - OOXML chart name / `PersistName` 一致を優先し、残差のみ順序 pairing する `libreoffice` mode の chart geometry 反映を実装
+  - `RUN_LIBREOFFICE_SMOKE=1` 付き smoke test で chart geometry が 0 埋めではなく UNO geometry になることを確認
 
 - 2026-03-06 follow-up:
   - `pytest.mark.libreoffice` smoke test と `RUN_LIBREOFFICE_SMOKE=1` gate を追加

@@ -167,6 +167,12 @@ class LibreOfficeSession:
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None: ...
     def load_workbook(self, file_path: Path) -> object: ...
     def close_workbook(self, workbook: object) -> None: ...
+    def extract_draw_page_shapes(
+        self, file_path: Path
+    ) -> dict[str, list[LibreOfficeDrawPageShape]]: ...
+    def extract_chart_geometries(
+        self, file_path: Path
+    ) -> dict[str, list[LibreOfficeChartGeometry]]: ...
 ```
 
 設定元環境変数:
@@ -211,6 +217,36 @@ class OoxmlChartInfo:
     anchor_height: int | None
 ```
 
+### 5. LibreOffice draw-page payload
+
+`libreoffice` mode shape extraction adds a UNO draw-page payload model.
+
+```python
+@dataclass(frozen=True)
+class LibreOfficeDrawPageShape:
+    name: str
+    shape_type: str | None = None
+    text: str = ""
+    left: int | None = None
+    top: int | None = None
+    width: int | None = None
+    height: int | None = None
+    rotation: float | None = None
+    is_connector: bool = False
+    start_shape_name: str | None = None
+    end_shape_name: str | None = None
+```
+
+Connector resolution priority is fixed:
+1. OOXML explicit ref (`stCxn`/`endCxn`)
+2. UNO direct ref (`StartShape`/`EndShape`)
+3. geometry heuristic (endpoint vs shape bbox)
+
+`extract_shapes(mode="libreoffice")` uses the UNO draw-page payload as the
+canonical emitted order when available. OOXML remains a supplemental source for
+Excel-like shape type labels, connector arrowhead styles, explicit refs, and
+heuristic endpoint geometry.
+
 ## 抽出アルゴリズム
 
 ### 1. shape / connector
@@ -251,12 +287,16 @@ node id と connector 解決のルールは固定する。
   - `chart_type`, `title`, `series`, `y_axis_title`, `y_axis_range` を構築
   - anchor から近似 geometry を得る
 - UNO:
-  - `sheet.getCharts()` または `DrawPage` の `OLE2Shape` から chart geometry 候補を得る
+- `sheet.getCharts()` または `DrawPage` の `OLE2Shape` から chart geometry 候補を得る
+  - v1 では LibreOffice 同梱 Python bridge subprocess から `sheet.getCharts()` と `DrawPage` の `OLE2Shape` を読む
+  - `PersistName` と draw-page 順序を保持して OOXML chart との pairing 候補にする
 
 pairing ルールは次のとおり。
 
 1. OOXML chart の並び順を基準に 1 件ずつ構築する
 2. UNO chart / OLE2Shape が同数で取得できる場合は順序で対応付ける
+   - まず chart name / `PersistName` の一致を優先する
+   - 残差だけを順序 pairing する
 3. UNO geometry が無い場合は openpyxl anchor を使う
 4. UNO geometry 使用時:
    - `approximation_level="partial"`
