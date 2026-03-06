@@ -418,3 +418,22 @@
   - `python scripts/codacy_issues.py --pr 74 --min-level Warning` -> 9 件（pre-push のためリモート再解析待ち）
 - Residual risks:
   - Codacy API は push 後の再解析完了まで旧結果を返す。
+
+## Codacy B404 Screenshot Follow-up Plan (2026-03-06)
+
+- [x] スクリーンショット指摘（`import subprocess` B404）を現行コードで確認
+- [x] `src/exstruct/render/__init__.py` の import 行に `# nosec B404` を追加
+- [x] `uv run task precommit-run` を実行
+- [x] `status=open` の Codacy PR issues を直接確認
+
+## Codacy B404 Screenshot Follow-up Review
+
+- Summary:
+  - `src/exstruct/render/__init__.py` の `import subprocess` に `# nosec B404` を付与し、固定用途（worker subprocess 起動）であることを明示した。
+  - PR issue 取得を `status=all` と `status=open` で切り分け、open issue の実残件を確認した。
+- Verification:
+  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
+  - `python scripts/codacy_issues.py --pr 74 --min-level Warning` -> 8 件（status=all）
+  - `fetch_pr_issues(..., status='open')` + `format_for_ai(..., 'Warning')` -> 0 件
+- Residual risks:
+  - Codacy UI が過去解析スナップショットを表示している場合、最新コミット反映まで表示が遅延する。

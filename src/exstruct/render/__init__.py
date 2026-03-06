@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404 - subprocess is required for fixed worker launch only
 import sys
 import tempfile
 import time
