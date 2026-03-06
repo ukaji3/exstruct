@@ -61,7 +61,7 @@ AI は必ず次のルールに従ってコードを生成してください。
 ### 2.2 Pydantic BaseModel または dataclass を返すこと
 
 - 辞書やタプルを返さない
-- すべての「構造化データ」は Pydantic　または dataclass モデルによって表現する
+- すべての「構造化データ」は Pydantic または dataclass モデルによって表現する
 
 ### 2.3 1 関数 = 1 責務
 

@@ -8,28 +8,28 @@ _Version 0.2 / Last update: 2025-12-13
 
 <!-- TOC -->
 
-- [📄 Corporate Usage License Guide: exstruct](#-corporate-usage-license-guide-exstruct)
-  - [TOC](#toc)
-  - [Purpose of This Document](#purpose-of-this-document)
-  - [License of exstruct](#license-of-exstruct)
-  - [What You ARE Allowed To Do DO](#what-you-are-allowed-to-do-do)
-    - [Use in commercial or internal software](#use-in-commercial-or-internal-software)
-    - [Modify the library](#modify-the-library)
-    - [Redistribute inside the company](#redistribute-inside-the-company)
-    - [Embed into proprietary or closed-source systems](#embed-into-proprietary-or-closed-source-systems)
-    - [In simple terms:](#in-simple-terms)
-  - [Required Compliance Points MUST](#required-compliance-points-must)
-    - [1 Preserve copyright notices](#1-preserve-copyright-notices)
-    - [2 Do not remove or alter the license text](#2-do-not-remove-or-alter-the-license-text)
-    - [3 Do not use the author's name for endorsement](#3-do-not-use-the-authors-name-for-endorsement)
-  - [What You MUST NOT Do DON’T](#what-you-must-not-do-dont)
-    - [Use the author's name for advertising](#use-the-authors-name-for-advertising)
-    - [Distribute the library without the license](#distribute-the-library-without-the-license)
-  - [License Compatibility of Dependencies](#license-compatibility-of-dependencies)
-  - [Redistribution Inside the Company](#redistribution-inside-the-company)
-  - [Conclusion: exstruct Is Highly Suitable for Corporate Use](#conclusion-exstruct-is-highly-suitable-for-corporate-use)
-  - [Appendix: Full BSD-3-Clause License Text](#appendix-full-bsd-3-clause-license-text)
-  - [About This Document](#about-this-document)
+- Corporate Usage License Guide: exstruct
+  - TOC
+  - Purpose of This Document
+  - License of exstruct
+  - What You ARE Allowed To Do (DO)
+    - Use in commercial or internal software
+    - Modify the library
+    - Redistribute inside the company
+    - Embed into proprietary or closed-source systems
+    - In simple terms
+  - Required Compliance Points (MUST)
+    - (1) Preserve copyright notices
+    - (2) Do not remove or alter the license text
+    - (3) Do not use the author's name for endorsement
+  - What You MUST NOT Do (DON'T)
+    - Use the author's name for advertising
+    - Distribute the library without the license
+  - License Compatibility of Dependencies
+  - Redistribution Inside the Company
+  - Conclusion: exstruct Is Highly Suitable for Corporate Use
+  - Appendix: Full BSD-3-Clause License Text
+  - About This Document
 
 <!-- /TOC -->
 

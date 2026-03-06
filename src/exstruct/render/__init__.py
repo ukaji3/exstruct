@@ -14,6 +14,7 @@ import time
 from types import ModuleType
 from typing import Protocol, cast
 
+from pydantic import BaseModel, Field
 import xlwings as xw
 
 from ..errors import MissingDependencyError, RenderError
@@ -215,6 +216,23 @@ class _WorkerProcessProtocol(Protocol):
         self, timeout: float | None = None
     ) -> tuple[str | None, str | None]:
         """Read process stdio streams."""
+
+
+class _RenderWorkerResult(BaseModel):
+    """Structured worker result payload for PDF-to-PNG rendering."""
+
+    paths: list[str] = Field(default_factory=list)
+    error: str | None = None
+
+    @classmethod
+    def success(cls, paths: list[str]) -> _RenderWorkerResult:
+        """Create a success result with written image paths."""
+        return cls(paths=paths, error=None)
+
+    @classmethod
+    def failure(cls, message: str) -> _RenderWorkerResult:
+        """Create a failure result with an error message."""
+        return cls(paths=[], error=message)
 
 
 def _iter_sheet_apis(wb: xw.Book) -> list[tuple[int, str, _SheetApiProtocol]]:
@@ -772,10 +790,10 @@ def _render_pdf_pages_subprocess(
         result_timeout_seconds=result_timeout_seconds,
         join_timeout_seconds=join_timeout_seconds,
     )
-    if "error" in result:
-        message = result.get("error", "subprocess failed")
+    if result.error is not None:
+        message = result.error or "subprocess failed"
         raise RenderError(f"Failed to render PDF pages: stage=worker {message}")
-    paths = result.get("paths", [])
+    paths = result.paths
     elapsed_seconds = time.perf_counter() - start_time
     logger.info(
         "render-stage=subprocess.done pdf=%s output_count=%d elapsed_sec=%.3f",
@@ -796,7 +814,7 @@ def _run_render_worker_subprocess(
     startup_timeout_seconds: float,
     result_timeout_seconds: float,
     join_timeout_seconds: float,
-) -> dict[str, list[str] | str]:
+) -> _RenderWorkerResult:
     """Start render worker subprocess and return one result payload."""
     with tempfile.TemporaryDirectory() as td:
         temp_dir = Path(td)
@@ -908,7 +926,7 @@ def _wait_for_worker_result(
     join_timeout_deadline: float,
     join_timeout_seconds: float,
     post_exit_timeout_seconds: float,
-) -> dict[str, list[str] | str]:
+) -> _RenderWorkerResult:
     """Wait for worker result file using join timeout as primary upper bound."""
     while True:
         if result_path.exists():
@@ -934,7 +952,7 @@ def _wait_for_result_after_exit(
     result_path: Path,
     timeout_seconds: float,
     join_timeout_deadline: float,
-) -> dict[str, list[str] | str]:
+) -> _RenderWorkerResult:
     """Wait briefly for result file after worker process has exited."""
     result_deadline = time.perf_counter() + timeout_seconds
     deadline = min(result_deadline, join_timeout_deadline)
@@ -950,7 +968,7 @@ def _wait_for_result_after_exit(
         time.sleep(0.05)
 
 
-def _read_worker_result(result_path: Path) -> dict[str, list[str] | str]:
+def _read_worker_result(result_path: Path) -> _RenderWorkerResult:
     """Read and validate worker JSON result payload."""
     try:
         payload = json.loads(result_path.read_text(encoding="utf-8"))
@@ -969,10 +987,10 @@ def _read_worker_result(result_path: Path) -> dict[str, list[str] | str]:
             if isinstance(path, str):
                 normalized_paths.append(path)
         if len(normalized_paths) == len(paths):
-            return {"paths": normalized_paths}
+            return _RenderWorkerResult.success(normalized_paths)
     error = payload.get("error")
     if isinstance(error, str):
-        return {"error": error}
+        return _RenderWorkerResult.failure(error)
     raise RenderError(
         "Failed to render PDF pages: stage=result payload missing "
         "required `paths` or `error`."

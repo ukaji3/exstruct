@@ -434,3 +434,64 @@ AIエージェントがExcelシートを視覚検証できるように、MCPツ�
 ### Verification
 - `uv run pytest tests/render/test_render_init.py -q`
 - `uv run task precommit-run`
+
+## Codacy Repository Issue Remediation Addendum (2026-03-04)
+
+### Problem Statement
+- Codacy repository scan (`min-level=Warning`) reports 9 findings:
+  - `docs/license-guide.md`: `markdownlint_MD051` (invalid link fragment) x7
+  - `.github/workflows/ruff-check.yml`: unpinned third-party action SHA x1
+  - `scripts/codacy_issues.py`: `Bandit_B607` (partial executable path) x1
+
+### Scope
+- Fix markdown fragment warnings in `docs/license-guide.md`.
+- Pin GitHub Actions in `.github/workflows/ruff-check.yml` to full commit SHAs.
+- Remove partial executable path usage in `scripts/codacy_issues.py`.
+- Re-run local quality checks and re-fetch Codacy issues.
+
+### Updated Function Contracts
+- `resolve_git_executable() -> str | None` (new, `scripts/codacy_issues.py`)
+  - Resolve an absolute `git` executable path using `shutil.which("git")`.
+  - Return `None` when unavailable.
+
+- `get_git_origin_url() -> str | None` (existing, behavior tightened)
+  - Use absolute git executable path from `resolve_git_executable()`.
+  - Return `None` when git cannot be resolved.
+
+### Acceptance Criteria
+- `docs/license-guide.md` no longer contains invalid link fragments.
+- Workflow actions are pinned to full SHAs.
+- `scripts/codacy_issues.py` no longer starts `git` via partial executable path.
+- `uv run task precommit-run` passes.
+- Re-running `python scripts/codacy_issues.py --min-level Warning` shows no remaining findings from this patch scope.
+
+## PR #74 Additional Review Follow-up Addendum (2026-03-04)
+
+### Problem Statement
+- Additional PR #74 review comments (submitted on 2026-03-04) highlighted:
+  - `tasks/todo.md`: stale `EXSTRUCT_RENDER_SUBPROCESS=0` default wording can mislead operators.
+  - `tests/render/test_render_init.py`: stage-log test docstring intent mismatch and timing-sensitive test logic.
+  - `tests/mcp/test_server.py`: `test_run_server_sets_env` should isolate env state before assertions.
+  - `tests/mcp/test_render_runner.py` and helper methods in `tests/render/test_render_init.py`: missing Google-style docstrings.
+
+### Scope
+- Update docs/task records to clearly mark superseded runtime defaults.
+- Harden affected tests to reduce flakiness and environment leakage.
+- Align test/helper docstrings with Google-style convention.
+
+### Updated Function/Test Contracts
+- `test_run_server_sets_env(monkeypatch, tmp_path) -> None`
+  - Must clear relevant env keys before invoking `server.run_server`.
+  - Must assert only mutations introduced by the function under test.
+
+- `test_wait_for_worker_result_allows_longer_than_post_exit_timeout(tmp_path) -> None`
+  - Must use deterministic synchronization (event-driven) instead of wall-clock delay assumptions.
+
+- `test_render_pdf_pages_subprocess_emits_stage_logs(...)`
+  - Docstring must match asserted behavior (`start` and `done` logs).
+
+### Acceptance Criteria
+- `tasks/todo.md` includes superseded notes for old default guidance and owner/ETA for remaining open checklist items.
+- Updated tests remain deterministic and pass locally.
+- `uv run pytest tests/mcp/test_server.py tests/mcp/test_render_runner.py tests/render/test_render_init.py -q` passes.
+- `uv run task precommit-run` passes.

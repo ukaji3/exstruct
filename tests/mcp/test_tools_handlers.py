@@ -68,6 +68,14 @@ def test_run_extract_tool_uses_default_on_conflict(
 def test_run_capture_sheet_images_tool_builds_request(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Build and forward capture request with normalized path and range fields.
+
+    Args:
+        monkeypatch: Fixture for replacing capture runner dependency.
+
+    Returns:
+        None.
+    """
     captured: dict[str, object] = {}
 
     def _fake_run_capture(

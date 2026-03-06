@@ -1377,6 +1377,8 @@ def test_register_tools_passes_patch_extended_flags(
 
 
 def test_run_server_sets_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.delenv("EXSTRUCT_BORDER_CLUSTER_BACKEND", raising=False)
+    monkeypatch.delenv("EXSTRUCT_RENDER_SUBPROCESS", raising=False)
     created: dict[str, object] = {}
 
     def fake_import() -> None:

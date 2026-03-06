@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+
+from pydantic import BaseModel, ConfigDict
 
 _A1_PATTERN = re.compile(r"^[A-Za-z]{1,3}[1-9][0-9]*$")
 _A1_RANGE_PATTERN = re.compile(r"^[A-Za-z]{1,3}[1-9][0-9]*:[A-Za-z]{1,3}[1-9][0-9]*$")
@@ -12,17 +13,19 @@ _QUALIFIED_A1_RANGE_PATTERN = re.compile(
 )
 
 
-@dataclass(frozen=True)
-class QualifiedA1Range:
+class QualifiedA1Range(BaseModel):
     """Parsed A1 range with optional sheet qualifier."""
+
+    model_config = ConfigDict(frozen=True)
 
     sheet: str | None
     range_ref: str
 
 
-@dataclass(frozen=True)
-class SheetRangeSelection:
+class SheetRangeSelection(BaseModel):
     """Normalized sheet and range selection for render-style calls."""
+
+    model_config = ConfigDict(frozen=True)
 
     sheet: str | None
     range_ref: str | None

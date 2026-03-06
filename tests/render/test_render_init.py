@@ -472,9 +472,25 @@ class FakeWorkerProcess:
         self.kill_called = False
 
     def poll(self) -> int | None:
+        """Return current worker exit code.
+
+        Returns:
+            Worker exit code when finished, otherwise None.
+        """
         return self.returncode
 
     def wait(self, timeout: float | None = None) -> int:
+        """Wait for worker completion and return exit code.
+
+        Args:
+            timeout: Optional maximum wait time in seconds.
+
+        Returns:
+            Worker exit code.
+
+        Raises:
+            subprocess.TimeoutExpired: Raised when `wait_timeout` is enabled.
+        """
         self.wait_calls.append(timeout)
         if self.wait_timeout:
             raise subprocess.TimeoutExpired(cmd="worker", timeout=timeout or 0.0)
@@ -483,10 +499,20 @@ class FakeWorkerProcess:
         return self.returncode
 
     def terminate(self) -> None:
+        """Simulate graceful process termination.
+
+        Returns:
+            None.
+        """
         self.terminate_called = True
         self.returncode = 0
 
     def kill(self) -> None:
+        """Simulate forced process termination.
+
+        Returns:
+            None.
+        """
         self.kill_called = True
         self.returncode = -9
 
@@ -494,6 +520,14 @@ class FakeWorkerProcess:
         self,
         timeout: float | None = None,
     ) -> tuple[str | None, str | None]:
+        """Return stubbed worker stdio.
+
+        Args:
+            timeout: Optional communication timeout in seconds.
+
+        Returns:
+            Tuple of `(stdout, stderr)` strings.
+        """
         _ = timeout
         return ("", self.stderr)
 
@@ -512,7 +546,7 @@ def test_render_pdf_pages_subprocess_success(tmp_path: Path) -> None:
         startup_timeout_seconds: float,
         result_timeout_seconds: float,
         join_timeout_seconds: float,
-    ) -> dict[str, list[str] | str]:
+    ) -> render._RenderWorkerResult:
         _ = pdf_path
         _ = output_dir_arg
         _ = sheet_index
@@ -521,7 +555,7 @@ def test_render_pdf_pages_subprocess_success(tmp_path: Path) -> None:
         _ = startup_timeout_seconds
         _ = result_timeout_seconds
         _ = join_timeout_seconds
-        return {"paths": [str(output_dir / "01_Sheet1.png")]}
+        return render._RenderWorkerResult.success([str(output_dir / "01_Sheet1.png")])
 
     pdf_path = tmp_path / "sheet_01.pdf"
     pdf_path.write_bytes(b"%PDF-1.4")
@@ -539,7 +573,7 @@ def test_render_pdf_pages_subprocess_emits_stage_logs(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """_render_pdf_pages_subprocess emits start/join/done stage logs."""
+    """_render_pdf_pages_subprocess emits start/done stage logs."""
     output_dir = tmp_path / "images"
 
     def _fake_runner(
@@ -552,7 +586,7 @@ def test_render_pdf_pages_subprocess_emits_stage_logs(
         startup_timeout_seconds: float,
         result_timeout_seconds: float,
         join_timeout_seconds: float,
-    ) -> dict[str, list[str] | str]:
+    ) -> render._RenderWorkerResult:
         _ = pdf_path
         _ = output_dir_arg
         _ = sheet_index
@@ -561,7 +595,7 @@ def test_render_pdf_pages_subprocess_emits_stage_logs(
         _ = startup_timeout_seconds
         _ = result_timeout_seconds
         _ = join_timeout_seconds
-        return {"paths": [str(output_dir / "01_Sheet1.png")]}
+        return render._RenderWorkerResult.success([str(output_dir / "01_Sheet1.png")])
 
     pdf_path = tmp_path / "sheet_01.pdf"
     pdf_path.write_bytes(b"%PDF-1.4")
@@ -589,7 +623,7 @@ def test_render_pdf_pages_subprocess_error(tmp_path: Path) -> None:
         startup_timeout_seconds: float,
         result_timeout_seconds: float,
         join_timeout_seconds: float,
-    ) -> dict[str, list[str] | str]:
+    ) -> render._RenderWorkerResult:
         _ = pdf_path
         _ = output_dir
         _ = sheet_index
@@ -598,7 +632,7 @@ def test_render_pdf_pages_subprocess_error(tmp_path: Path) -> None:
         _ = startup_timeout_seconds
         _ = result_timeout_seconds
         _ = join_timeout_seconds
-        return {"error": "boom"}
+        return render._RenderWorkerResult.failure("boom")
 
     pdf_path = tmp_path / "sheet_01.pdf"
     pdf_path.write_bytes(b"%PDF-1.4")
@@ -634,7 +668,9 @@ def test_run_render_worker_subprocess_success_when_join_timeout(
             result_path,
             join_timeout_deadline,
             join_timeout_seconds,
-            post_exit_timeout_seconds: {"paths": [str(output_dir / "01_Sheet1.png")]},
+            post_exit_timeout_seconds: render._RenderWorkerResult.success(
+                [str(output_dir / "01_Sheet1.png")]
+            ),
         )
         result = render._run_render_worker_subprocess(
             pdf_path,
@@ -647,7 +683,7 @@ def test_run_render_worker_subprocess_success_when_join_timeout(
             join_timeout_seconds=0.1,
         )
 
-    assert result["paths"] == [str(output_dir / "01_Sheet1.png")]
+    assert result.paths == [str(output_dir / "01_Sheet1.png")]
     assert process.terminate_called is True
 
 
@@ -689,13 +725,15 @@ def test_run_render_worker_subprocess_starts_join_budget_after_startup(
             join_timeout_deadline: float,
             join_timeout_seconds: float,
             post_exit_timeout_seconds: float,
-        ) -> dict[str, list[str] | str]:
+        ) -> render._RenderWorkerResult:
             _ = proc
             _ = result_path
             _ = join_timeout_seconds
             _ = post_exit_timeout_seconds
             captured["deadline"] = join_timeout_deadline
-            return {"paths": [str(output_dir / "01_Sheet1.png")]}
+            return render._RenderWorkerResult.success(
+                [str(output_dir / "01_Sheet1.png")]
+            )
 
         monkeypatch.setattr(render, "_wait_for_worker_result", _capture_deadline)
         monkeypatch.setattr(
@@ -748,7 +786,9 @@ def test_run_render_worker_subprocess_uses_single_join_budget(
             result_path,
             join_timeout_deadline,
             join_timeout_seconds,
-            post_exit_timeout_seconds: {"paths": [str(output_dir / "01_Sheet1.png")]},
+            post_exit_timeout_seconds: render._RenderWorkerResult.success(
+                [str(output_dir / "01_Sheet1.png")]
+            ),
         )
 
         def _capture_join_timeout(
@@ -819,30 +859,46 @@ def test_wait_for_worker_result_allows_longer_than_post_exit_timeout(
     """Do not fail early while worker is alive even when post-exit timeout is short."""
     process = FakeWorkerProcess(returncode=None)
     result_path = tmp_path / "result.json"
-    done = threading.Event()
+    start_writing = threading.Event()
+    writer_released = threading.Event()
+    real_sleep = time.sleep
 
     def _write_later() -> None:
-        done.wait(0.05)
+        if not start_writing.wait(1.0):
+            return
         result_path.write_text(
             json.dumps({"paths": [str(tmp_path / "images" / "01_Sheet1.png")]}),
             encoding="utf-8",
         )
+        writer_released.set()
+
+    sleep_calls = 0
+
+    def _sleep_hook(seconds: float) -> None:
+        nonlocal sleep_calls
+        sleep_calls += 1
+        if sleep_calls == 1:
+            start_writing.set()
+        real_sleep(seconds)
 
     thread = threading.Thread(target=_write_later)
     thread.start()
     try:
-        result = render._wait_for_worker_result(
-            process,
-            result_path=result_path,
-            join_timeout_deadline=time.perf_counter() + 0.20,
-            join_timeout_seconds=0.20,
-            post_exit_timeout_seconds=0.01,
-        )
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.setattr("exstruct.render.time.sleep", _sleep_hook)
+            result = render._wait_for_worker_result(
+                process,
+                result_path=result_path,
+                join_timeout_deadline=time.perf_counter() + 0.20,
+                join_timeout_seconds=0.20,
+                post_exit_timeout_seconds=0.01,
+            )
     finally:
-        done.set()
+        start_writing.set()
         thread.join(timeout=1.0)
 
-    assert result["paths"] == [str(tmp_path / "images" / "01_Sheet1.png")]
+    assert writer_released.is_set() is True
+    assert result.paths == [str(tmp_path / "images" / "01_Sheet1.png")]
 
 
 def test_wait_for_worker_result_reports_result_stage_after_exit(

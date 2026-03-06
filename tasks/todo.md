@@ -73,6 +73,7 @@
 
 - [x] `tasks/feature_spec.md` に限定提供（experimental）方針・運用ポリシー・GA基準を確定反映
 - [x] MCPサーバー起動経路で `EXSTRUCT_RENDER_SUBPROCESS=0` を既定化（MCP実行時のみ）
+  - Superseded: 2026-03-03 の既定値切替で現在の既定は `EXSTRUCT_RENDER_SUBPROCESS=1`。
 - [x] `docs/mcp.md` に Experimental 表記、推奨環境変数、既知制約を追記
 - [x] `README.md` / `README.ja.md` に運用注意（限定提供・依存条件）を追記
 - [x] サブプロセスハング切り分け用の計測ログポイントを `render` 側に追加（export/join/queue/write）
@@ -89,6 +90,7 @@
 
 - Summary:
   - MCP runtime で `EXSTRUCT_RENDER_SUBPROCESS=0` を既定化し、`capture_sheet_images` の限定提供方針を docs/README に反映。
+    - Superseded: 2026-03-03 以降の既定は `EXSTRUCT_RENDER_SUBPROCESS=1`。
   - `render` に段階ログ（export/subprocess/worker）を追加し、MCPコンテキスト相当のエラー伝播テストを追加。
   - 成功率評価の代表Workbookセットと手順を `tasks/capture_sheet_images_eval.md` として定義。
 - Verification:
@@ -158,6 +160,7 @@
 - [x] `docs/mcp.md` に startup timeout env（`EXSTRUCT_RENDER_SUBPROCESS_STARTUP_TIMEOUT_SEC`）を追記
 - [x] `docs/mcp.md` に stage-aware エラー（`startup/join/result/worker`）の運用ガイドを追記
 - [x] `README.md` / `README.ja.md` に MCP runtime 既定値（`EXSTRUCT_RENDER_SUBPROCESS=0`）と `EXSTRUCT_RENDER_SUBPROCESS=1` 明示有効化手順を追記
+  - Superseded: 2026-03-03 の既定値切替で現在の既定は `EXSTRUCT_RENDER_SUBPROCESS=1`。
 - [x] `CHANGELOG.md` Unreleased に subprocess 安定化とドキュメント更新を反映
 
 ## Subprocess Docs Review
@@ -166,6 +169,7 @@
   - サブプロセス安定化実装に合わせて、MCP運用ガイドを `startup/join/result/worker` の4段階エラー分類で明確化した。
   - timeout環境変数の説明を 4 変数（MCP全体 + startup/join/result）に統一した。
   - 既定運用（MCPでは `EXSTRUCT_RENDER_SUBPROCESS=0`）と、明示 opt-in（`=1`）の使い分けを README と MCP docs に反映した。
+    - Superseded: 2026-03-03 以降の既定は `EXSTRUCT_RENDER_SUBPROCESS=1`。
 - Verification:
   - ドキュメント更新のみ（コード/テスト変更なし）。
 
@@ -230,13 +234,13 @@
   - Normalize wording for model policy (`Pydantic or dataclass`).
 
 ### Phase 3: P2 (Quality, Defer Allowed)
-- [ ] Add missing Google-style docstrings in newly added tests:
+- [ ] Add missing Google-style docstrings in newly added tests: (owner: @harumiWeb, due: 2026-03-07)
   - Partial: `tests/mcp/shared/test_a1.py` / `tests/mcp/shared/test_output_path.py` / capture-related tests in `tests/mcp/test_tool_models.py` updated.
   - `tests/mcp/shared/test_a1.py`
   - `tests/mcp/shared/test_output_path.py`
   - `tests/mcp/test_tool_models.py`
   - `tests/mcp/test_tools_handlers.py`
-- [ ] Decide whether to address Codecov patch coverage warning in this PR or split follow-up.
+- [ ] Decide whether to address Codecov patch coverage warning in this PR or split follow-up. (owner: @harumiWeb, due: 2026-03-07)
 
 ### Deferred / Not In Scope For This Patch
 - [x] No forced migration from dataclass to Pydantic-only models.
@@ -245,7 +249,7 @@
 ### Verification Checklist
 - [x] `uv run pytest tests/render/test_render_init.py tests/mcp/test_server.py -q`
 - [x] `uv run task precommit-run`
-- [ ] Confirm PR #74 review threads are resolved or replied with rationale.
+- [x] Confirm PR #74 review threads are resolved or replied with rationale. (owner: @harumiWeb, due: 2026-03-05)
 
 ### Review Notes (to fill after implementation)
 - Summary:
@@ -291,3 +295,58 @@
   - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
 - Residual risks:
   - テストダブルが旧タイミング前提の場合、待機順序の更新で補正が必要になる可能性がある。
+
+## Codacy Repository Issue Remediation Plan (2026-03-04)
+
+- [x] Codacy issue retrieval (`python scripts/codacy_issues.py --min-level Warning`) を実行し、対象Issueを確定
+- [x] `tasks/feature_spec.md` に修正仕様と関数契約を追記
+- [x] `docs/license-guide.md` の無効アンカーリンクを解消
+- [x] `.github/workflows/ruff-check.yml` の third-party action を commit SHA pin に変更
+- [x] `scripts/codacy_issues.py` の partial executable path (B607) を解消
+- [x] `uv run task precommit-run` を実行して回帰確認
+- [x] Codacy issues を再取得して解消確認
+
+## Codacy Repository Issue Remediation Review
+
+- Summary:
+  - Codacy Warning/High の3分類（docs anchor fragment, workflow SHA pin, Bandit B607）に対し、対象3ファイルを修正した。
+  - `docs/license-guide.md` のTOCアンカーリンクを非リンク化し、MD051対象リンク断片を除去した。
+  - `.github/workflows/ruff-check.yml` の `actions/checkout` と `astral-sh/setup-uv` を full SHA pin に更新した。
+  - `scripts/codacy_issues.py` に `resolve_git_executable()` を追加し、`subprocess.run` の `git` 呼び出しを絶対パス化した。
+- Verification:
+  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
+  - `python scripts/codacy_issues.py --min-level Warning` を再実行（API結果は前回と同一）
+- Residual risks:
+  - Codacy APIのrepository scopeはリモート解析結果を返すため、ローカル修正はpush後の再解析完了まで反映されない。
+
+## PR #74 Additional Review Follow-up Plan (2026-03-04)
+
+- [x] PR #74 の追加レビューコメントを取得して対象を特定
+- [x] `tasks/feature_spec.md` に追加レビュー対応仕様を追記
+- [x] `tasks/todo.md` の旧既定値記述に superseded 注記を追加
+- [x] `tests/mcp/test_server.py` の `test_run_server_sets_env` に環境隔離を追加
+- [x] `tests/render/test_render_init.py` の stage-log docstring整合と timing依存テストを安定化
+- [x] `tests/render/test_render_init.py` / `tests/mcp/test_render_runner.py` の不足Google-style docstringを追加
+- [x] `uv run pytest tests/mcp/test_server.py tests/mcp/test_render_runner.py tests/render/test_render_init.py -q`
+- [x] `uv run task precommit-run`
+
+## PR #74 Additional Review Follow-up Review
+
+- Summary:
+  - 追加レビュー（2026-03-04）で指摘された stale default 記述、テストの環境リーク、docstring不足、timing依存を対象に修正した。
+  - `src/exstruct/render/__init__.py` の worker 戻り値を辞書から Pydantic モデル（`_RenderWorkerResult`）へ置換し、`paths/error` の構造化データをモデル化した。
+  - `src/exstruct/mcp/shared/a1.py` の `QualifiedA1Range` / `SheetRangeSelection` を dataclass から Pydantic モデルへ移行した。
+  - `AGENTS.md` の `Pydantic　または dataclass`（全角スペース）を `Pydantic または dataclass` に修正して表記ゆれを解消した。
+  - `tests/mcp/test_tools_handlers.py` の `test_run_capture_sheet_images_tool_builds_request` に Google-style docstring を追加した。
+  - `tasks/todo.md` の `EXSTRUCT_RENDER_SUBPROCESS=0` 既定記述に superseded 注記を追加し、現在既定が `=1` であることを明記した。
+  - `test_run_server_sets_env` で `monkeypatch.delenv(...)` を追加し、`server.run_server` 実行前の環境状態を明示的に初期化した。
+  - `test_wait_for_worker_result_allows_longer_than_post_exit_timeout` をイベント駆動に変更し、固定遅延前提の不安定性を除去した。
+  - `FakeWorkerProcess` のメソッド群と `tests/mcp/test_render_runner.py` のテスト関数に Google-style docstring を追加した。
+  - `test_render_pdf_pages_subprocess_emits_stage_logs` の docstring を実アサーション内容（start/done）に一致させた。
+- Verification:
+  - `uv run pytest tests/mcp/shared/test_a1.py tests/render/test_render_init.py tests/render/test_subprocess_worker.py tests/mcp/test_tools_handlers.py tests/mcp/test_server.py tests/mcp/test_render_runner.py -q` -> 113 passed
+  - `uv run pytest tests/mcp/test_server.py tests/mcp/test_render_runner.py tests/render/test_render_init.py -q` -> 84 passed
+  - `uv run pytest tests/render/test_render_init.py::test_wait_for_worker_result_allows_longer_than_post_exit_timeout -q` -> 1 passed
+  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
+- Residual risks:
+  - P2 docstring sweep と Codecov 方針は引き続きフォローが必要。

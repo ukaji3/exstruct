@@ -19,7 +19,15 @@ def test_ensure_com_available_ignores_quit_errors(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Do not fail COM probe when app teardown raises."""
+    """Do not fail COM probe when app teardown raises.
+
+    Args:
+        monkeypatch: Fixture for patching module attributes.
+        caplog: Fixture for asserting emitted log messages.
+
+    Returns:
+        None.
+    """
     monkeypatch.setattr(
         render,
         "_require_excel_app",
@@ -35,7 +43,14 @@ def test_ensure_com_available_ignores_quit_errors(
 def test_ensure_com_available_raises_value_error_when_com_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Wrap COM availability errors as ValueError for tool-level handling."""
+    """Wrap COM availability errors as ValueError for tool-level handling.
+
+    Args:
+        monkeypatch: Fixture for patching module attributes.
+
+    Returns:
+        None.
+    """
 
     def _raise() -> object:
         raise RuntimeError("com missing")
