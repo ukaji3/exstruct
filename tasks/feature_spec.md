@@ -123,6 +123,62 @@
 - `tests/core/test_libreoffice_backend.py` の `_pytest.monkeypatch.MonkeyPatch` を `pytest.MonkeyPatch` に寄せる style cleanup
 - `_start_soffice_startup_attempt(...)` の helper 分割だけを目的にした complexity refactor
 
+### 2026-03-08 coverage / Codacy / CodeRabbit follow-up triage
+
+#### Issue
+
+- PR #76 の最新 GitHub Actions run `22815422942` は test failure ではなく coverage gate failure で落ちている。
+  - `test (ubuntu-latest, 3.12)` の `Run tests (non-COM suite)` は `783 passed, 3 skipped, 11 deselected`
+  - failure reason は `Total coverage: 78.80% < 80%`
+  - fail-fast により `ubuntu-latest, 3.11` / `windows-latest` matrix は `cancelled`
+- ローカルで `uv run pytest -m "not com and not render" --cov=exstruct --cov-report=term-missing:skip-covered --cov-fail-under=0 -q` を再実行すると、coverage 低下は今回触ったモジュール群に偏っている。
+  - `src/exstruct/core/libreoffice.py`: `67%`
+  - `src/exstruct/core/backends/libreoffice_backend.py`: `79%`
+  - `src/exstruct/core/ooxml_drawing.py`: `83%`
+- Codacy は PR #76 に対して `src/exstruct/core/libreoffice.py` の subprocess security 指摘を 7 件返している。
+  - `Bandit_B603` warning が `267`, `348`, `398`
+  - Semgrep error が `267`, `268`, `348`, `398`
+  - 現状コードは `shell=False` + argv list を維持しており、実体は command injection より trust-boundary の静的解析誤検知に近い
+- CodeRabbit / review の新規 actionable 指摘は 2 系統ある。
+  - `src/exstruct/engine.py`: `_process_extract_scope()` が `self.output.destinations.auto_page_breaks_dir` を直接 mutate し、immutable contract を破る
+  - `src/exstruct/core/libreoffice.py`: `_reserve_tcp_port()` 後に別プロセスが同 port を取ると、`_wait_for_socket()` が「何かが listen している」だけで startup success と誤認しうる
+
+#### Accepted follow-ups
+
+- coverage gate は threshold 緩和ではなく targeted regression tests で回復する。
+  - 追加テストは今回変更した low-coverage module に寄せる
+  - 最優先は `libreoffice.py`, `libreoffice_backend.py`, `engine.py` の新規/変更分岐
+  - verification は non-COM suite の coverage report を source of truth にする
+- `ExStructEngine.process(...)` の per-call auto page-break override は engine-level seam を維持しつつ shared state mutation をなくす。
+  - `process()` は引き続き engine-level `extract(...)` seam を通す
+  - ただし override の伝播は `self.output.destinations` を一時 mutation するのではなく、explicit per-call parameter または private helper argument で表現する
+  - `Instances are immutable` contract を壊さないことを優先する
+  - regression test:
+    - 同一 engine instance で異なる `auto_page_breaks_dir` を連続呼び出ししても leak しない
+    - monkeypatch した `extract(...)` seam を bypass しない
+    - `include_auto_page_breaks` の解決値が caller ごとに独立している
+- LibreOffice startup success は「TCP accept できた」ではなく「期待する UNO bridge に実際に到達できた」で判定する。
+  - `_wait_for_socket()` は引き続き初期 readiness probe として使ってよい
+  - ただし success 確定前に、選択された Python runtime と bundled bridge で host/port に対する lightweight handshake を行う
+  - handshake failure は port collision / wrong listener とみなし、startup retry に戻す
+  - PID/port owner lookup のためだけに `psutil` / `lsof` 依存を追加しない
+  - regression test:
+    - foreign listener が accept するだけのケースを startup failure と判定する
+    - handshake success 時だけ session enter が成立する
+- Codacy subprocess findings は runtime design 自体の欠陥ではなく static-analysis 誤検知として扱い、最小スコープ suppression までを対応範囲に含める。
+  - `shell=False` + argv list を維持する
+  - executable path は `_validated_runtime_path(...)` を通した operator-configured runtime のみを使う
+  - workbook / bridge path は単一 argv 要素として渡し、command string 連結は行わない
+  - analyzer が helper 越しでも警告を維持する call site には、`B603` / Semgrep 向けの inline suppression/comment を最小範囲で付け、理由をコード上に残す
+  - suppression は `src/exstruct/core/libreoffice.py` の該当 4 call site に限定する
+
+#### Out of scope for this follow-up
+
+- coverage threshold を `80` 未満へ下げる
+- low-coverage module を `.coveragerc` / workflow で除外して見かけ上の coverage を上げる
+- startup listener 検証のためだけに process ownership 依存 (`psutil`, `lsof`) を増やす
+- subprocess 呼び出し全体の大規模 API redesign
+
 ### Out of scope for this follow-up
 
 - `ShapeData` / `ChartData` を dataclass/Pydantic へ全面変更するリファクタ

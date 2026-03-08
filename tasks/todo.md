@@ -1,5 +1,49 @@
 # Todo
 
+## 2026-03-08 coverage / Codacy / CodeRabbit follow-up triage
+
+### Planning
+
+- [x] 最新 GitHub Actions run `22815422942` の failure reason を確認する
+- [x] local non-COM coverage report を再実行し、coverage 低下の主戦場を特定する
+- [x] PR #76 の最新 Codacy 指摘を再取得し、runtime defect と static-analysis false positive を切り分ける
+- [x] PR #76 の最新 CodeRabbit / review thread を再確認し、未解決 thread と duplicate review comment を切り分ける
+- [x] `tasks/feature_spec.md` に今回の accepted follow-up / out-of-scope を追記する
+- [ ] `engine.py` の per-call override 伝播を shared state mutation なしに組み直す
+- [ ] `engine.py` の immutability regression tests を追加する
+- [ ] LibreOffice startup 後の UNO bridge handshake を追加し、wrong-listener false positive を retry failure に戻す
+- [ ] wrong-listener / handshake failure の regression tests を追加する
+- [ ] `src/exstruct/core/libreoffice.py` の Codacy 対象 4 call site に最小スコープ suppression/comment を入れる
+- [ ] coverage 回復用の targeted tests を `libreoffice.py` / `libreoffice_backend.py` / `engine.py` に追加する
+- [ ] local non-COM suite coverage が `>= 80%` に戻ることを確認する
+
+### Review
+
+- 最新 GitHub Actions run は `2026-03-08` の `pytest` run `22815422942`
+  - `test (ubuntu-latest, 3.12)` の `Run tests (non-COM suite)` が失敗
+  - test 自体は `783 passed, 3 skipped, 11 deselected`
+  - failure reason は `Coverage failure: total of 79 is less than fail-under=80`
+  - Actions log の最終値は `Total coverage: 78.80%`
+  - `ubuntu-latest, 3.11` / `windows-latest` matrix は fail-fast で `cancelled`
+- ローカル再現:
+  - `uv run pytest -m "not com and not render" --maxfail=1 --disable-warnings -q --cov=exstruct --cov-report=term-missing:skip-covered --cov-fail-under=0`
+  - `785 passed, 1 skipped, 11 deselected`
+  - coverage の低い変更対象は `src/exstruct/core/libreoffice.py (67%)`, `src/exstruct/core/backends/libreoffice_backend.py (79%)`, `src/exstruct/core/ooxml_drawing.py (83%)`
+- Codacy (`python scripts/codacy_issues.py --pr 76 --min-level Warning`) は 7 件
+  - `Bandit_B603` warning: `src/exstruct/core/libreoffice.py:267`, `:348`, `:398`
+  - Semgrep error: `src/exstruct/core/libreoffice.py:267`, `:268`, `:348`, `:398`
+  - 現行コードは `shell=False` + argv list + allowlisted env であり、今回は runtime exploit より analyzer 側の trust-boundary 誤検知として扱う
+- CodeRabbit / review で現在も効いている追加指摘は 2 点
+  - unresolved thread `src/exstruct/engine.py:250-265` (`also applies to 425-442`)
+    - `_process_extract_scope()` が `self.output.destinations.auto_page_breaks_dir` を mutate し、immutable contract と caller isolation を壊す
+  - latest review duplicate comment `src/exstruct/core/libreoffice.py:391-413` (`also applies to 768-835`)
+    - `_reserve_tcp_port()` 後に別 listener が先に bind した場合でも `_wait_for_socket()` が startup success と誤認しうる
+- 今回の方針
+  - coverage gate は threshold 緩和ではなく targeted tests で戻す
+  - `process()` の override 伝播は engine-level seam を維持しつつ explicit parameter 化し、shared state mutation を除去する
+  - startup false positive は PID lookup ではなく UNO bridge handshake で詰める
+  - Codacy は helper を前提に、該当 call site のみ inline suppression/comment で収束させる
+
 ## 2026-03-08 PR #76 post-push triage
 
 ### Planning
