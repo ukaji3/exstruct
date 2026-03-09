@@ -489,7 +489,7 @@
 - [x] 既存の probe env test を新契約へ更新し、互換性判定まわりの高レベル test が壊れていないことを確認する
 - [x] `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_libreoffice_bridge.py -q` を実行する
 - [x] `uv run task precommit-run` を実行する
-- [ ] push 後に `python scripts/codacy_issues.py --pr 76 --min-level Warning` を再実行し、同 issue が消えたことを確認する
+- [x] push 後に `python scripts/codacy_issues.py --pr 76 --min-level Warning` を再実行し、同 issue が消えたことを確認する
 - [ ] それでも Codacy が同じ sink を報告する場合だけ、対象 call site に rule-specific suppression を追加する
 
 ### Review
@@ -518,7 +518,7 @@
   - `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_libreoffice_bridge.py -q` -> `49 passed`
   - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
 - 残タスク:
-  - Codacy 側の issue 再確認は push 後でないと PR 76 の remote 解析結果に反映されない
+  - なし。push 後の `python scripts/codacy_issues.py --pr 76 --min-level Warning` は `total: 0` を返した
 
 ## 2026-03-09 PR #76 latest review + Codacy re-triage
 
@@ -539,7 +539,7 @@
 - [x] trusted subprocess helper 群に narrow `nosemgrep` suppression を追加する
 - [x] 対象 pytest を実行する
 - [x] `uv run task precommit-run` を実行する
-- [ ] push 後に `python scripts/codacy_issues.py --pr 76 --min-level Warning` を再実行する
+- [x] push 後に `python scripts/codacy_issues.py --pr 76 --min-level Warning` を再実行する
 
 ### Review
 
@@ -578,3 +578,5 @@
   - `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_libreoffice_bridge.py tests/core/test_libreoffice_smoke.py tests/core/test_pipeline.py tests/core/test_mode_output.py tests/cli/test_cli.py -q` -> `122 passed, 2 skipped`
   - pytest 終了後に既知の Windows COM fatal exception ログは出るが、pytest 自体の終了コードは 0
   - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
+  - push 後に 2 分待ってから `python scripts/codacy_issues.py --pr 76 --min-level Warning` を 1 回だけ再実行し、`total: 0` を確認した
+  - `gh api graphql` 再確認で PR #76 の review thread は全件 `isResolved: true` になった
