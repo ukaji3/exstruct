@@ -475,11 +475,11 @@
 - [x] `scripts/codacy_issues.py --pr 76 --min-level Warning` で PR #76 の Codacy 残件を再取得し、issue が 1 件だけ残っていることを確認する
 - [x] `src/exstruct/core/libreoffice.py:825` の sink が `_run_bridge_probe_subprocess(...)` であることを確認し、現行 helper/test の契約を点検する
 - [x] Codacy の `dangerous-subprocess-use-tainted-env-args` を false positive 寄りと判断しつつ、まずは suppression ではなく trust-boundary 明確化で解く方針を決める
-- [ ] probe helper の `subprocess.run(...)` から explicit `env=` を外し、UTF-8 強制を固定 argv オプションへ移す
-- [ ] probe helper 専用の regression test を追加し、fixed argv と `env` 非指定を確認する
-- [ ] 既存の probe env test を新契約へ更新し、互換性判定まわりの高レベル test が壊れていないことを確認する
-- [ ] `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_libreoffice_bridge.py -q` を実行する
-- [ ] `uv run task precommit-run` を実行する
+- [x] probe helper の `subprocess.run(...)` から explicit `env=` を外し、UTF-8 強制を固定 argv オプションへ移す
+- [x] probe helper 専用の regression test を追加し、fixed argv と `env` 非指定を確認する
+- [x] 既存の probe env test を新契約へ更新し、互換性判定まわりの高レベル test が壊れていないことを確認する
+- [x] `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_libreoffice_bridge.py -q` を実行する
+- [x] `uv run task precommit-run` を実行する
 - [ ] push 後に `python scripts/codacy_issues.py --pr 76 --min-level Warning` を再実行し、同 issue が消えたことを確認する
 - [ ] それでも Codacy が同じ sink を報告する場合だけ、対象 call site に rule-specific suppression を追加する
 
@@ -501,3 +501,12 @@
   - まず probe helper から explicit env 注入を外し、UTF-8 制御を argv 化して analyzer の taint 経路を減らす
   - それでも残る場合だけ narrow suppression を入れる
   - いきなり suppression だけで終わらせない
+- 実装結果:
+  - `_run_bridge_probe_subprocess(...)` は `env=` を渡さず、固定 argv `python -X utf8 _libreoffice_bridge.py --probe` を使うように変更した
+  - `test_python_supports_libreoffice_bridge_uses_probe_command` を新 argv 形状へ更新した
+  - `test_run_bridge_probe_subprocess_uses_fixed_utf8_args_without_env` を追加し、`env` 非指定と UTF-8 runtime option を固定した
+- 検証結果:
+  - `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_libreoffice_bridge.py -q` -> `49 passed`
+  - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
+- 残タスク:
+  - Codacy 側の issue 再確認は push 後でないと PR 76 の remote 解析結果に反映されない

@@ -29,6 +29,7 @@ from exstruct.core.libreoffice import (
     _python_supports_libreoffice_bridge,
     _resolve_python_path,
     _run_bridge_extract_subprocess,
+    _run_bridge_probe_subprocess,
 )
 from exstruct.core.ooxml_drawing import (
     DrawingConnectorRef,
@@ -1750,41 +1751,47 @@ def test_python_supports_libreoffice_bridge_uses_probe_command(
 
     assert _python_supports_libreoffice_bridge(python_path) is True
     assert len(calls) == 1
-    assert calls[0][0] == str(python_path)
-    assert calls[0][1].endswith("_libreoffice_bridge.py")
-    assert calls[0][2] == "--probe"
+    assert calls[0][0] == str(python_path.resolve())
+    assert calls[0][1] == "-X"
+    assert calls[0][2] == "utf8"
+    assert calls[0][3].endswith("_libreoffice_bridge.py")
+    assert calls[0][4] == "--probe"
 
 
-def test_python_supports_libreoffice_bridge_filters_env(
+def test_run_bridge_probe_subprocess_uses_fixed_utf8_args_without_env(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
-    """Verify that bridge probes pass a bounded inherited environment."""
+    """Verify that probe subprocesses avoid inherited env and force UTF-8 via argv."""
 
     python_path = tmp_path / "python3"
     python_path.write_text("", encoding="utf-8")
-    captured_env: dict[str, str] = {}
+    captured: dict[str, object] = {}
 
     def _fake_run(
         args: list[str], **kwargs: object
     ) -> subprocess.CompletedProcess[str]:
-        """Capture subprocess environment for the bridge probe."""
+        """Capture subprocess configuration for the bridge probe."""
 
-        _ = args
-        env = kwargs.get("env")
-        if isinstance(env, dict):
-            captured_env.update(env)
+        captured["args"] = list(args)
+        captured["kwargs"] = dict(kwargs)
         return subprocess.CompletedProcess(
             args=args, returncode=0, stdout="", stderr=""
         )
 
-    monkeypatch.setenv("UNSAFE_TEST_ENV", "secret")
-    monkeypatch.setenv("PATH", "test-path")
     monkeypatch.setattr("exstruct.core.libreoffice.subprocess.run", _fake_run)
 
-    assert _python_supports_libreoffice_bridge(python_path) is True
-    assert captured_env["PYTHONIOENCODING"] == "utf-8"
-    assert captured_env["PATH"] == "test-path"
-    assert "UNSAFE_TEST_ENV" not in captured_env
+    _run_bridge_probe_subprocess(python_path=python_path, timeout_sec=1.25)
+
+    args = cast(list[str], captured["args"])
+    kwargs = cast(dict[str, object], captured["kwargs"])
+    assert args[0] == str(python_path.resolve())
+    assert args[1] == "-X"
+    assert args[2] == "utf8"
+    assert args[3].endswith("_libreoffice_bridge.py")
+    assert args[4] == "--probe"
+    assert "env" not in kwargs
+    assert kwargs["encoding"] == "utf-8"
+    assert kwargs["timeout"] == 1.25
 
 
 def test_resolve_python_path_rejects_system_python_when_bridge_probe_fails(
