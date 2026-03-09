@@ -1,5 +1,36 @@
 # Feature Spec
 
+## 2026-03-08 LibreOffice subprocess Codacy false-positive follow-up
+
+### Issue
+
+- `src/exstruct/core/libreoffice.py` の `subprocess.run(...)` helper に対して、Codacy が `Command Injection` (`dangerous-subprocess-use-audit`, `dangerous-subprocess-use-tainted-env-args`) を継続して報告している。
+- 現行実装は `shell=False` + argv list + allowlisted env であり、実際のリスクは command string injection ではなく、静的解析が汎用 `args: Sequence[str]` helper 越しの trust boundary を追えていない点にある。
+
+### Accepted follow-ups
+
+- 汎用 `args: Sequence[str]` を受ける `_run_trusted_subprocess(...)` は廃止し、用途別の専用 helper へ分解する。
+  - `soffice --version` probe
+  - bridge `--probe`
+  - bridge extraction (`--file`, `--kind`)
+  - bridge handshake (`--handshake`)
+- 各 helper は固定 argv 構造を内部で組み立て、可変入力は型付き引数として受ける。
+  - executable path は `_validated_runtime_path(...)`
+  - bridge script path は bundled local file
+  - workbook path は `_subprocess_path_arg(...)` で単一 argv 要素として渡す
+  - env は `_build_subprocess_env(...)` の allowlist を維持する
+- `shell=False` と list argv は維持し、`shlex.escape()` のような shell 向け escaping は導入しない。
+  - 理由: 本コードは shell command string を組み立てておらず、escaping を追加しても security posture は改善しないため
+- 既存 public error contract は維持する。
+  - bridge extraction timeout/error の例外文言
+  - handshake failure の例外文言
+  - Python bridge probe incompatibility detail
+- regression tests:
+  - bridge extraction helper が固定 argv / allowlisted env を使うこと
+  - bridge probe helper が固定 argv / allowlisted env を使うこと
+  - handshake helper が固定 argv / allowlisted env を使うこと
+  - 既存の bridge extraction / invalid JSON / runtime-unavailable error mapping が変わらないこと
+
 ## 2026-03-08 PR #76 unresolved thread follow-up
 
 ### Issue

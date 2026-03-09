@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 from pathlib import Path
 import sys
 from types import ModuleType, SimpleNamespace
@@ -166,7 +167,32 @@ def test_bridge_parse_args_accepts_probe_and_handshake(
     handshake_args = module._parse_args()
     assert handshake_args.handshake is True
     assert handshake_args.file is None
+    assert handshake_args.file_stdin is False
     assert handshake_args.connect_timeout == 1.5
+
+
+def test_bridge_parse_args_accepts_file_stdin(monkeypatch: MonkeyPatch) -> None:
+    module = _load_bridge_module(monkeypatch)
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "bridge",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "2002",
+            "--file-stdin",
+            "--kind",
+            "draw-page",
+        ],
+    )
+
+    args = module._parse_args()
+    assert args.file is None
+    assert args.file_stdin is True
+    assert args.kind == "draw-page"
 
 
 def test_bridge_main_returns_after_handshake(monkeypatch: MonkeyPatch) -> None:
@@ -197,6 +223,59 @@ def test_bridge_main_returns_after_handshake(monkeypatch: MonkeyPatch) -> None:
 
     assert module.main() == 0
     assert calls == {"host": "127.0.0.1", "port": 2002, "timeout_sec": 2.5}
+
+
+def test_bridge_main_reads_file_path_from_stdin(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    module = _load_bridge_module(monkeypatch)
+    workbook_path = tmp_path / "book.xlsx"
+    workbook_path.write_text("", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    def _fake_resolve_context(host: str, port: int, *, timeout_sec: float) -> object:
+        _ = host
+        _ = port
+        _ = timeout_sec
+        service_manager = SimpleNamespace(
+            createInstanceWithContext=lambda service_name, context: (
+                SimpleNamespace()
+                if service_name == "com.sun.star.frame.Desktop"
+                else None
+            )
+        )
+        _ = service_manager
+        return SimpleNamespace(ServiceManager=service_manager)
+
+    def _fake_load_document(desktop: object, file_path: Path) -> object:
+        _ = desktop
+        captured["file_path"] = file_path
+        return SimpleNamespace()
+
+    monkeypatch.setattr(module, "_resolve_context", _fake_resolve_context)
+    monkeypatch.setattr(module, "_load_document", _fake_load_document)
+    monkeypatch.setattr(
+        module, "_extract_draw_page_payload", lambda _doc: {"sheets": {}}
+    )
+    monkeypatch.setattr(module, "_close_document", lambda _doc: None)
+    monkeypatch.setattr(sys, "stdin", io.StringIO(str(workbook_path)))
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "bridge",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "2002",
+            "--file-stdin",
+            "--kind",
+            "draw-page",
+        ],
+    )
+
+    assert module.main() == 0
+    assert captured["file_path"] == workbook_path
 
 
 def test_bridge_resolve_context_retries_until_success(
@@ -401,6 +480,29 @@ def test_bridge_safe_shape_name_and_numeric_helpers(
 def test_bridge_parse_args_rejects_missing_host_port(monkeypatch: MonkeyPatch) -> None:
     module = _load_bridge_module(monkeypatch)
     monkeypatch.setattr(sys, "argv", ["bridge", "--handshake"])
+
+    with pytest.raises(SystemExit):
+        module._parse_args()
+
+
+def test_bridge_parse_args_rejects_file_and_file_stdin_together(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    module = _load_bridge_module(monkeypatch)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "bridge",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "2002",
+            "--file",
+            "book.xlsx",
+            "--file-stdin",
+        ],
+    )
 
     with pytest.raises(SystemExit):
         module._parse_args()

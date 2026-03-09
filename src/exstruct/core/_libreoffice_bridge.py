@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 import time
 from typing import Protocol, cast
 
@@ -151,7 +152,7 @@ def main() -> int:
         _Desktop,
         ctx.ServiceManager.createInstanceWithContext("com.sun.star.frame.Desktop", ctx),
     )
-    doc = _load_document(desktop, Path(args.file))
+    doc = _load_document(desktop, _resolve_bridge_file_path(args))
     try:
         if args.kind == "draw-page":
             payload = _extract_draw_page_payload(doc)
@@ -172,19 +173,35 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--host")
     parser.add_argument("--port", type=int)
     parser.add_argument("--file")
+    parser.add_argument("--file-stdin", action="store_true")
     parser.add_argument("--kind", choices=("charts", "draw-page"), default="charts")
     parser.add_argument("--connect-timeout", type=float, default=15.0)
     args = parser.parse_args()
+    if args.file is not None and args.file_stdin:
+        parser.error("--file and --file-stdin cannot be combined.")
     if not args.probe and (
         args.host is None
         or args.port is None
-        or (not args.handshake and args.file is None)
+        or (not args.handshake and args.file is None and not args.file_stdin)
     ):
         parser.error(
             "--host and --port are required unless --probe is set; "
-            "--file is also required unless --handshake is set."
+            "--file or --file-stdin is also required unless --handshake is set."
         )
     return args
+
+
+def _resolve_bridge_file_path(args: argparse.Namespace) -> Path:
+    """Resolve the workbook path from argv or stdin for extraction commands."""
+
+    if args.file is not None:
+        return Path(args.file)
+    if not args.file_stdin:
+        raise ValueError("Bridge file path was not provided.")
+    raw = sys.stdin.read().strip()
+    if not raw:
+        raise ValueError("Bridge file path stdin was empty.")
+    return Path(raw)
 
 
 def _run_probe() -> None:

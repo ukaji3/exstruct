@@ -28,6 +28,7 @@ from exstruct.core.libreoffice import (
     _probe_uno_bridge_handshake,
     _python_supports_libreoffice_bridge,
     _resolve_python_path,
+    _run_bridge_extract_subprocess,
 )
 from exstruct.core.ooxml_drawing import (
     DrawingConnectorRef,
@@ -1897,14 +1898,31 @@ def test_libreoffice_session_extractors_cache_bridge_payloads_and_parse_results(
         path.write_text("", encoding="utf-8")
     bridge_calls: list[list[str]] = []
 
-    def _fake_run_trusted_subprocess(
-        args: list[str], *, timeout_sec: float, env: dict[str, str] | None = None
+    def _fake_run_bridge_extract_subprocess(
+        *,
+        python_path: Path,
+        host: str,
+        port: int,
+        file_path: Path,
+        kind: str,
+        timeout_sec: float,
     ) -> subprocess.CompletedProcess[str]:
+        args = [
+            str(python_path.resolve()),
+            str(Path("bridge.py")),
+            "--host",
+            host,
+            "--port",
+            str(port),
+            "--file",
+            str(file_path.resolve()),
+            "--kind",
+            kind,
+        ]
         bridge_calls.append(list(args))
         assert timeout_sec == 2.0
-        assert env is not None
-        assert env["PYTHONIOENCODING"] == "utf-8"
-        kind = args[args.index("--kind") + 1]
+        assert host == "127.0.0.1"
+        assert port == 42001
         draw_items: list[object] = [
             {
                 "name": "Flow",
@@ -1964,8 +1982,8 @@ def test_libreoffice_session_extractors_cache_bridge_payloads_and_parse_results(
         lambda _path: python_path,
     )
     monkeypatch.setattr(
-        "exstruct.core.libreoffice._run_trusted_subprocess",
-        _fake_run_trusted_subprocess,
+        "exstruct.core.libreoffice._run_bridge_extract_subprocess",
+        _fake_run_bridge_extract_subprocess,
     )
 
     session = LibreOfficeSession(
@@ -2071,6 +2089,55 @@ def test_libreoffice_session_run_bridge_requires_entered_session(
         session._run_bridge(workbook_path, kind="charts")
 
 
+def test_run_bridge_extract_subprocess_uses_fixed_argv_and_env(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    """Verify that bridge extraction uses fixed argv slots and allowlisted env."""
+
+    python_path = tmp_path / "python.exe"
+    workbook_path = tmp_path / "book.xlsx"
+    python_path.write_text("", encoding="utf-8")
+    workbook_path.write_text("", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    def _fake_run(
+        args: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        captured["args"] = list(args)
+        captured["env"] = kwargs["env"]
+        captured["input"] = kwargs["input"]
+        captured["timeout"] = kwargs["timeout"]
+        return subprocess.CompletedProcess(
+            args=args,
+            returncode=0,
+            stdout="{}",
+            stderr="",
+        )
+
+    monkeypatch.setattr("exstruct.core.libreoffice.subprocess.run", _fake_run)
+
+    _run_bridge_extract_subprocess(
+        python_path=python_path,
+        host="127.0.0.1",
+        port=42001,
+        file_path=workbook_path,
+        kind="draw-page",
+        timeout_sec=2.0,
+    )
+
+    args = cast(list[str], captured["args"])
+    assert args[0] == str(python_path.resolve())
+    assert args[1].endswith("_libreoffice_bridge.py")
+    assert args[args.index("--host") + 1] == "127.0.0.1"
+    assert args[args.index("--port") + 1] == "42001"
+    assert "--file-stdin" in args
+    assert args[args.index("--kind") + 1] == "draw-page"
+    env = cast(dict[str, str], captured["env"])
+    assert env["PYTHONIOENCODING"] == "utf-8"
+    assert captured["input"] == str(workbook_path.resolve())
+    assert captured["timeout"] == 2.0
+
+
 def test_libreoffice_session_run_bridge_surfaces_subprocess_failures(
     tmp_path: Path,
     monkeypatch: MonkeyPatch,
@@ -2105,15 +2172,22 @@ def test_libreoffice_session_run_bridge_surfaces_subprocess_failures(
         for path in (soffice_path, python_path, workbook_path):
             path.write_text("", encoding="utf-8")
 
-        def _fake_run_trusted_subprocess(
-            _args: list[str],
+        def _fake_run_bridge_extract_subprocess(
             *,
+            python_path: Path,
+            host: str,
+            port: int,
+            file_path: Path,
+            kind: str,
             timeout_sec: float,
-            env: dict[str, str] | None = None,
             raised: Exception = raised,
         ) -> subprocess.CompletedProcess[str]:
+            _ = python_path
+            _ = host
+            _ = port
+            _ = file_path
+            _ = kind
             _ = timeout_sec
-            _ = env
             raise raised
 
         monkeypatch.setattr(
@@ -2121,8 +2195,8 @@ def test_libreoffice_session_run_bridge_surfaces_subprocess_failures(
             lambda _path, python_path=python_path: python_path,
         )
         monkeypatch.setattr(
-            "exstruct.core.libreoffice._run_trusted_subprocess",
-            _fake_run_trusted_subprocess,
+            "exstruct.core.libreoffice._run_bridge_extract_subprocess",
+            _fake_run_bridge_extract_subprocess,
         )
 
         session = LibreOfficeSession(
@@ -2150,11 +2224,28 @@ def test_libreoffice_session_run_bridge_rejects_invalid_json(
     for path in (soffice_path, python_path, workbook_path):
         path.write_text("", encoding="utf-8")
 
-    def _fake_run_trusted_subprocess(
-        args: list[str], *, timeout_sec: float, env: dict[str, str] | None = None
+    def _fake_run_bridge_extract_subprocess(
+        *,
+        python_path: Path,
+        host: str,
+        port: int,
+        file_path: Path,
+        kind: str,
+        timeout_sec: float,
     ) -> subprocess.CompletedProcess[str]:
+        args = [
+            str(python_path.resolve()),
+            str(Path("bridge.py")),
+            "--host",
+            host,
+            "--port",
+            str(port),
+            "--file",
+            str(file_path.resolve()),
+            "--kind",
+            kind,
+        ]
         _ = timeout_sec
-        _ = env
         return subprocess.CompletedProcess(
             args=args,
             returncode=0,
@@ -2167,8 +2258,8 @@ def test_libreoffice_session_run_bridge_rejects_invalid_json(
         lambda _path: python_path,
     )
     monkeypatch.setattr(
-        "exstruct.core.libreoffice._run_trusted_subprocess",
-        _fake_run_trusted_subprocess,
+        "exstruct.core.libreoffice._run_bridge_extract_subprocess",
+        _fake_run_bridge_extract_subprocess,
     )
 
     session = LibreOfficeSession(

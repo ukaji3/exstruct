@@ -1,5 +1,33 @@
 # Todo
 
+## 2026-03-08 LibreOffice subprocess Codacy false-positive follow-up
+
+### Planning
+
+- [x] `libreoffice.py` の `subprocess.run(...)` call site と関連テストを確認する
+- [x] `tasks/feature_spec.md` に helper 分解方針を追記する
+- [x] 汎用 `_run_trusted_subprocess(...)` を bridge/probe 専用 helper へ分解する
+- [x] 既存テストを新 helper 構造に合わせて更新する
+- [x] 対象 pytest と `uv run task precommit-run` で検証する
+
+### Review
+
+- `src/exstruct/core/libreoffice.py` の汎用 `_run_trusted_subprocess(args, ...)` を廃止し、以下の専用 helper へ分解した
+  - `_run_soffice_version_subprocess(...)`
+  - `_run_bridge_probe_subprocess(...)`
+  - `_run_bridge_extract_subprocess(...)`
+  - `_run_bridge_handshake_subprocess(...)`
+- bridge extraction は workbook path を `--file` argv で渡すのをやめ、`--file-stdin` + stdin テキストで bridge に渡す形へ変更した
+- `src/exstruct/core/_libreoffice_bridge.py` は `--file-stdin` を受け付け、stdin から workbook path を読むようにした
+- 追加・更新した検証
+  - `tests/core/test_libreoffice_backend.py` で extraction helper の固定 argv / allowlisted env / stdin input を確認
+  - `tests/core/test_libreoffice_bridge.py` で `--file-stdin` の parse と `main()` の stdin 読み取りを確認
+  - 既存の bridge extraction / invalid JSON / handshake / probe 系テストは helper 分解後も通ることを確認
+- ローカル検証結果
+  - `uv run pytest tests/core/test_libreoffice_bridge.py tests/core/test_libreoffice_backend.py -q` -> `49 passed`
+  - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
+- Codacy 再取得 (`python scripts/codacy_issues.py --pr 76 --min-level Warning`) は remote PR 状態を返すため、ローカル未 push 状態では旧 issue 1 件が残る
+
 ## 2026-03-08 PR #76 unresolved thread follow-up
 
 ### Planning

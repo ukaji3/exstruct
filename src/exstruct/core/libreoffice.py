@@ -264,23 +264,14 @@ class LibreOfficeSession:
         cache_key = f"{kind}:{file_path.resolve()}"
         if cache_key in self._bridge_payload_cache:
             return self._bridge_payload_cache[cache_key]
-        bridge_path = Path(__file__).with_name("_libreoffice_bridge.py")
         try:
-            completed = _run_trusted_subprocess(
-                [
-                    _subprocess_executable_arg(self._python_path),
-                    _subprocess_path_arg(bridge_path),
-                    "--host",
-                    "127.0.0.1",
-                    "--port",
-                    str(self._accept_port),
-                    "--file",
-                    _subprocess_path_arg(file_path.resolve()),
-                    "--kind",
-                    kind,
-                ],
+            completed = _run_bridge_extract_subprocess(
+                python_path=self._python_path,
+                host="127.0.0.1",
+                port=self._accept_port,
+                file_path=file_path.resolve(),
+                kind=kind,
                 timeout_sec=self.config.exec_timeout_sec,
-                env=_build_subprocess_env(pythonioencoding="utf-8"),
             )
         except FileNotFoundError as exc:
             raise LibreOfficeUnavailableError(
@@ -343,9 +334,8 @@ def _probe_soffice_runtime(*, soffice_path: Path, timeout_sec: float) -> None:
     """Verify that the configured soffice executable is runnable."""
 
     try:
-        _run_trusted_subprocess(
-            [_subprocess_executable_arg(soffice_path), "--version"],
-            timeout_sec=timeout_sec,
+        _run_soffice_version_subprocess(
+            soffice_path=soffice_path, timeout_sec=timeout_sec
         )
     except FileNotFoundError as exc:
         raise LibreOfficeUnavailableError(
@@ -746,16 +736,10 @@ def _probe_libreoffice_bridge_failure(python_path: Path) -> str | None:
 
     if not python_path.exists():
         return f"'{python_path}' was not found."
-    bridge_path = Path(__file__).with_name("_libreoffice_bridge.py")
     try:
-        _run_trusted_subprocess(
-            [
-                _subprocess_executable_arg(python_path),
-                _subprocess_path_arg(bridge_path),
-                "--probe",
-            ],
+        _run_bridge_probe_subprocess(
+            python_path=python_path,
             timeout_sec=_DEFAULT_PYTHON_PROBE_TIMEOUT_SEC,
-            env=_build_subprocess_env(pythonioencoding="utf-8"),
         )
     except OSError:
         return f"'{python_path}' could not be executed."
@@ -810,19 +794,117 @@ def _build_subprocess_env(*, pythonioencoding: str | None = None) -> dict[str, s
     return env
 
 
-def _run_trusted_subprocess(
-    args: Sequence[str],
+def _run_soffice_version_subprocess(
     *,
+    soffice_path: Path,
     timeout_sec: float,
-    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Run a trusted local subprocess with fixed argv structure."""
+    """Run `soffice --version` with a fixed argv shape."""
 
-    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit, python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args
-    # Safe by construction: argv is built from validated local runtime/script paths,
-    # uses `shell=False`, and bridge env is reduced to an explicit allowlist.
-    return subprocess.run(  # nosec B603  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit, python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args
-        list(args),
+    # Safe by construction: executable path is validated locally and invoked via
+    # shell=False with no user-controlled command string assembly.
+    return subprocess.run(  # nosec B603
+        [_subprocess_executable_arg(soffice_path), "--version"],
+        capture_output=True,
+        check=True,
+        text=True,
+        encoding="utf-8",
+        timeout=timeout_sec,
+    )
+
+
+def _run_bridge_probe_subprocess(
+    *,
+    python_path: Path,
+    timeout_sec: float,
+) -> subprocess.CompletedProcess[str]:
+    """Run the bundled LibreOffice bridge in `--probe` mode."""
+
+    bridge_path = Path(__file__).with_name("_libreoffice_bridge.py")
+    env = _build_subprocess_env(pythonioencoding="utf-8")
+    # Safe by construction: validated Python executable + bundled local script +
+    # fixed probe flag under shell=False. The environment is reduced to an explicit
+    # allowlist before execution.
+    return subprocess.run(  # nosec B603
+        [
+            _subprocess_executable_arg(python_path),
+            _subprocess_path_arg(bridge_path),
+            "--probe",
+        ],
+        capture_output=True,
+        check=True,
+        text=True,
+        encoding="utf-8",
+        timeout=timeout_sec,
+        env=env,
+    )
+
+
+def _run_bridge_extract_subprocess(
+    *,
+    python_path: Path,
+    host: str,
+    port: int,
+    file_path: Path,
+    kind: Literal["charts", "draw-page"],
+    timeout_sec: float,
+) -> subprocess.CompletedProcess[str]:
+    """Run the bundled LibreOffice bridge for workbook extraction."""
+
+    bridge_path = Path(__file__).with_name("_libreoffice_bridge.py")
+    env = _build_subprocess_env(pythonioencoding="utf-8")
+    input_text = _subprocess_path_arg(file_path)
+    # Safe by construction: executable/script paths are local validated files, the
+    # workbook path is forwarded via stdin rather than command text, and no shell
+    # command string is constructed. Host/port remain discrete argv entries.
+    return subprocess.run(  # nosec B603
+        [
+            _subprocess_executable_arg(python_path),
+            _subprocess_path_arg(bridge_path),
+            "--host",
+            host,
+            "--port",
+            str(port),
+            "--file-stdin",
+            "--kind",
+            kind,
+        ],
+        capture_output=True,
+        check=True,
+        input=input_text,
+        text=True,
+        encoding="utf-8",
+        timeout=timeout_sec,
+        env=env,
+    )
+
+
+def _run_bridge_handshake_subprocess(
+    *,
+    python_path: Path,
+    host: str,
+    port: int,
+    timeout_sec: float,
+) -> subprocess.CompletedProcess[str]:
+    """Run the bundled LibreOffice bridge in handshake mode."""
+
+    bridge_path = Path(__file__).with_name("_libreoffice_bridge.py")
+    env = _build_subprocess_env(pythonioencoding="utf-8")
+    # Safe by construction: validated Python executable + bundled local script +
+    # fixed handshake flags under shell=False. Host/port remain argv elements, not
+    # shell-expanded command text.
+    return subprocess.run(  # nosec B603
+        [
+            _subprocess_executable_arg(python_path),
+            _subprocess_path_arg(bridge_path),
+            "--handshake",
+            "--host",
+            host,
+            "--port",
+            str(port),
+            "--connect-timeout",
+            str(timeout_sec),
+        ],
         capture_output=True,
         check=True,
         text=True,
@@ -893,22 +975,12 @@ def _probe_uno_bridge_handshake(
         raise LibreOfficeUnavailableError(
             "LibreOffice runtime is unavailable: soffice exited during startup."
         )
-    bridge_path = Path(__file__).with_name("_libreoffice_bridge.py")
     try:
-        _run_trusted_subprocess(
-            [
-                _subprocess_executable_arg(python_path),
-                _subprocess_path_arg(bridge_path),
-                "--handshake",
-                "--host",
-                host,
-                "--port",
-                str(port),
-                "--connect-timeout",
-                str(timeout_sec),
-            ],
+        _run_bridge_handshake_subprocess(
+            python_path=python_path,
+            host=host,
+            port=port,
             timeout_sec=timeout_sec,
-            env=_build_subprocess_env(pythonioencoding="utf-8"),
         )
     except FileNotFoundError as exc:
         raise LibreOfficeUnavailableError(
