@@ -510,3 +510,51 @@
   - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
 - 残タスク:
   - Codacy 側の issue 再確認は push 後でないと PR 76 の remote 解析結果に反映されない
+
+## 2026-03-09 PR #76 latest review + Codacy re-triage
+
+### Planning
+
+- [x] `gh api graphql` で PR #76 の最新 unresolved review thread を再取得する
+- [x] duplicate review thread 3 件に返信し、元 thread へ集約する形で resolve する
+- [x] `python scripts/codacy_issues.py --pr 76 --min-level Warning` を再実行し、残件 rule が `dangerous-subprocess-use-audit` に切り替わったことを確認する
+- [x] 新規/残存 review 指摘を採用・非採用に再分類する
+- [ ] `src/exstruct/core/backends/libreoffice_backend.py::_resolve_direction()` に rotation-aware delta を適用する
+- [ ] `src/exstruct/core/ooxml_drawing.py::_extract_chart_series()` を全 chart node 走査へ拡張する
+- [ ] `src/exstruct/core/ooxml_drawing.py::_parse_connector_node()` の `headEnd/tailEnd` mapping を begin/end semantics に合わせて修正する
+- [ ] `src/exstruct/core/_libreoffice_bridge.py::_resolve_context()` を at-least-once attempt になる loop に直す
+- [ ] `tests/core/test_libreoffice_smoke.py` の `confidence == 0.8` を smoke 向け assertion に緩める
+- [ ] `src/exstruct/core/backends/libreoffice_backend.py::_ensure_runtime()` を整理して redundant startup を除去する
+- [ ] `tests/core/test_pipeline.py` / `tests/core/test_mode_output.py` / `tests/cli/test_cli.py` の不自然な docstring を修正する
+- [ ] `AGENTS.md` の PR scope 外削除を戻す
+- [ ] trusted subprocess helper 群に narrow `nosemgrep` suppression を追加する
+- [ ] 対象 pytest を実行する
+- [ ] `uv run task precommit-run` を実行する
+- [ ] push 後に `python scripts/codacy_issues.py --pr 76 --min-level Warning` を再実行する
+
+### Review
+
+- unresolved thread 再取得後、duplicate として閉じた thread:
+  - `discussion_r2904696477` -> `discussion_r2901508431` に集約
+  - `discussion_r2904696479` -> `discussion_r2901508430` に集約
+  - `discussion_r2901522451` -> `discussion_r2901509039` に集約
+- 現在の open review 論点:
+  - `src/exstruct/core/backends/libreoffice_backend.py`
+    - connector `direction` に `rotation` を反映していない
+    - `_ensure_runtime()` が probe-only startup を 1 回余分に行う
+  - `src/exstruct/core/ooxml_drawing.py`
+    - combo chart の secondary chart node series を落としている
+    - connector `headEnd/tailEnd` mapping が COM semantics と逆
+  - `src/exstruct/core/_libreoffice_bridge.py`
+    - `_resolve_context()` が no-attempt timeout になり得る
+  - tests
+    - smoke confidence 固定値
+    - `test_pipeline.py` / `test_mode_output.py` / `test_cli.py` の不自然な docstring
+  - repo scope
+    - `AGENTS.md` の scope 外削除
+- Codacy 最新結果:
+  - `Error | src/exstruct/core/libreoffice.py:806 | Semgrep_python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit | Security | Detected subprocess function 'run' without a static string.`
+- Codacy 方針:
+  - 前回の trust-boundary 縮小で `tainted-env-args` は消えた
+  - 残っているのは generic audit rule なので、trusted helper に限定した `nosemgrep` で対処する
+  - `_spawn_trusted_subprocess(...)` と同じ rule id を、`_run_soffice_version_subprocess(...)` と bridge `subprocess.run(...)` helper 群にも揃える

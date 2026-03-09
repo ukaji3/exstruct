@@ -769,3 +769,80 @@ pairing ルールは次のとおり。
   - incompatible override は fail-fast する
 - 実装後は `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_libreoffice_bridge.py -q` と `uv run task precommit-run` を通す。
 - push 後に `python scripts/codacy_issues.py --pr 76 --min-level Warning` を再実行し、当該 issue が消えていることを確認する。
+
+## 2026-03-09 PR #76 latest review + Codacy re-triage
+
+### Review-thread cleanup
+
+- 追加レビューで重複して立った次の thread は、元の open thread に論点を集約する旨を返信して resolve 済みとする。
+  - `discussion_r2904696477` -> combo chart series 指摘は `discussion_r2901508431` に集約
+  - `discussion_r2904696479` -> connector direction rotation 指摘は `discussion_r2901508430` に集約
+  - `discussion_r2901522451` -> redundant LibreOffice startup 指摘は `discussion_r2901509039` に集約
+- 以後の実装 follow-up は、duplicate を除いた open thread だけを追えばよい。
+
+### Accepted follow-up
+
+#### Connector direction must honor OOXML rotation
+
+- `src/exstruct/core/backends/libreoffice_backend.py::_resolve_direction()` は、`connector_info.direction_dx/direction_dy` をそのまま角度変換せず、`connector_info.rotation` を反映したベクトルを使って方位を決める。
+- 実装は `_connector_endpoints()` と同じ `_rotate_connector_delta(...)` を再利用し、endpoint 推定と `direction` の幾何学的意味を一致させる。
+- `dx == dy == 0` または OOXML delta 不足時は、従来どおり UNO box fallback を使う。
+- regression test は「非回転だと従来どおり」「回転付き connector では endpoint と同じ向きへ方位が回る」の両方を固定する。
+
+#### Combo-chart series extraction must scan every chart node
+
+- `src/exstruct/core/ooxml_drawing.py::_extract_chart_series()` は、`plotArea` の最初の chart node だけで止めず、`_CHART_TAGS` に該当するすべての child node を document order で走査する。
+- 各 chart node の `c:ser` を順に append し、combo chart の secondary series を欠落させない。
+- `chart_type` 判定の「最初の chart node を代表値にする」契約はこの follow-up では変えない。今回は `series` 完全性だけを直す。
+- regression test は `barChart + lineChart` の combo chart fixture を追加し、両 node の series が `name_range/x_range/y_range` 付きで保持されることを確認する。
+
+#### OOXML connector arrowhead mapping must match begin/end semantics
+
+- `src/exstruct/core/ooxml_drawing.py::_parse_connector_node()` の arrowhead mapping は、`a:headEnd -> begin_arrow_style`、`a:tailEnd -> end_arrow_style` に修正する。
+- COM backend の `BeginArrowheadStyle / EndArrowheadStyle` と LibreOffice mode の意味を一致させる。
+- 既存 test の expectation が誤実装に寄っている場合は更新し、head-only / tail-only の個別 regression test を追加して再発を防ぐ。
+
+#### Bridge context resolution should guarantee at least one attempt
+
+- `src/exstruct/core/_libreoffice_bridge.py::_resolve_context()` は、deadline 判定より先に `resolver.resolve(...)` を 1 回は試行する。
+- ループ構造は「attempt -> failure なら deadline 判定 -> sleep/retry」とし、`timeout_sec <= 0` や極端に短い timeout でも no-attempt で `RuntimeError("Failed to resolve ...")` に落ちないようにする。
+- timeout exhaustion時は、試行済みなら最後の UNO 例外を再送出する現在の意味を維持する。
+- regression test は「最初の 1 回を必ず試す」「短い timeout でも no-attempt にならない」を直接確認する。
+
+#### Test-docstring cleanup should cover the remaining generated cases
+
+- 既に採用済みの `tests/core/test_mode_output.py` / `tests/cli/test_cli.py` に加え、`tests/core/test_pipeline.py` の不自然な自動生成 docstring も同じ sweep で直す。
+- docstring は関数名の単純言い換えではなく、挙動と期待結果が読める英文に揃える。
+- `CLI` の綴りは分割せず統一する。
+
+#### Existing accepted follow-ups remain open
+
+- `tests/core/test_libreoffice_smoke.py` の `chart.confidence == 0.8` を smoke 向け assertion へ緩める方針は継続する。
+- `src/exstruct/core/backends/libreoffice_backend.py::_ensure_runtime()` の redundant startup 除去方針も継続する。
+- `AGENTS.md` の PR scope 外削除をこの PR から外す方針も継続する。
+
+### Codacy follow-up update
+
+- push 後の `python scripts/codacy_issues.py --pr 76 --min-level Warning` では、残件は 1 件のままだが rule と行番号が変わった。
+  - `Error | src/exstruct/core/libreoffice.py:806 | Semgrep_python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit | Security | Detected subprocess function 'run' without a static string.`
+- 現在の対象は `_run_soffice_version_subprocess(...)` の `subprocess.run(...)` で、前回の `tainted-env-args` ではなく Semgrep の generic audit rule に切り替わっている。
+- これは trusted local subprocess helper に対する構造的 false positive と判断する。
+  - 実行ファイル path は `_validated_runtime_path(...)` を通す
+  - `shell=False`
+  - command text の組み立てなし
+  - bridge helper では bundled local script を discrete argv で渡す
+  - extract helper は workbook path を stdin 経由で渡す
+- 次の対応は suppress-only ではなく、trusted subprocess sink であることを明記した narrow Semgrep suppression を helper 単位で付与する。
+  - `_run_soffice_version_subprocess(...)`
+  - `_run_bridge_probe_subprocess(...)`
+  - `_run_bridge_extract_subprocess(...)`
+  - `_run_bridge_handshake_subprocess(...)`
+- 既存の `_spawn_trusted_subprocess(...)` に入っている `nosemgrep` と同じ rule id に揃え、helper comment では「local validated executable/script path」「shell=False」「no command-string assembly」を説明する。
+- これにより、動作を変えずに static-analysis 境界だけを明示化する。
+
+### Verification
+
+- 追加実装後は少なくとも次を実行する。
+  - `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_libreoffice_bridge.py tests/core/test_libreoffice_smoke.py tests/core/test_pipeline.py tests/core/test_mode_output.py tests/cli/test_cli.py -q`
+  - `uv run task precommit-run`
+- push 後に `python scripts/codacy_issues.py --pr 76 --min-level Warning` を再実行し、PR #76 の issue 数が減っていることを確認する。
