@@ -33,7 +33,6 @@ class LibreOfficeRichBackend(RichBackend):
 
         self.file_path = file_path
         self._session_factory = session_factory
-        self._runtime_checked = False
         self._chart_geometries: dict[str, list[LibreOfficeChartGeometry]] | None = None
         self._draw_page_shapes: dict[str, list[LibreOfficeDrawPageShape]] | None = None
 
@@ -52,7 +51,6 @@ class LibreOfficeRichBackend(RichBackend):
 
         if mode != "libreoffice":
             raise ValueError("LibreOfficeRichBackend only supports libreoffice mode.")
-        self._ensure_runtime()
         drawings = read_sheet_drawings(self.file_path)
         draw_page_shapes = self._read_draw_page_shapes()
         shape_data: ShapeData = {}
@@ -102,7 +100,6 @@ class LibreOfficeRichBackend(RichBackend):
 
         if mode != "libreoffice":
             raise ValueError("LibreOfficeRichBackend only supports libreoffice mode.")
-        self._ensure_runtime()
         drawings = read_sheet_drawings(self.file_path)
         chart_geometries = self._read_chart_geometries()
         chart_data: ChartData = {}
@@ -145,16 +142,6 @@ class LibreOfficeRichBackend(RichBackend):
                 )
             chart_data[sheet_name] = charts
         return chart_data
-
-    def _ensure_runtime(self) -> None:
-        """Probe the LibreOffice runtime once and cache successful availability."""
-
-        if self._runtime_checked:
-            return
-        with self._session_factory() as session:
-            workbook = session.load_workbook(self.file_path)
-            session.close_workbook(workbook)
-        self._runtime_checked = True
 
     def _read_chart_geometries(self) -> dict[str, list[LibreOfficeChartGeometry]]:
         """Load and cache chart geometry snapshots from the LibreOffice session."""
@@ -513,7 +500,12 @@ def _resolve_direction(
         return _direction_from_box(uno_connector)
     if dx == 0 and dy == 0:
         return _direction_from_box(uno_connector)
-    angle = compute_line_angle_deg(float(dx), float(dy))
+    rotated_dx, rotated_dy = _rotate_connector_delta(
+        float(dx),
+        float(dy),
+        connector_info.rotation,
+    )
+    angle = compute_line_angle_deg(rotated_dx, rotated_dy)
     return angle_to_compass(angle)
 
 

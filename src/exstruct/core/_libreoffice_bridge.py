@@ -229,16 +229,13 @@ def _resolve_context(host: str, port: int, *, timeout_sec: float = 15.0) -> _Uno
     )
     connection = f"uno:socket,host={host},port={port};urp;StarOffice.ComponentContext"
     deadline = time.monotonic() + timeout_sec
-    last_error: Exception | None = None
-    while time.monotonic() < deadline:
+    while True:
         try:
             return cast(_UnoContext, resolver.resolve(connection))
-        except Exception as exc:  # noqa: BLE001
-            last_error = exc
+        except Exception:  # noqa: BLE001
+            if time.monotonic() >= deadline:
+                raise
             time.sleep(0.1)
-    if last_error is not None:
-        raise last_error
-    raise RuntimeError("Failed to resolve LibreOffice UNO context.")
 
 
 def _load_document(desktop: _Desktop, file_path: Path) -> _SpreadsheetDocument:

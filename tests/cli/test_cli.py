@@ -341,7 +341,7 @@ def test_cli_forwards_include_backend_metadata_flag(
 
 
 def test_CLI_print_areas_dir_outputs_files(tmp_path: Path) -> None:
-    """Verify that c l i print areas dir outputs files."""
+    """Verify that the CLI writes print-area JSON files to the target directory."""
 
     xlsx = _prepare_print_area_excel(tmp_path)
     areas_dir = tmp_path / "areas"
@@ -370,7 +370,7 @@ def test_cli_libreoffice_rejects_pdf_and_image(tmp_path: Path) -> None:
 def test_cli_libreoffice_rejects_auto_page_breaks_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Verify that the CLI LibreOffice rejects auto page breaks dir."""
+    """Verify that the CLI rejects auto page-break export in LibreOffice mode."""
 
     xlsx = _prepare_sample_excel(tmp_path)
     auto_dir = tmp_path / "auto"

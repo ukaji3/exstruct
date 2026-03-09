@@ -436,11 +436,11 @@
 - [x] `gh` で PR #76 の最新 review thread を再取得し、未 resolve 指摘を一覧化する
 - [x] 各指摘を `feat/libreoffice-mode` の現行コードと `main...HEAD` 差分に照らして妥当性判定する
 - [x] 採用する follow-up / 採用しない指摘を `tasks/feature_spec.md` に反映する
-- [ ] `tests/core/test_libreoffice_smoke.py` の confidence assertion を smoke 向けの高レベル検証へ緩める
-- [ ] `src/exstruct/core/backends/libreoffice_backend.py` の probe-only `_ensure_runtime()` を整理し、partial-success contract を維持したまま redundant session startup を削減する
-- [ ] `tests/core/test_mode_output.py` / `tests/cli/test_cli.py` の不自然な docstring を修正する
-- [ ] `AGENTS.md` の scope 外削除をこの PR から外す
-- [ ] 対象 pytest と `uv run task precommit-run` を実行して follow-up を検証する
+- [x] `tests/core/test_libreoffice_smoke.py` の confidence assertion を smoke 向けの高レベル検証へ緩める
+- [x] `src/exstruct/core/backends/libreoffice_backend.py` の probe-only `_ensure_runtime()` を整理し、partial-success contract を維持したまま redundant session startup を削減する
+- [x] `tests/core/test_mode_output.py` / `tests/cli/test_cli.py` の不自然な docstring を修正する
+- [x] `AGENTS.md` の scope 外削除をこの PR から外す
+- [x] 対象 pytest と `uv run task precommit-run` を実行して follow-up を検証する
 
 ### Review
 
@@ -467,6 +467,15 @@
   - `mkdocs.yml:50`
     - README nav 削除と `docs/README.*` 削除は docs build broken ではない
     - 論点は docs 導線再編の説明不足 / PR scope であり、必要なら review comment で意図を補足して resolve する
+- 実装結果
+  - smoke test は `chart.confidence is not None` と `0.0 <= confidence <= 1.0` に変更し、exact `0.8` 契約は backend unit test に残した
+  - `LibreOfficeRichBackend` から probe-only `_ensure_runtime()` を外し、draw-page と chart read の実セッションだけを起動するようにした
+  - `tests/core/test_mode_output.py` / `tests/cli/test_cli.py` の docstring を読みやすい英文に修正し、`tests/core/test_pipeline.py` の残っていた自動生成風 docstring も同じ sweep で整理した
+  - `AGENTS.md` は `origin/main...HEAD` 差分で落ちていた section 2/3/4 を復元した
+- 検証
+  - `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_libreoffice_bridge.py tests/core/test_libreoffice_smoke.py tests/core/test_pipeline.py tests/core/test_mode_output.py tests/cli/test_cli.py -q` -> `122 passed, 2 skipped`
+  - pytest 終了後に既知の Windows COM fatal exception ログは出るが、終了コードは 0 のまま
+  - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
 
 ## 2026-03-09 PR #76 Codacy command-injection triage
 
@@ -519,17 +528,17 @@
 - [x] duplicate review thread 3 件に返信し、元 thread へ集約する形で resolve する
 - [x] `python scripts/codacy_issues.py --pr 76 --min-level Warning` を再実行し、残件 rule が `dangerous-subprocess-use-audit` に切り替わったことを確認する
 - [x] 新規/残存 review 指摘を採用・非採用に再分類する
-- [ ] `src/exstruct/core/backends/libreoffice_backend.py::_resolve_direction()` に rotation-aware delta を適用する
-- [ ] `src/exstruct/core/ooxml_drawing.py::_extract_chart_series()` を全 chart node 走査へ拡張する
-- [ ] `src/exstruct/core/ooxml_drawing.py::_parse_connector_node()` の `headEnd/tailEnd` mapping を begin/end semantics に合わせて修正する
-- [ ] `src/exstruct/core/_libreoffice_bridge.py::_resolve_context()` を at-least-once attempt になる loop に直す
-- [ ] `tests/core/test_libreoffice_smoke.py` の `confidence == 0.8` を smoke 向け assertion に緩める
-- [ ] `src/exstruct/core/backends/libreoffice_backend.py::_ensure_runtime()` を整理して redundant startup を除去する
-- [ ] `tests/core/test_pipeline.py` / `tests/core/test_mode_output.py` / `tests/cli/test_cli.py` の不自然な docstring を修正する
-- [ ] `AGENTS.md` の PR scope 外削除を戻す
-- [ ] trusted subprocess helper 群に narrow `nosemgrep` suppression を追加する
-- [ ] 対象 pytest を実行する
-- [ ] `uv run task precommit-run` を実行する
+- [x] `src/exstruct/core/backends/libreoffice_backend.py::_resolve_direction()` に rotation-aware delta を適用する
+- [x] `src/exstruct/core/ooxml_drawing.py::_extract_chart_series()` を全 chart node 走査へ拡張する
+- [x] `src/exstruct/core/ooxml_drawing.py::_parse_connector_node()` の `headEnd/tailEnd` mapping を begin/end semantics に合わせて修正する
+- [x] `src/exstruct/core/_libreoffice_bridge.py::_resolve_context()` を at-least-once attempt になる loop に直す
+- [x] `tests/core/test_libreoffice_smoke.py` の `confidence == 0.8` を smoke 向け assertion に緩める
+- [x] `src/exstruct/core/backends/libreoffice_backend.py::_ensure_runtime()` を整理して redundant startup を除去する
+- [x] `tests/core/test_pipeline.py` / `tests/core/test_mode_output.py` / `tests/cli/test_cli.py` の不自然な docstring を修正する
+- [x] `AGENTS.md` の PR scope 外削除を戻す
+- [x] trusted subprocess helper 群に narrow `nosemgrep` suppression を追加する
+- [x] 対象 pytest を実行する
+- [x] `uv run task precommit-run` を実行する
 - [ ] push 後に `python scripts/codacy_issues.py --pr 76 --min-level Warning` を再実行する
 
 ### Review
@@ -558,3 +567,14 @@
   - 前回の trust-boundary 縮小で `tainted-env-args` は消えた
   - 残っているのは generic audit rule なので、trusted helper に限定した `nosemgrep` で対処する
   - `_spawn_trusted_subprocess(...)` と同じ rule id を、`_run_soffice_version_subprocess(...)` と bridge `subprocess.run(...)` helper 群にも揃える
+- 実装結果:
+  - `_resolve_direction()` は `_rotate_connector_delta(...)` を通した回転後ベクトルで方位を決めるようにし、heuristic endpoint 推定と `direction` の幾何学を一致させた
+  - `_extract_chart_series()` は `plotArea` 配下の全 chart node を document order で走査し、combo chart の secondary series も保持するようにした
+  - `_parse_connector_node()` は `headEnd -> begin_arrow_style`、`tailEnd -> end_arrow_style` に修正した
+  - `_resolve_context()` は timeout が極端に短くても 1 回は `resolver.resolve(...)` を試す loop に直した
+  - `_run_soffice_version_subprocess()` と bridge `subprocess.run(...)` helper 群に rule-specific `nosemgrep` を追加した
+  - 回帰 test を `tests/core/test_libreoffice_backend.py` / `tests/core/test_libreoffice_bridge.py` に追加・更新した
+- 検証:
+  - `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_libreoffice_bridge.py tests/core/test_libreoffice_smoke.py tests/core/test_pipeline.py tests/core/test_mode_output.py tests/cli/test_cli.py -q` -> `122 passed, 2 skipped`
+  - pytest 終了後に既知の Windows COM fatal exception ログは出るが、pytest 自体の終了コードは 0
+  - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`

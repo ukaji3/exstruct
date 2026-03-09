@@ -311,10 +311,10 @@ def _parse_connector_node(
         direction_dx=dx,
         direction_dy=dy,
         begin_arrow_style=2
-        if line is not None and line.find("a:tailEnd", _NS) is not None
+        if line is not None and line.find("a:headEnd", _NS) is not None
         else None,
         end_arrow_style=2
-        if line is not None and line.find("a:headEnd", _NS) is not None
+        if line is not None and line.find("a:tailEnd", _NS) is not None
         else None,
     )
 
@@ -437,49 +437,44 @@ def _extract_chart_series(chart_root: ElementTree.Element) -> list[ChartSeries]:
     plot_area = chart_root.find("c:chart/c:plotArea", _NS)
     if plot_area is None:
         return []
-    chart_node = None
-    for child in plot_area:
-        if _local_name(child.tag) in _CHART_TAGS:
-            chart_node = child
-            break
-    if chart_node is None:
-        return []
-
     series: list[ChartSeries] = []
-    for series_node in chart_node.findall("c:ser", _NS):
-        name_range = series_node.findtext(
-            "c:tx/c:strRef/c:f", default=None, namespaces=_NS
-        )
-        literal_name = series_node.findtext(
-            "c:tx/c:strRef/c:strCache/c:pt/c:v",
-            default=None,
-            namespaces=_NS,
-        )
-        if literal_name is None:
+    for chart_node in plot_area:
+        if _local_name(chart_node.tag) not in _CHART_TAGS:
+            continue
+        for series_node in chart_node.findall("c:ser", _NS):
+            name_range = series_node.findtext(
+                "c:tx/c:strRef/c:f", default=None, namespaces=_NS
+            )
             literal_name = series_node.findtext(
-                "c:tx/c:v", default=None, namespaces=_NS
+                "c:tx/c:strRef/c:strCache/c:pt/c:v",
+                default=None,
+                namespaces=_NS,
             )
-        x_range = _extract_series_range(
-            series_node,
-            "c:xVal/c:numRef/c:f",
-            "c:xVal/c:strRef/c:f",
-            "c:cat/c:numRef/c:f",
-            "c:cat/c:strRef/c:f",
-        )
-        y_range = _extract_series_range(
-            series_node,
-            "c:yVal/c:numRef/c:f",
-            "c:yVal/c:strRef/c:f",
-            "c:val/c:numRef/c:f",
-        )
-        series.append(
-            ChartSeries(
-                name=literal_name or name_range or "",
-                name_range=name_range,
-                x_range=x_range,
-                y_range=y_range,
+            if literal_name is None:
+                literal_name = series_node.findtext(
+                    "c:tx/c:v", default=None, namespaces=_NS
+                )
+            x_range = _extract_series_range(
+                series_node,
+                "c:xVal/c:numRef/c:f",
+                "c:xVal/c:strRef/c:f",
+                "c:cat/c:numRef/c:f",
+                "c:cat/c:strRef/c:f",
             )
-        )
+            y_range = _extract_series_range(
+                series_node,
+                "c:yVal/c:numRef/c:f",
+                "c:yVal/c:strRef/c:f",
+                "c:val/c:numRef/c:f",
+            )
+            series.append(
+                ChartSeries(
+                    name=literal_name or name_range or "",
+                    name_range=name_range,
+                    x_range=x_range,
+                    y_range=y_range,
+                )
+            )
     return series
 
 

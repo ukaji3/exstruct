@@ -36,4 +36,5 @@ def test_libreoffice_mode_smoke_extracts_sample_shapes_and_charts() -> None:
     assert chart.l > 0 and chart.t > 0
     assert chart.w and chart.w > 0
     assert chart.h and chart.h > 0
-    assert chart.confidence == 0.8
+    assert chart.confidence is not None
+    assert 0.0 <= chart.confidence <= 1.0

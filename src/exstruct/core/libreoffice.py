@@ -801,9 +801,10 @@ def _run_soffice_version_subprocess(
 ) -> subprocess.CompletedProcess[str]:
     """Run `soffice --version` with a fixed argv shape."""
 
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
     # Safe by construction: executable path is validated locally and invoked via
     # shell=False with no user-controlled command string assembly.
-    return subprocess.run(  # nosec B603
+    return subprocess.run(  # nosec B603  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
         [_subprocess_executable_arg(soffice_path), "--version"],
         capture_output=True,
         check=True,
@@ -821,10 +822,11 @@ def _run_bridge_probe_subprocess(
     """Run the bundled LibreOffice bridge in `--probe` mode."""
 
     bridge_path = Path(__file__).with_name("_libreoffice_bridge.py")
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
     # Safe by construction: validated Python executable + bundled local script +
     # fixed probe flag under shell=False. Probe mode uses a fixed UTF-8 runtime
     # option and does not forward an inherited environment.
-    return subprocess.run(  # nosec B603
+    return subprocess.run(  # nosec B603  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
         [
             _subprocess_executable_arg(python_path),
             "-X",
@@ -854,10 +856,11 @@ def _run_bridge_extract_subprocess(
     bridge_path = Path(__file__).with_name("_libreoffice_bridge.py")
     env = _build_subprocess_env(pythonioencoding="utf-8")
     input_text = _subprocess_path_arg(file_path)
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
     # Safe by construction: executable/script paths are local validated files, the
     # workbook path is forwarded via stdin rather than command text, and no shell
     # command string is constructed. Host/port remain discrete argv entries.
-    return subprocess.run(  # nosec B603
+    return subprocess.run(  # nosec B603  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
         [
             _subprocess_executable_arg(python_path),
             _subprocess_path_arg(bridge_path),
@@ -890,10 +893,11 @@ def _run_bridge_handshake_subprocess(
 
     bridge_path = Path(__file__).with_name("_libreoffice_bridge.py")
     env = _build_subprocess_env(pythonioencoding="utf-8")
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
     # Safe by construction: validated Python executable + bundled local script +
     # fixed handshake flags under shell=False. Host/port remain argv elements, not
     # shell-expanded command text.
-    return subprocess.run(  # nosec B603
+    return subprocess.run(  # nosec B603  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
         [
             _subprocess_executable_arg(python_path),
             _subprocess_path_arg(bridge_path),

@@ -251,7 +251,7 @@ def test_CLIのmode引数バリデーション(tmp_path: Path) -> None:
 
 
 def test_process_excel_rejects_rendering_in_libreoffice_mode(tmp_path: Path) -> None:
-    """Verify that process excel rejects rendering in LibreOffice mode."""
+    """Verify that process_excel rejects rendering in LibreOffice mode."""
 
     path = tmp_path / "book.xlsx"
     out = tmp_path / "out.json"
@@ -264,7 +264,7 @@ def test_process_excel_rejects_rendering_in_libreoffice_mode(tmp_path: Path) -> 
 def test_process_excel_rejects_auto_page_breaks_in_libreoffice_mode(
     tmp_path: Path,
 ) -> None:
-    """Verify that process excel rejects auto page breaks in LibreOffice mode."""
+    """Verify that process_excel rejects auto page-break export in LibreOffice mode."""
 
     path = tmp_path / "book.xlsx"
     out = tmp_path / "out.json"
@@ -282,7 +282,7 @@ def test_process_excel_rejects_auto_page_breaks_in_libreoffice_mode(
 def test_process_excel_rejects_rendering_and_auto_page_breaks_in_libreoffice_mode(
     tmp_path: Path,
 ) -> None:
-    """Verify that process excel rejects rendering and auto page breaks in LibreOffice mode."""
+    """Verify that process_excel rejects rendering and auto page-break export together."""
 
     path = tmp_path / "book.xlsx"
     out = tmp_path / "out.json"
@@ -329,7 +329,7 @@ def _make_multi_sheet_book(path: Path) -> None:
 def test_process_excel_defaults_to_stdout(
     tmp_path: Path, capsys: CaptureFixture[str]
 ) -> None:
-    """Verify that process excel defaults to stdout."""
+    """Verify that process_excel writes to stdout when no output path is given."""
 
     path = tmp_path / "book.xlsx"
     _make_basic_book(path)
@@ -341,7 +341,7 @@ def test_process_excel_defaults_to_stdout(
 
 
 def test_process_excel_sheets_dir_output(tmp_path: Path) -> None:
-    """Verify that process excel sheets dir output."""
+    """Verify that process_excel writes one JSON file per sheet."""
 
     path = tmp_path / "book.xlsx"
     _make_multi_sheet_book(path)
@@ -357,7 +357,7 @@ def test_process_excel_sheets_dir_output(tmp_path: Path) -> None:
 
 
 def test_CLI_defaults_to_stdout(tmp_path: Path) -> None:
-    """Verify that c l i defaults to stdout."""
+    """Verify that the CLI writes JSON to stdout by default."""
 
     path = tmp_path / "book.xlsx"
     _make_basic_book(path)

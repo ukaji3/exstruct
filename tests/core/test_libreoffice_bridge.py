@@ -298,6 +298,24 @@ def test_bridge_resolve_context_retries_until_success(
     ]
 
 
+def test_bridge_resolve_context_attempts_once_even_with_zero_timeout(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    module = _load_bridge_module(monkeypatch)
+    resolver = _FakeResolver([RuntimeError("not ready")])
+    local_context = SimpleNamespace(ServiceManager=_FakeServiceManager(resolver))
+
+    monkeypatch.setattr(module.uno, "getComponentContext", lambda: local_context)
+    monkeypatch.setattr(module.time, "sleep", lambda _seconds: None)
+
+    with pytest.raises(RuntimeError, match="not ready"):
+        module._resolve_context("127.0.0.1", 2002, timeout_sec=0.0)
+
+    assert resolver.calls == [
+        "uno:socket,host=127.0.0.1,port=2002;urp;StarOffice.ComponentContext"
+    ]
+
+
 def test_bridge_load_document_builds_hidden_readonly_props(
     monkeypatch: MonkeyPatch, tmp_path: Path
 ) -> None:

@@ -237,6 +237,49 @@ def test_libreoffice_backend_extracts_chart_from_sample() -> None:
     assert chart.confidence == 0.8
 
 
+def test_libreoffice_backend_avoids_probe_only_startup(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Verify that shape and chart extraction only open the sessions they consume."""
+
+    entered: list[str] = []
+    draw_calls: list[Path] = []
+    chart_calls: list[Path] = []
+
+    class _TrackingSession(_DummySession):
+        def __enter__(self) -> _TrackingSession:
+            entered.append("enter")
+            return self
+
+        def extract_draw_page_shapes(
+            self, file_path: Path
+        ) -> dict[str, list[LibreOfficeDrawPageShape]]:
+            draw_calls.append(file_path)
+            return {}
+
+        def extract_chart_geometries(
+            self, file_path: Path
+        ) -> dict[str, list[LibreOfficeChartGeometry]]:
+            chart_calls.append(file_path)
+            return {}
+
+    monkeypatch.setattr(
+        "exstruct.core.backends.libreoffice_backend.read_sheet_drawings",
+        lambda _path: {"Sheet1": SheetDrawingData()},
+    )
+    backend = LibreOfficeRichBackend(
+        Path("sample/basic/sample.xlsx"),
+        session_factory=lambda: cast(LibreOfficeSession, _TrackingSession()),
+    )
+
+    backend.extract_shapes(mode="libreoffice")
+    backend.extract_charts(mode="libreoffice")
+
+    assert entered == ["enter", "enter"]
+    assert draw_calls == [Path("sample/basic/sample.xlsx")]
+    assert chart_calls == [Path("sample/basic/sample.xlsx")]
+
+
 def test_libreoffice_backend_uses_draw_page_shapes_without_ooxml(
     monkeypatch: MonkeyPatch,
 ) -> None:
@@ -568,8 +611,8 @@ def test_libreoffice_backend_logs_unmatched_ooxml_when_draw_page_exists(
     )
 
 
-def test_ooxml_connector_tail_end_maps_to_begin_arrow_style() -> None:
-    """Verify that OOXML connector tail end maps to begin arrow style."""
+def test_ooxml_connector_tail_end_maps_to_end_arrow_style() -> None:
+    """Verify that OOXML connector tail end maps to end arrow style."""
 
     node = ElementTree.fromstring(
         """
@@ -601,12 +644,12 @@ def test_ooxml_connector_tail_end_maps_to_begin_arrow_style() -> None:
     )
     connector = _parse_connector_node(anchor, node)
     assert connector is not None
-    assert connector.begin_arrow_style == 2
-    assert connector.end_arrow_style is None
+    assert connector.begin_arrow_style is None
+    assert connector.end_arrow_style == 2
 
 
-def test_ooxml_connector_head_end_maps_to_end_arrow_style() -> None:
-    """Verify that OOXML connector head end maps to end arrow style."""
+def test_ooxml_connector_head_end_maps_to_begin_arrow_style() -> None:
+    """Verify that OOXML connector head end maps to begin arrow style."""
 
     node = ElementTree.fromstring(
         """
@@ -638,8 +681,8 @@ def test_ooxml_connector_head_end_maps_to_end_arrow_style() -> None:
     )
     connector = _parse_connector_node(anchor, node)
     assert connector is not None
-    assert connector.begin_arrow_style is None
-    assert connector.end_arrow_style == 2
+    assert connector.begin_arrow_style == 2
+    assert connector.end_arrow_style is None
 
 
 def test_libreoffice_backend_combines_ooxml_and_uno_connector_endpoints(
@@ -865,8 +908,60 @@ def test_libreoffice_backend_rotates_ooxml_connector_delta_for_heuristic_matchin
 
     assert connector.begin_id == 1
     assert connector.end_id == 3
+    assert connector.direction == "N"
     assert connector.approximation_level == "heuristic"
     assert connector.confidence == 0.6
+
+
+def test_resolve_direction_uses_unrotated_ooxml_delta() -> None:
+    """Verify that unrotated OOXML deltas still map directly to compass headings."""
+
+    connector = OoxmlConnectorInfo(
+        ref=DrawingShapeRef(
+            drawing_id=1,
+            name="Connector",
+            kind="connector",
+            left=0,
+            top=0,
+            width=25,
+            height=0,
+        ),
+        connection=DrawingConnectorRef(
+            drawing_id=1,
+            start_drawing_id=None,
+            end_drawing_id=None,
+        ),
+        direction_dx=25,
+        direction_dy=0,
+    )
+
+    assert _resolve_direction(connector_info=connector, uno_connector=None) == "E"
+
+
+def test_resolve_direction_rotates_ooxml_delta_before_mapping() -> None:
+    """Verify that connector direction honors OOXML rotation before compass mapping."""
+
+    connector = OoxmlConnectorInfo(
+        ref=DrawingShapeRef(
+            drawing_id=1,
+            name="Connector",
+            kind="connector",
+            left=0,
+            top=0,
+            width=25,
+            height=0,
+        ),
+        connection=DrawingConnectorRef(
+            drawing_id=1,
+            start_drawing_id=None,
+            end_drawing_id=None,
+        ),
+        rotation=90.0,
+        direction_dx=25,
+        direction_dy=0,
+    )
+
+    assert _resolve_direction(connector_info=connector, uno_connector=None) == "N"
 
 
 def test_ooxml_zero_delta_direction_falls_back_to_uno_geometry() -> None:
@@ -987,6 +1082,47 @@ def test_extract_chart_series_supports_scatter_xval_yval() -> None:
     assert len(series) == 1
     assert series[0].x_range == "Sheet1!$A$2:$A$5"
     assert series[0].y_range == "Sheet1!$B$2:$B$5"
+
+
+def test_extract_chart_series_collects_combo_chart_nodes() -> None:
+    """Verify that combo charts keep series from every chart node in plot order."""
+
+    chart_root = ElementTree.fromstring(
+        """
+        <c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart">
+          <c:chart>
+            <c:plotArea>
+              <c:barChart>
+                <c:ser>
+                  <c:tx><c:v>Revenue</c:v></c:tx>
+                  <c:cat><c:strRef><c:f>Sheet1!$A$2:$A$5</c:f></c:strRef></c:cat>
+                  <c:val><c:numRef><c:f>Sheet1!$B$2:$B$5</c:f></c:numRef></c:val>
+                </c:ser>
+              </c:barChart>
+              <c:lineChart>
+                <c:ser>
+                  <c:tx><c:v>Trend</c:v></c:tx>
+                  <c:cat><c:strRef><c:f>Sheet1!$A$2:$A$5</c:f></c:strRef></c:cat>
+                  <c:val><c:numRef><c:f>Sheet1!$C$2:$C$5</c:f></c:numRef></c:val>
+                </c:ser>
+              </c:lineChart>
+            </c:plotArea>
+          </c:chart>
+        </c:chartSpace>
+        """
+    )
+
+    series = _extract_chart_series(chart_root)
+
+    assert [item.name for item in series] == ["Revenue", "Trend"]
+    assert [item.x_range for item in series] == [
+        "Sheet1!$A$2:$A$5",
+        "Sheet1!$A$2:$A$5",
+    ]
+    assert [item.y_range for item in series] == [
+        "Sheet1!$B$2:$B$5",
+        "Sheet1!$C$2:$C$5",
+    ]
 
 
 def test_libreoffice_session_skips_temp_profile_when_version_probe_fails(
