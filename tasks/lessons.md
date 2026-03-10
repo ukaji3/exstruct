@@ -33,3 +33,18 @@
 - For unattended Excel render evaluations, do not use fixed `A1:A1` as the minimal-range case; select a known non-empty single cell per workbook.
 - Add a run-validity rule for Excel modal dialogs (invalid run + rerun), otherwise stability metrics can be overstated.
 - In render paths that open Excel for export, explicitly set `app.display_alerts = False` even if other paths already do so.
+
+## 2026-03-06 libreoffice/ooxml review lessons
+
+- When mapping OOXML connector semantics into internal arrow fields, verify `head`/`tail` against the source spec instead of inferring from names alone; add separate start/end regression tests.
+- If `__enter__` allocates temp resources before a subprocess probe, clean them up in the exception path as well; `__exit__` is not guaranteed to run on enter failure.
+
+## 2026-03-06 libreoffice validator contract lessons
+
+- When composing higher-level validators from lower-level ones, keep each validator sound on its own contract; do not suppress a lower-level check just to improve a combined error path unless the caller fully re-implements that check.
+- If a validator has branching for combined invalid options, add a direct unit test for the single-option branch and the combined branch so downstream callers do not mask a contract hole.
+
+## 2026-03-06 docs parity lessons
+
+- When changing a public README example or CLI/API option in `README.md`, update `README.ja.md` in the same change before reporting completion.
+- For token/serialization policy changes, check both English and Japanese quick-start sections for parity on defaults and opt-in flags.

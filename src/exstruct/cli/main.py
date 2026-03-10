@@ -1,3 +1,5 @@
+"""Command-line interface for running ExStruct extraction."""
+
 from __future__ import annotations
 
 import argparse
@@ -35,7 +37,10 @@ def _add_auto_page_breaks_argument(
     parser.add_argument(
         "--auto-page-breaks-dir",
         type=Path,
-        help="Optional directory to write one file per auto page-break area (COM only).",
+        help=(
+            "Optional directory to write one file per auto page-break area "
+            "(Excel COM only; not supported in libreoffice mode)."
+        ),
     )
 
 
@@ -70,25 +75,35 @@ def build_parser(
     parser.add_argument(
         "--image",
         action="store_true",
-        help="(placeholder) Render PNG alongside JSON",
+        help=(
+            "Render per-sheet PNGs alongside structured output "
+            "(Excel COM only; not supported in libreoffice mode)."
+        ),
     )
     parser.add_argument(
         "--pdf",
         action="store_true",
-        help="(placeholder) Render PDF alongside JSON",
+        help=(
+            "Render PDF alongside structured output "
+            "(Excel COM only; not supported in libreoffice mode)."
+        ),
     )
     parser.add_argument(
         "--dpi",
         type=int,
         default=144,
-        help="DPI for image rendering (placeholder)",
+        help="DPI for image rendering used with --image.",
     )
     parser.add_argument(
         "-m",
         "--mode",
         default="standard",
-        choices=["light", "standard", "verbose"],
-        help="Extraction detail level",
+        choices=["light", "libreoffice", "standard", "verbose"],
+        help=(
+            "Extraction detail level. libreoffice is a best-effort rich extraction "
+            "mode for .xlsx/.xlsm only and cannot be combined with PDF/PNG rendering "
+            "or auto page-break export."
+        ),
     )
     parser.add_argument(
         "--pretty",
@@ -113,6 +128,14 @@ def build_parser(
         "--alpha-col",
         action="store_true",
         help="Output column keys as Excel-style ABC names (A, B, ..., Z, AA, ...) instead of 0-based indices.",
+    )
+    parser.add_argument(
+        "--include-backend-metadata",
+        action="store_true",
+        help=(
+            "Include shape/chart backend metadata fields "
+            "(provenance, approximation_level, confidence)."
+        ),
     )
     return parser
 
@@ -149,6 +172,7 @@ def main(argv: list[str] | None = None) -> int:
             print_areas_dir=args.print_areas_dir,
             auto_page_breaks_dir=getattr(args, "auto_page_breaks_dir", None),
             alpha_col=args.alpha_col,
+            include_backend_metadata=args.include_backend_metadata,
         )
         return 0
     except Exception as e:

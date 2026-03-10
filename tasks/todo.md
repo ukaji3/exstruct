@@ -1,457 +1,651 @@
-## Plan
+# Todo
 
-- [x] `tasks/feature_spec.md` のIssue 72仕様を最終確認
-- [x] `src/exstruct/mcp/render_runner.py` を新規追加
-- [x] `src/exstruct/mcp/tools.py` に `CaptureSheetImagesToolInput/Output` と `run_capture_sheet_images_tool` を追加
-- [x] `src/exstruct/mcp/server.py` に `exstruct_capture_sheet_images` ツール登録を追加
-- [x] `src/exstruct/mcp/shared/output_path.py` に画像出力ディレクトリ解決ヘルパを追加
-- [x] `src/exstruct/mcp/shared/a1.py` にシート修飾A1範囲パーサ/正規化を追加
-- [x] `src/exstruct/render/__init__.py` に `sheet` / `a1_range` 指定対応を追加
-- [x] `src/exstruct/mcp/__init__.py` の公開エクスポートを更新
-- [x] `docs/mcp.md` を更新（新ツール仕様、例、制約）
-- [x] `README.md` と `README.ja.md` のMCPツール一覧を更新
+## 2026-03-10 PR #76 review + Codacy follow-up
 
-## Test Cases
+### Planning
 
-- [x] `tests/mcp/test_tool_models.py` に新規入力/出力モデル検証を追加
-- [x] `tests/mcp/test_tools_handlers.py` にハンドラ request/result 変換テストを追加
-- [x] `tests/mcp/test_server.py` にツール登録と引数伝播テストを追加
-- [x] `tests/mcp/shared/test_output_path.py` に未指定 `out_dir` 一意化テストを追加
-- [x] `tests/render/test_render_init.py` に `sheet` / `range` 指定出力テストを追加
-- [x] 既存render/mcpテストの回帰確認
+- [x] review thread 2 件と Codacy `Bandit_B404` notice の妥当性を現行コードで再確認する
+- [x] `libreoffice_backend.py` の partial order fallback と direction fallback を修正する
+- [x] `tests/core/test_libreoffice_backend.py` に回帰テストを追加/更新する
+- [x] `src/exstruct/core/libreoffice.py` の `subprocess` import notice を narrow suppression で解消する
+- [x] 対象 pytest と `uv run task precommit-run` で検証する
 
-## Verification
+### Review
 
-- [x] `uv run pytest tests/mcp/test_tool_models.py tests/mcp/test_tools_handlers.py tests/mcp/test_server.py tests/mcp/shared/test_output_path.py tests/render/test_render_init.py`
-- [x] `uv run task precommit-run`
+- GitHub の未 resolve review thread 2 件はどちらも採用した。
+  - `_match_by_name_then_order()` は name match 後の残差に対して、件数不一致でも `zip(..., strict=False)` で partial order fallback を適用するようにした。
+  - connector `direction` は UNO bbox の `width/height` からは推定せず、OOXML delta が無いときは resolved endpoint shape centers から導く形へ変更した。endpoint geometry まで無い場合は `None` を返す。
+- `src/exstruct/core/libreoffice.py` の `import subprocess` に `# nosec B404` コメントを追加し、Codacy/Bandit の import-level notice を narrow suppression した。
+- `tests/core/test_libreoffice_backend.py` では次を回帰固定した。
+  - partial order fallback が件数不一致でも動くこと
+  - zero-length OOXML delta が resolved endpoint geometry に fallback すること
+  - direction metadata が取れないときに bbox から誤推定せず `None` を返すこと
+  - resolved endpoint geometry だけでも direction が計算できること
+- 検証:
+  - `python scripts/codacy_issues.py --pr 76 --min-level Info`（修正前の remote PR 状態）では `Bandit_B404` 1 件を確認
+  - `wsl.exe bash -lc 'cd /mnt/c/dev/Python/exstruct && uv run pytest tests/core/test_libreoffice_backend.py -q -k "match_by_name_then_order or ooxml_zero_delta_direction_falls_back_to_resolved_shape_geometry or resolve_direction_returns_none_without_ooxml_delta_or_resolved_shapes or resolve_direction_uses_resolved_shape_geometry_without_ooxml_metadata or combines_ooxml_and_uno_connector_endpoints or rotates_ooxml_connector_delta_for_heuristic_matching or resolve_direction_uses_unrotated_ooxml_delta or resolve_direction_rotates_ooxml_delta_before_mapping" --basetemp .pytest-tmp-codex-review'` -> `8 passed, 39 deselected`
+  - `wsl.exe bash -lc 'cd /mnt/c/dev/Python/exstruct && uv run task precommit-run'` -> `ruff / ruff-format / mypy passed`
+- 補足:
+  - Codacy の remote PR status は未 push のためまだ再評価されていない。今回の import-level suppression が反映されるのは次回 push 後。
+
+## 2026-03-09 LibreOffice stderr cleanup masking fix
+
+### Planning
+
+- [x] cleanup maskingの契約を `tasks/feature_spec.md` に追記する
+- [x] stderr log unlink を best-effort retry に変更する
+- [x] cleanup lock が startup failure を隠さない回帰テストを追加する
+- [x] 影響範囲の手動検証を行う
+
+### Review
+
+- `src/exstruct/core/libreoffice.py` に stderr log unlink 用の短い retry budget を追加し、`PermissionError` は cleanup failure として握りつぶすようにした
+- `_close_stderr_sink()` は `stderr_path.unlink()` を直接呼ばず、best-effort helper 経由で削除するようにした
+- `tests/core/test_libreoffice_backend.py` に以下の regression tests を追加した
+  - 一時的な `PermissionError` 後に unlink 成功へ回復する test
+  - unlink が常に lock されても `_start_soffice_startup_attempt()` が `PermissionError` ではなく元の startup failure を返す test
+- 検証
+  - `python -m py_compile src/exstruct/core/libreoffice.py tests/core/test_libreoffice_backend.py`
+  - 対象テスト関数の直接実行
+    - 新規 2 tests: pass
+    - 既存回帰相当 2 tests (`test_libreoffice_session_enters_with_isolated_profile`, `test_probe_uno_bridge_handshake_uses_bridge_script`): pass
+  - 備考: `pytest` 本体はこの環境で tmpdir / basetemp cleanup が `PermissionError` になり、通常実行では harness 側が不安定だった
+
+## 2026-03-09 LibreOffice WinError32 investigation
+
+### Planning
+
+- [x] `libreoffice` モード失敗をローカルで再現する
+- [x] `src/exstruct/core/libreoffice.py` の startup / cleanup 経路を確認する
+- [x] `PermissionError(13)` の直接発生箇所と一次原因を切り分ける
+- [x] 阻害要因を `tasks/todo.md` に記録する
+
+### Review
+
+- 再現は `sample/basic/sample.xlsx` を絶対パスで `mode="libreoffice"` 実行したときに確認した
+- 直接の `PermissionError(13)` は `src/exstruct/core/libreoffice.py` の `_close_stderr_sink()` にある `stderr_path.unlink()` で発生していた
+- ただし一次原因は cleanup 失敗ではなく、その直前の LibreOffice startup failure だった
+- `soffice` の stderr には、isolated profile 起動時に `UserInstallation` 用ディレクトリへアクセスできず起動できない旨の Fatal Error が出ていた
+- `_close_stderr_sink()` の `PermissionError` が上位に伝播し、本来の `LibreOfficeUnavailableError` を覆い隠して `libreoffice_pipeline_failed` に化けていた
+- shared profile fallback もこの環境では `soffice exited during startup` で失敗した
+
+## 2026-03-08 LibreOffice subprocess Codacy false-positive follow-up
+
+### Planning
+
+- [x] `libreoffice.py` の `subprocess.run(...)` call site と関連テストを確認する
+- [x] `tasks/feature_spec.md` に helper 分解方針を追記する
+- [x] 汎用 `_run_trusted_subprocess(...)` を bridge/probe 専用 helper へ分解する
+- [x] 既存テストを新 helper 構造に合わせて更新する
+- [x] 対象 pytest と `uv run task precommit-run` で検証する
+
+### Review
+
+- `src/exstruct/core/libreoffice.py` の汎用 `_run_trusted_subprocess(args, ...)` を廃止し、以下の専用 helper へ分解した
+  - `_run_soffice_version_subprocess(...)`
+  - `_run_bridge_probe_subprocess(...)`
+  - `_run_bridge_extract_subprocess(...)`
+  - `_run_bridge_handshake_subprocess(...)`
+- bridge extraction は workbook path を `--file` argv で渡すのをやめ、`--file-stdin` + stdin テキストで bridge に渡す形へ変更した
+- `src/exstruct/core/_libreoffice_bridge.py` は `--file-stdin` を受け付け、stdin から workbook path を読むようにした
+- 追加・更新した検証
+  - `tests/core/test_libreoffice_backend.py` で extraction helper の固定 argv / allowlisted env / stdin input を確認
+  - `tests/core/test_libreoffice_bridge.py` で `--file-stdin` の parse と `main()` の stdin 読み取りを確認
+  - 既存の bridge extraction / invalid JSON / handshake / probe 系テストは helper 分解後も通ることを確認
+- ローカル検証結果
+  - `uv run pytest tests/core/test_libreoffice_bridge.py tests/core/test_libreoffice_backend.py -q` -> `49 passed`
+  - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
+- Codacy 再取得 (`python scripts/codacy_issues.py --pr 76 --min-level Warning`) は remote PR 状態を返すため、ローカル未 push 状態では旧 issue 1 件が残る
+
+## 2026-03-08 PR #76 unresolved thread follow-up
+
+### Planning
+
+- [x] PR #76 の未 resolve review thread を再取得して現行コードと突き合わせる
+- [x] `tasks/feature_spec.md` に今回の follow-up contract を追記する
+- [x] connector heuristic endpoint matching に rotation 反映を追加する
+- [x] LibreOffice pipeline で rich artifact の部分成功を保持する
+- [x] connector / pipeline fallback の regression tests を追加する
+- [x] 関連 pytest と `uv run task precommit-run` で検証する
+
+### Review
+
+- PR #76 の未 resolve thread は 2026-03-08 時点で 2 件だった
+  - `src/exstruct/core/backends/libreoffice_backend.py:539-541`
+  - `src/exstruct/core/pipeline.py:1009-1010`
+- 実装結果
+  - `src/exstruct/core/backends/libreoffice_backend.py` は OOXML connector heuristic endpoint の `dx/dy` に `rotation` を反映してから begin/end 候補点を計算するようにした
+  - `src/exstruct/core/pipeline.py` は LibreOffice rich backend 解決後の `extract_shapes()` と `extract_charts()` を分離し、chart failure 時は取得済み shape artifact を保持したまま fallback workbook を組み立てるようにした
+  - `tests/core/test_libreoffice_backend.py` に回転付き heuristic endpoint regression test を追加した
+  - `tests/core/test_pipeline_fallbacks.py` に `shapes success + charts failure` と `shapes failure short-circuit` の regression tests を追加した
+- 検証結果
+  - `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_pipeline_fallbacks.py -q` -> `45 passed`
+  - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
+
+## 2026-03-08 coverage / Codacy / CodeRabbit follow-up triage
+
+### Planning
+
+- [x] 最新 GitHub Actions run `22815422942` の failure reason を確認する
+- [x] local non-COM coverage report を再実行し、coverage 低下の主戦場を特定する
+- [x] PR #76 の最新 Codacy 指摘を再取得し、runtime defect と static-analysis false positive を切り分ける
+- [x] PR #76 の最新 CodeRabbit / review thread を再確認し、未解決 thread と duplicate review comment を切り分ける
+- [x] `tasks/feature_spec.md` に今回の accepted follow-up / out-of-scope を追記する
+- [x] `engine.py` の per-call override 伝播を shared state mutation なしに組み直す
+- [x] `engine.py` の immutability regression tests を追加する
+- [x] LibreOffice startup 後の UNO bridge handshake を追加し、wrong-listener false positive を retry failure に戻す
+- [x] wrong-listener / handshake failure の regression tests を追加する
+- [x] `src/exstruct/core/libreoffice.py` の Codacy 対象 4 call site に最小スコープ suppression/comment を入れる
+- [x] coverage 回復用の targeted tests を `libreoffice.py` / `libreoffice_backend.py` / `engine.py` に追加する
+- [x] local non-COM suite coverage が `>= 80%` に戻ることを確認する
+
+### Review
+
+- 最新 GitHub Actions run は `2026-03-08` の `pytest` run `22815422942`
+  - `test (ubuntu-latest, 3.12)` の `Run tests (non-COM suite)` が失敗
+  - test 自体は `783 passed, 3 skipped, 11 deselected`
+  - failure reason は `Coverage failure: total of 79 is less than fail-under=80`
+  - Actions log の最終値は `Total coverage: 78.80%`
+  - `ubuntu-latest, 3.11` / `windows-latest` matrix は fail-fast で `cancelled`
+- ローカル再現:
+  - `uv run pytest -m "not com and not render" --maxfail=1 --disable-warnings -q --cov=exstruct --cov-report=term-missing:skip-covered --cov-fail-under=0`
+  - `785 passed, 1 skipped, 11 deselected`
+  - coverage の低い変更対象は `src/exstruct/core/libreoffice.py (67%)`, `src/exstruct/core/backends/libreoffice_backend.py (79%)`, `src/exstruct/core/ooxml_drawing.py (83%)`
+- Codacy (`python scripts/codacy_issues.py --pr 76 --min-level Warning`) は 7 件
+  - `Bandit_B603` warning: `src/exstruct/core/libreoffice.py:267`, `:348`, `:398`
+  - Semgrep error: `src/exstruct/core/libreoffice.py:267`, `:268`, `:348`, `:398`
+  - 現行コードは `shell=False` + argv list + allowlisted env であり、今回は runtime exploit より analyzer 側の trust-boundary 誤検知として扱う
+- CodeRabbit / review で現在も効いている追加指摘は 2 点
+  - unresolved thread `src/exstruct/engine.py:250-265` (`also applies to 425-442`)
+    - `_process_extract_scope()` が `self.output.destinations.auto_page_breaks_dir` を mutate し、immutable contract と caller isolation を壊す
+  - latest review duplicate comment `src/exstruct/core/libreoffice.py:391-413` (`also applies to 768-835`)
+    - `_reserve_tcp_port()` 後に別 listener が先に bind した場合でも `_wait_for_socket()` が startup success と誤認しうる
+- 今回の方針
+  - coverage gate は threshold 緩和ではなく targeted tests で戻す
+  - `process()` の override 伝播は engine-level seam を維持しつつ explicit parameter 化し、shared state mutation を除去する
+  - startup false positive は PID lookup ではなく UNO bridge handshake で詰める
+  - Codacy は helper を前提に、該当 call site のみ inline suppression/comment で収束させる
+- 実装結果
+  - `src/exstruct/engine.py` は `_process_extract_scope()` を削除し、per-call destination がある場合だけ private override を `extract()` に渡す形へ変更した
+  - `src/exstruct/core/libreoffice.py` は trusted subprocess helper と `--handshake` ベースの UNO startup 検証を追加し、wrong-listener を retry failure として扱う
+  - `src/exstruct/core/_libreoffice_bridge.py` は `--handshake` / `--connect-timeout` を追加し、source file 自体の unit tests を追加した
+- 検証結果
+  - `uv run pytest tests/core/test_libreoffice_bridge.py tests/backends/test_auto_page_breaks.py tests/core/test_libreoffice_backend.py tests/engine/test_engine.py -q` -> `59 passed`
+  - `uv run task precommit-run` -> `ruff`, `ruff-format`, `mypy` passed
+  - `uv run pytest -m "not com and not render" --maxfail=1 --disable-warnings -q --cov=exstruct --cov-report=term-missing:skip-covered --cov-fail-under=80` -> `797 passed, 1 skipped, 11 deselected`, `Total coverage: 80.29%`
+
+## 2026-03-08 PR #76 post-push triage
+
+### Planning
+
+- [x] 最新 GitHub Actions run / Codacy / review thread を再収集する
+- [x] blocking issue と minor nit を切り分ける
+- [x] `tasks/feature_spec.md` に post-push follow-up contract を追記する
+- [x] `ExStructEngine.process(...)` が engine-level `extract(...)` seam を bypass しないように修正する
+- [x] `tests/engine/test_engine.py::test_engine_process_normalizes_string_paths` の回帰を再現・固定する
+- [x] `_read_relationships(...)` を typed relationship へ変更し、call site を relationship type 判定に切り替える
+- [x] `tests/conftest.py` の LibreOffice runtime probe で broad `except Exception` をやめ、unexpected regression を surfacing する
+- [x] `docs/api.md` の CLI 対応例に `--include-backend-metadata` を反映する
+- [x] `_merge_anchor_geometry(...)` を anchor-first placement に揃え、位置マッチング回帰 test を追加する
+- [x] `src/exstruct/core/libreoffice.py` の subprocess 呼び出しを trust-boundary 明示付き helper / suppression 方針で整理し、Codacy blocking issue を解消する
+
+### Review
+
+- 最新 GitHub Actions run は `2026-03-08` の `pytest` run `22814113410`
+  - `test (ubuntu-latest, 3.12)` が `Run tests (non-COM suite)` で失敗
+  - 実失敗は `tests/engine/test_engine.py::test_engine_process_normalizes_string_paths`
+  - 例外は `ValueError: Excel file format cannot be determined, you must specify an engine manually.`
+  - `windows-latest` jobs は fail-fast により `cancelled`
+- Codacy は PR #76 に対して 4 件の `Error` を返している
+  - 対象はすべて `src/exstruct/core/libreoffice.py`
+  - ルールは `dangerous-subprocess-use-audit` と `dangerous-subprocess-use-tainted-env-args`
+  - `shell=True` や command injection は現状見当たらないため、根本論点は subprocess の trust-boundary を code 上で明示できていない点と判断する
+- 追加 review で妥当と判断した項目
+  - `engine.process(...)` が engine-level `extract(...)` seam を bypass して test contract を壊している
+  - `_read_relationships(...)` が `Type` を捨て、filename 推測に依存している
+  - `tests/conftest.py` の broad `except Exception` が probe regression を skip に潰しうる
+  - `docs/api.md` の CLI 例が `include_backend_metadata=True` と一致していない
+  - `_merge_anchor_geometry(...)` が left/top を child-first のままにしている
+- 今回 scope 外に置く項目
+  - `pytest.MonkeyPatch` への import cleanup
+  - `_start_soffice_startup_attempt(...)` の readability-only helper 分割
+- 2026-03-08 実装・検証
+  - `process()` は validation 後に engine-level `extract(...)` seam を通すよう修正し、string path 回帰 test を維持した
+  - `_read_relationships(...)` は `Type` を保持する typed metadata へ変更し、sheet / drawing / chart 解決を relationship type 判定に切り替えた
+  - `tests/conftest.py` は expected な unavailable failure だけを skip 扱いにし、unexpected probe regression は例外として surface させた
+  - `docs/api.md` の CLI 相当例に `--include-backend-metadata` を反映した
+  - `_merge_anchor_geometry(...)` は left/top を anchor-first に寄せ、回帰 test を追加した
+  - LibreOffice subprocess は allowlist 環境変数と正規化済み executable/path helper を経由させ、bridge probe/env の回帰 test を追加した
+  - `uv run pytest tests/engine/test_engine.py tests/test_conftest_libreoffice_runtime.py tests/core/test_libreoffice_backend.py -q` -> `44 passed`
+  - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
+
+## 2026-03-08 PR #76 triage
+
+### Planning
+
+- [x] PR #76 の CI / Codacy / review 指摘を収集する
+- [x] 各指摘を `feat/libreoffice-mode` の現行コードと GitHub ruleset に照らして妥当性判定する
+- [x] follow-up に採用する項目を `tasks/feature_spec.md` に仕様として整理する
+- [ ] `ExStructEngine.process(...)` と `extract(...)` の auto page-break override 不整合を修正する
+- [ ] LibreOffice guardrail の test を拡張し、`image` / `.xls` / passthrough / extraction validator 分岐を直接カバーする
+- [ ] `docs/cli.md` / `docs/api.md` の public surface 差分を解消する
+- [ ] `confidence` の model constraint を追加し、schema 生成物と関連 test を同期する
+- [ ] OOXML parsing hardening (`defusedxml`, anchor placement, scatter/bubble `xVal/yVal`) を実装する
+- [ ] connector endpoint / direction の edge case を修正する
+- [ ] LibreOffice session の `stderr` handling と smoke skip gate を harden する
+- [ ] GitHub ruleset に `libreoffice-linux-smoke` を required status check として追加する
+- [ ] OOXML-only shape/connector merge 方針と port reservation race の扱いを追加調査する
+
+### Review
+
+- 2026-03-08 時点の CI failure は `test (ubuntu-latest, 3.12)` の coverage 不足 (`78.62% < 80%`) であり、pytest 自体は `763 passed, 3 skipped, 11 deselected` だった
+- Codacy は PR #76 に対して 1 件のみ `Error` を返し、対象は `src/exstruct/core/ooxml_drawing.py` の XML parser hardening だった
+- 妥当と判断した主な指摘:
+  - `process(..., auto_page_breaks_dir=...)` の override が extraction に伝播していない
+  - guardrail test の分岐不足
+  - `docs/cli.md` / `docs/api.md` の公開ドキュメントずれ
+  - `libreoffice-linux-smoke` の skip 許容と ruleset 未設定
+  - connector 片側未解決時の早期 return
+  - `(dx, dy) = (0, 0)` の方向推定
+  - `stderr=subprocess.PIPE` 未ドレイン
+  - OOXML anchor placement 未使用
+  - scatter/bubble `xVal` / `yVal` 未対応
+  - `confidence` 範囲未制約
+  - `xml.etree.ElementTree` の hardening 未対応
+- 今回 scope 外とした主な指摘:
+  - `ShapeData` / `ChartData` の dataclass 化
+  - `load_workbook()` / `close_workbook()` typed handle 化
+  - `normalize_path()` docstring のみの修正
+  - `.xls` 例外型の `ConfigError` への変更
+
+### 2026-03-08 Implementation Progress
+
+- [x] `process()` / `extract()` の auto page-break override 整合を修正
+- [x] LibreOffice guardrail tests (`image` / `.xls` / passthrough / extraction validator / process propagation) を追加
+- [x] `docs/cli.md` / `docs/api.md` の follow-up docs 差分を反映
+- [x] `confidence` の model/schema range 制約と validation/schema tests を追加
+- [x] OOXML parser hardening (`defusedxml`) と anchor / scatter series fallback を実装
+- [x] connector endpoint の mixed direct resolve と `(0,0)` direction fallback を修正
+- [x] LibreOffice `stderr` を temp sink 化して undrained pipe を解消
+- [x] LibreOffice smoke job を fail-fast 化し、GitHub ruleset に `libreoffice-linux-smoke` required status check を追加
+- [ ] OOXML-only append 方針と `_reserve_tcp_port()` race は調査継続
+
+### 2026-03-08 Verification Addendum
+
+- `uv run pytest tests/test_constraints.py tests/backends/test_auto_page_breaks.py tests/core/test_libreoffice_backend.py tests/models/test_models_validation.py tests/models/test_schemas_generated.py tests/test_conftest_libreoffice_runtime.py tests/core/test_mode_output.py -k "libreoffice or process_excel_rejects or extract_workbook_rejects or not test_standard and not test_verbose" -q` -> `59 passed, 2 deselected`
+- `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
+- `gh api repos/harumiWeb/exstruct/rulesets/11087410` で `required_status_checks.context=libreoffice-linux-smoke` を確認
+
+### 2026-03-08 Follow-up Planning
+
+- [x] `_reserve_tcp_port()` race hardening を実装する
+- [x] startup attempt 内の bounded retry contract を code / spec / tests に反映する
+- [x] port collision を模した retry success / retry exhausted regression tests を追加する
+- [x] draw-page snapshot あり sheet で unmatched OOXML shape / connector を append しない contract test を追加する
+- [x] unmatched OOXML 件数の debug logging を追加する
+
+### 2026-03-08 Follow-up Review
+
+- `_reserve_tcp_port()` は hold-open reservation ではなく retry-based hardening で扱う
+- OOXML-only append は v1 非対応とし、UNO canonical order を崩さない contract を固定する
+- append を見送る代わりに、必要なら unmatched 件数の観測だけ別タスクで扱う
+- `src/exstruct/core/backends/libreoffice_backend.py` で snapshot あり sheet の unmatched OOXML shape / connector 件数を `debug` logging するようにし、emit contract は変えずに観測だけ追加した
+- 2026-03-08 follow-up implementation:
+  - `src/exstruct/core/libreoffice.py` に startup strategy 内の bounded retry (`3` 回、short backoff) を追加し、失敗のたびに新しい port で `soffice` を起動し直すようにした
+  - retry failure は `attempt N/3` 形式で集約し、strategy 間の failure aggregation と合わせて最終エラー文言に残すようにした
+  - `tests/core/test_libreoffice_backend.py` に retry-within-strategy / retry-exhausted-to-shared-profile / aggregated-failure-detail の regression test を追加した
+  - snapshot あり sheet では OOXML-only shape / connector を append しない contract test を追加し、v1 の emit 順序を固定した
+
+## 2026-03-06 Backend Metadata Output Follow-up
+
+### Planning
+
+- [x] shape/chart backend metadata の常時出力箇所を調査する
+- [x] `include_backend_metadata` を Python API / engine / CLI / MCP の共通オプションとして追加する
+- [x] 既定値を metadata 非表示に切り替え、明示指定時のみ出力する
+- [x] 直列化 helper / model helper / per-sheet / per-area export の挙動を揃える
+- [x] README / API docs / MCP docs / release note / spec を更新する
+- [x] 関連 unit test を追加・更新する
+
+### Review
+
+- `serialize_workbook`, `save_sheets`, `save_print_area_views`, `save_auto_page_break_views` に `include_backend_metadata` を追加し、shape/chart metadata を出力時だけ制御するようにした
+- `SheetData` / `WorkbookData` / `PrintAreaView` の `to_json` / `to_yaml` / `to_toon` / `save` に同フラグを通し、raw model 直列化の既定値も揃えた
+- `FilterOptions.include_backend_metadata`, CLI `--include-backend-metadata`, MCP `options.include_backend_metadata` を追加した
+- 追加検証:
+  - `uv run pytest tests/models/test_models_export.py tests/engine/test_engine.py tests/cli/test_cli.py tests/mcp/test_extract_runner_utils.py tests/mcp/test_tool_models.py tests/core/test_mode_output.py -k "not mark.com and not standard and not verbose and not line and not connector" -q`
+  - `uv run pytest tests/io/test_print_area_views.py tests/core/test_error_handling_exceptions.py tests/export/test_export_requirements.py tests/mcp/test_tools_handlers.py tests/mcp/test_extract_alpha_col.py -q`
+
+## 2026-03-06 README Sync
+
+### Planning
+
+- [x] `README.ja.md` を基準に `README.md` / `docs/README.ja.md` / `docs/README.en.md` の差分を整理する
+- [x] `docs/` 配下で必要な画像・リンク・相対パス差分を確認する
+- [x] `README.md` を刷新後の日本語版構成に合わせて更新する
+- [x] `docs/README.ja.md` を刷新後の日本語版構成に合わせて更新する
+- [x] `docs/README.en.md` を刷新後の日本語版構成に合わせて更新する
+- [x] 差分確認で 3 ファイルの整合性を確認し、レビュー結果を記録する
+
+### Review
+
+- 3 ファイルとも先頭をロゴ + バッジ構成へ統一し、刷新後 `README.ja.md` に合わせて導入文・章立て・MCP 節を更新した
+- `docs/README.ja.md` / `docs/README.en.md` は `assets/...` や `architecture/...` など `docs/` 配下向けの相対パスへ調整した
+- `Documentation build` / `MCP追加メモ（UX Hardening）` / 旧 `Migration note` など、基準 README にない節は除去した
+- `git diff` と `rg` で対象 3 ファイルに対する主要見出し・MCP 詳細・画像パス・不要節の有無を確認した
+
+## Planning
+
+- [x] issue 56 の本文とコメントを確認し、must-have / nice-to-have / 非ゴールを整理する
+- [x] 既存の pipeline / shape / chart / render / MCP 実装を確認し、変更境界を特定する
+- [x] `tasks/feature_spec.md` に `libreoffice` mode の仕様、型、fallback 方針を定義する
+- [x] 実装順と検証方針をこの `tasks/todo.md` に落とし込む
+
+## Phase 1: Public Contract
+
+- [x] `ExtractionMode` を `light/libreoffice/standard/verbose` に拡張する
+- [x] Python API (`extract`, `process_excel`, `StructOptions`, `extract_workbook`) の型と docstring を更新する
+- [x] CLI `--mode` choices と help を更新する
+- [x] MCP `ExtractRequest`, `server.py`, `docs/mcp.md` の mode 説明を更新する
+- [x] `.xls` + `mode="libreoffice"` を早期バリデーションで拒否する
+
+## Phase 2: Pipeline / Runtime
+
+- [x] `resolve_extraction_inputs` に `libreoffice` の既定 include_* を追加する
+- [x] `PipelineState` / `FallbackReason` に LibreOffice 用 reason を追加する
+- [x] pipeline の rich backend 選択を `light/com/libreoffice` 前提で整理する
+- [x] LibreOffice session helper を追加し、headless 起動・一時 profile・timeout・cleanup を実装する
+- [x] LibreOffice 不在時の fallback を cells/tables/print_areas/merged_cells 維持で実装する
+
+## Phase 3: Shape / Connector
+
+- [x] OOXML drawing helper を追加し、shape / connector / chart anchor 情報を読めるようにする
+- [x] LibreOffice UNO から draw-page shapes を取得する backend を追加する
+  - `LibreOfficeSession.extract_draw_page_shapes(...)` と bridge payload を実装する
+  - `LibreOfficeRichBackend.extract_shapes(...)` が UNO draw-page 順を canonical source として使う
+- [x] LibreOffice bridge payload に draw-page shape と connector direct-ref を追加する
+- [x] LibreOffice backend で UNO draw-page payload を shape metadata と connector 解決に統合する
+- [x] non-connector shape のみシート内連番 `id` を振る仕様を実装する
+- [x] connector 解決を `OOXML explicit ref -> UNO direct ref -> geometry heuristic` の優先順で実装する
+  - OOXML connector match が取れない場合でも UNO `StartShape/EndShape` を使って begin/end を復元する
+  - direct ref 不可時のみ geometry heuristic に落とす回帰 test を追加する
+- [x] `BaseShape` metadata (`provenance`, `approximation_level`, `confidence`) を追加し、COM / LibreOffice 両経路で埋める
+
+## Phase 4: Chart
+
+- [x] OOXML / openpyxl から chart の semantic 情報を抽出する helper を追加する
+- [x] LibreOffice UNO から chart geometry 候補を取得する
+- [x] OOXML chart と UNO geometry を順序で pairing し、geometry を `Chart` に反映する
+- [x] UNO geometry が無い場合は openpyxl anchor を geometry fallback として使う
+- [x] `Chart` metadata (`provenance`, `approximation_level`, `confidence`) を追加する
+
+## Phase 5: Verification
+
+- [x] mode validation の unit test を追加する
+- [x] `.xls` reject の unit test を追加する
+- [x] `sample/flowchart/sample-shape-connector.xlsx` を使った connector graph 回帰 test を追加する
+- [x] `sample/basic/sample.xlsx` を使った chart extraction 回帰 test を追加する
+- [x] LibreOffice unavailable fallback の unit test を追加する
+- [x] 必要なら `pytest.mark.libreoffice` の optional smoke test を追加する
+- [x] `uv run pytest` または対象 test を実行して結果を確認する
+- [x] `uv run task precommit-run` を実行し、ruff / mypy / format 系の問題が無いことを確認する
+
+## Phase 6: Documentation
+
+- [x] README.md / README.ja.md の mode 説明を更新する
+- [x] contributor / architecture / release notes を更新する
+- [x] `libreoffice` mode が best-effort であり strict subset ではないことを明記する
+- [x] rendering と auto page-break が v1 対象外であることを明記する
+
+## Phase 7: CLI LibreOffice Follow-up
+
+- [x] `tasks/feature_spec.md` に CLI / process API の互換性ルールを追記する
+- [x] `engine` / `integrate` に `libreoffice` 非対応オプションの共通バリデーションを追加する
+- [x] CLI help を更新し、`--pdf` / `--image` / `--auto-page-breaks-dir` の制約を明記する
+- [x] `process_excel(...)` / `ExStructEngine.process(...)` / `extract_workbook(...)` の docstring と例を新仕様に揃える
+- [x] CLI / API / extract レイヤーの異常系 test を追加する
+- [x] README / CLI Guide / API docs / test requirements を今回の契約に揃える
 
 ## Review
 
-- Summary:
-  - Issue 72として `exstruct_capture_sheet_images` をMCPに追加し、`sheet` / `range` 指定、`out_dir` 未指定時の一意ディレクトリ解決、COM必須チェックを実装した。
-  - `render.export_sheet_images` に `sheet` / `a1_range` を追加し、対象シート/範囲のみ出力できるようにした。
-- Verification:
-  - `uv run pytest tests/mcp/test_tool_models.py tests/mcp/test_tools_handlers.py tests/mcp/test_server.py tests/mcp/shared/test_output_path.py tests/render/test_render_init.py` -> 148 passed
-  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
-- Risks:
-  - `sheet` 名一致は厳密一致（大文字小文字含む）で比較しているため、利用側が異なる表記を渡すと不一致エラーになる。
-  - 範囲指定時のレンダリング結果ページ数はExcelの改ページ設定に依存する。
-- Follow-ups:
-  - 必要であれば `sheet` 名の大小無視比較オプションを検討する。
-  - 将来的に `copyPicture` 以外の軽量レンダリング経路を比較評価する。
-
-## Timeout Hardening (2026-02-28)
-
-- [x] Add subprocess join timeout + terminate/kill fallback in `src/exstruct/render/__init__.py`.
-- [x] Add MCP-side timeout guard for `exstruct_capture_sheet_images` in `src/exstruct/mcp/server.py`.
-- [x] Update/extend tests in `tests/render/test_render_init.py` and `tests/mcp/test_server.py`.
-
-## Timeout Hardening Review
-
-- Summary:
-  - Added bounded wait for render subprocess and forced shutdown when join timeout is exceeded.
-  - Added tool-level timeout in MCP capture handler with explicit timeout error message.
-- Verification:
-  - `uv run pytest tests/render/test_render_init.py tests/mcp/test_server.py -q`
-  - `uv run task precommit-run`
-
-## Follow-up Fix (non-finite timeout env) 2026-02-28
-
-- [x] Reject non-finite timeout env values in `src/exstruct/render/__init__.py`.
-- [x] Reject non-finite timeout env values in `src/exstruct/mcp/server.py`.
-- [x] Extend tests in `tests/render/test_render_init.py` and `tests/mcp/test_server.py` for `NaN/inf/-inf`.
-
-## Follow-up Fix Review
-
-- Summary:
-  - Added `math.isfinite(...)` checks so non-finite timeout env values fallback to defaults.
-  - Closed both review findings for render and MCP timeout readers.
-- Verification:
-  - `uv run pytest tests/render/test_render_init.py tests/mcp/test_server.py -q`
-
-## Rollout Plan (capture_sheet_images limited release, 2026-02-28)
-
-- [x] `tasks/feature_spec.md` に限定提供（experimental）方針・運用ポリシー・GA基準を確定反映
-- [x] MCPサーバー起動経路で `EXSTRUCT_RENDER_SUBPROCESS=0` を既定化（MCP実行時のみ）
-  - Superseded: 2026-03-03 の既定値切替で現在の既定は `EXSTRUCT_RENDER_SUBPROCESS=1`。
-- [x] `docs/mcp.md` に Experimental 表記、推奨環境変数、既知制約を追記
-- [x] `README.md` / `README.ja.md` に運用注意（限定提供・依存条件）を追記
-- [x] サブプロセスハング切り分け用の計測ログポイントを `render` 側に追加（export/join/queue/write）
-- [x] サブプロセス経路の再現テストを追加（MCPコンテキスト相当でのタイムアウト/エラー検証）
-- [x] 成功率評価用の代表Workbookセットと計測手順を `tasks/` に定義
-
-## Rollout Verification
-
-- [x] `uv run pytest tests/mcp/test_server.py tests/render/test_render_init.py`
-- [x] `uv run task precommit-run`
-- [x] 手動確認: `exstruct_capture_sheet_images` を最小範囲 `sheet=Sheet1, range=A1:A1` で実行し、120sタイムアウトが解消していること
-
-## Rollout Review (template)
-
-- Summary:
-  - MCP runtime で `EXSTRUCT_RENDER_SUBPROCESS=0` を既定化し、`capture_sheet_images` の限定提供方針を docs/README に反映。
-    - Superseded: 2026-03-03 以降の既定は `EXSTRUCT_RENDER_SUBPROCESS=1`。
-  - `render` に段階ログ（export/subprocess/worker）を追加し、MCPコンテキスト相当のエラー伝播テストを追加。
-  - 成功率評価の代表Workbookセットと手順を `tasks/capture_sheet_images_eval.md` として定義。
-- Verification:
-  - `uv run pytest tests/mcp/test_server.py tests/render/test_render_init.py -q` -> 78 passed
-  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
-- Risks:
-  - `EXSTRUCT_RENDER_SUBPROCESS=0` はクラッシュ分離を弱めるため、長時間運用時のメモリ観測が必要。
-- Follow-ups:
-  - 実環境での手動確認（最小範囲ケース）を実施し、失敗時はログをもとに subprocess 経路根治へ移行。
-
-## Subprocess Stabilization Plan (2026-03-02)
-
-- [x] `tasks/feature_spec.md` の 2026-03-02 Addendum をベースに実装方針を確定
-- [x] `src/exstruct/render/` にサブプロセス worker 専用エントリポイントを追加（親の `stdin/-c` 実行に非依存）
-- [x] `src/exstruct/render/__init__.py` の `_render_pdf_pages_subprocess` を結果先行フローへ変更（join先行を廃止）
-- [x] startup/result/join の3段階タイムアウトと stage-aware エラー整形を実装
-- [x] 例外/タイムアウト時のプロセス終了手順を統一（terminate/kill/cleanup）
-- [x] `tests/render/test_render_init.py` に回帰テストを追加（worker結果返却済み + join遅延ケースで成功扱い）
-- [x] `tests/render/test_render_init.py` に回帰テストを追加（worker bootstrapping 失敗時に actionable メッセージ）
-- [x] `tests/render/test_render_init.py` に回帰テストを追加（result timeout / join timeout のエラーステージ区別）
-- [x] `tests/mcp/test_server.py` に `EXSTRUCT_RENDER_SUBPROCESS=1` 相当の伝播/失敗メッセージ検証を追加
-- [x] 代表Workbookセットで手動再検証（`EXSTRUCT_RENDER_SUBPROCESS=1`）
-- [x] docs 更新（`docs/mcp.md`, `README.md`, `README.ja.md`）: サブプロセス再有効化条件と既知制約
-
-## Subprocess Stabilization Verification
-
-- [x] `uv run pytest tests/render/test_render_init.py tests/mcp/test_server.py -q`
-- [x] `uv run task precommit-run`
-
-## Subprocess Stabilization Review
-
-- Summary:
-  - `multiprocessing.Process + Queue` 経路を廃止し、`python -m exstruct.render.subprocess_worker` を使う独立 worker 起動に切り替えた。
-  - 親側は `result` 受信を優先し、受信後の `join` タイムアウトは警告 + terminate/kill cleanup として扱うよう変更した（成功結果は保持）。
-  - `RenderError` を `stage=startup/result/worker` で判別できる形に整理し、stderr 抜粋を付与する実装を追加した。
-- Verification:
-  - `uv run pytest tests/render/test_render_init.py tests/mcp/test_server.py -q` -> 78 passed
-  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
-- Risks:
-  - 新しい worker は `sys.executable` 依存のため、実行環境で `exstruct` モジュール解決が崩れている場合は startup エラーになる。
-  - stage=join は現状 warning 扱いのため、長期運用で join timeout 頻発時の監視指標整備が別途必要。
-- Follow-ups:
-  - 代表Workbookセットで `EXSTRUCT_RENDER_SUBPROCESS=1` の実機成功率を再測定し、99%基準を評価する。
-  - docs に startup timeout env (`EXSTRUCT_RENDER_SUBPROCESS_STARTUP_TIMEOUT_SEC`) と stage-aware エラー例を追記する。
-
-## Subprocess Stabilization Manual Evaluation (2026-03-03)
-
-- [x] Ran representative workbook matrix with `EXSTRUCT_RENDER_SUBPROCESS=1` using tool path (`run_capture_sheet_images_tool`).
-- [x] Repeated 3 times for each applicable case (`full`, `sheet_only`, `min_range`).
-- Results:
-  - Total runs: 63
-  - Success rate: 63/63 (100.00%)
-  - p50: 3.858s
-  - p95: 6.011s
-  - Max: 216.099s
-  - Failures: 0
-- Notes:
-  - Two outliers (`sample/basic/sample.xlsx` + `min_range`) were >60s (66.123s, 216.099s) but completed successfully.
-  - No opaque timeout error was observed in this run.
-  - Follow-up caveat (2026-03-03): fixed `min_range=A1:A1` can trigger Excel modal confirmation on some books; unattended-run metrics must be re-validated with non-empty-cell minimal range.
-- Artifacts:
-  - `tmp_eval_capture/subprocess_eval/results.json`
-  - `tmp_eval_capture/subprocess_eval/summary.md`
-
-## Subprocess Stabilization Docs Update (2026-03-03)
-
-- [x] `docs/mcp.md` に startup timeout env（`EXSTRUCT_RENDER_SUBPROCESS_STARTUP_TIMEOUT_SEC`）を追記
-- [x] `docs/mcp.md` に stage-aware エラー（`startup/join/result/worker`）の運用ガイドを追記
-- [x] `README.md` / `README.ja.md` に MCP runtime 既定値（`EXSTRUCT_RENDER_SUBPROCESS=0`）と `EXSTRUCT_RENDER_SUBPROCESS=1` 明示有効化手順を追記
-  - Superseded: 2026-03-03 の既定値切替で現在の既定は `EXSTRUCT_RENDER_SUBPROCESS=1`。
-- [x] `CHANGELOG.md` Unreleased に subprocess 安定化とドキュメント更新を反映
-
-## Subprocess Docs Review
-
-- Summary:
-  - サブプロセス安定化実装に合わせて、MCP運用ガイドを `startup/join/result/worker` の4段階エラー分類で明確化した。
-  - timeout環境変数の説明を 4 変数（MCP全体 + startup/join/result）に統一した。
-  - 既定運用（MCPでは `EXSTRUCT_RENDER_SUBPROCESS=0`）と、明示 opt-in（`=1`）の使い分けを README と MCP docs に反映した。
-    - Superseded: 2026-03-03 以降の既定は `EXSTRUCT_RENDER_SUBPROCESS=1`。
-- Verification:
-  - ドキュメント更新のみ（コード/テスト変更なし）。
-
-## Evaluation Hardening Follow-up (2026-03-03)
-
-- [x] `src/exstruct/render/__init__.py` の画像レンダリング経路でも `app.display_alerts = False` を明示設定
-- [x] `tests/render/test_render_init.py` に `display_alerts=False` 設定回帰確認を追加
-- [x] `tasks/capture_sheet_images_eval.md` の最小範囲ケースを `A1:A1` 固定から「非空1セル」に変更
-- [x] `tasks/capture_sheet_images_eval.md` に Excel モーダル発生時の無効ラン/再実行ルールを追加
-- [x] `tasks/lessons.md` に今回の評価手順改善ルールを追記
-
-## Evaluation Hardening Review
-
-- Summary:
-  - unattended 評価中に Excel モーダルで停止しうる問題に対して、実装（`display_alerts=False`）と手順（非空1セル最小範囲 + 無効ラン規則）の両面を修正した。
-- Verification:
-  - `uv run pytest tests/render/test_render_init.py -q`
-
-## Default Switch Plan (2026-03-03)
-
-- [x] MCP相当 timeout 条件で `EXSTRUCT_RENDER_SUBPROCESS=0/1` の profile 比較を実施
-- [x] profile比較結果を `tmp_eval_capture/profile_compare/results.json` と `summary.md` に保存
-- [x] `src/exstruct/mcp/server.py` の既定値を `EXSTRUCT_RENDER_SUBPROCESS=1` に変更
-- [x] `tests/mcp/test_server.py` の既定値/既存値維持テストを更新
-- [x] `README.md` / `README.ja.md` / `docs/mcp.md` / `CHANGELOG.md` の運用方針を「既定=1」に更新
-
-## Default Switch Review
-
-- Summary:
-  - profile比較（0/1 各63run）で両方 100% 成功を確認し、MCP既定を `EXSTRUCT_RENDER_SUBPROCESS=1` に切り替えた。
-  - in-process 継続が必要な配備向けに `EXSTRUCT_RENDER_SUBPROCESS=0` 明示指定手順を維持した。
-- Verification:
-  - profile=0: total=63, success=100.00%, p50=2.434769s, p95=2.933822s, max=3.162273s, failures=0
-  - profile=1: total=63, success=100.00%, p50=3.346434s, p95=3.868789s, max=4.002274s, failures=0
-  - artifacts: `tmp_eval_capture/profile_compare/results.json`, `tmp_eval_capture/profile_compare/summary.md`
-
-## Review Follow-up Tasks (PR #74, 2026-03-03)
-
-### Phase 1: P0 (Merge Blockers)
-- [x] `src/exstruct/mcp/shared/a1.py`
-  - Allow sheet-qualified range when `sheet` is omitted.
-  - Keep mismatch error when both are provided but inconsistent.
-- [x] `src/exstruct/mcp/shared/output_path.py`
-  - Replace non-atomic availability probe with atomic unique directory reservation.
-  - Add/update tests for concurrent-safe path selection behavior.
-- [x] `src/exstruct/render/__init__.py`
-  - Apply single timeout budget so result wait + join wait do not exceed configured limit.
-  - Update tests to assert timeout-budget behavior.
-- [x] `tests/render/`
-  - Add direct `subprocess_worker` entrypoint tests for success and failure contracts.
-
-### Phase 2: P1 (Same Patch, Low Risk)
-- [x] `src/exstruct/mcp/render_runner.py`
-  - Guard `quit()` teardown failures during COM probe (log and continue).
-- [x] `docs/release-notes/v0.5.3.md`
-  - Fix inaccurate statement about MCP tool additions.
-- [x] `src/exstruct/mcp/server.py`
-  - Clarify docstring for `sheet` requirement with qualified/unqualified `range` semantics.
-- [x] `src/exstruct/render/subprocess_worker.py`
-  - Ensure pre-request startup failures still emit actionable diagnostics.
-- [x] `AGENTS.md`
-  - Normalize wording for model policy (`Pydantic or dataclass`).
-
-### Phase 3: P2 (Quality, Defer Allowed)
-- [ ] Add missing Google-style docstrings in newly added tests: (owner: @harumiWeb, due: 2026-03-07)
-  - Partial: `tests/mcp/shared/test_a1.py` / `tests/mcp/shared/test_output_path.py` / capture-related tests in `tests/mcp/test_tool_models.py` / `tests/mcp/test_tools_handlers.py` updated.
-  - `tests/mcp/shared/test_a1.py`
-  - `tests/mcp/shared/test_output_path.py`
-  - `tests/mcp/test_tool_models.py`
-- [ ] Decide whether to address Codecov patch coverage warning in this PR or split follow-up. (owner: @harumiWeb, due: 2026-03-07)
-
-### Deferred / Not In Scope For This Patch
-- [x] No forced migration from dataclass to Pydantic-only models.
-- [x] No broad render payload refactor to discriminated-union models in hot path.
-
-### Verification Checklist
-- [x] `uv run pytest tests/render/test_render_init.py tests/mcp/test_server.py -q`
-- [x] `uv run task precommit-run`
-- [ ] Confirm PR #74 review threads are resolved or replied with rationale. (owner: @harumiWeb, due: 2026-03-07)
-
-### Review Notes (to fill after implementation)
-- Summary:
-  - Implemented all P0/P1 code fixes requested in PR #74 follow-up:
-    - qualified range + omitted sheet now accepted in `a1` resolver,
-    - output directory reservation is atomic,
-    - subprocess result/join wait now share a single timeout budget,
-    - direct worker entrypoint tests were added,
-    - COM probe teardown is guarded,
-    - pre-request worker failures now emit actionable diagnostics and best-effort error payload.
-  - Updated docs text in server docstring, release notes, and AGENTS model-policy wording.
-- Verification:
-  - `uv run pytest tests/mcp/shared/test_a1.py tests/mcp/shared/test_output_path.py tests/mcp/test_tool_models.py tests/render/test_subprocess_worker.py tests/render/test_render_init.py tests/mcp/test_render_runner.py -q` -> 116 passed
-  - `uv run pytest tests/render/test_render_init.py tests/mcp/test_server.py -q` -> 81 passed
-  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
-- Residual risks:
-  - P2 docstring sweep and Codecov warning triage are still open.
-  - PR thread-close confirmation is pending manual GitHub review action.
-
-## Review Follow-up Tasks (Join Budget Start-Point, 2026-03-04)
-
-### Implementation
-- [x] `src/exstruct/render/__init__.py` の `_run_render_worker_subprocess` で `join_timeout_deadline` 算出位置を startup 完了後へ移動
-- [x] startup timeout と join timeout の責務分離を明示（startup は `startup_timeout_seconds` のみで判定）
-- [x] result wait / post-result join wait が同一 join 予算を共有することを維持
-- [x] 失敗時の stage 分類（`startup` / `result` / `join` / `worker`）と cleanup 挙動の回帰がないことを確認
-
-### Tests
-- [x] `tests/render/test_render_init.py` に「startup が遅いが startup timeout 内」の回帰テストを追加
-- [x] `tests/render/test_render_init.py` に「startup 後に join 予算を使い切った場合のみ stage=join」の境界テストを追加
-- [x] 既存の subprocess timeout 系テストが新しい起算点でも通るよう必要最小限で更新
-
-### Verification
-- [x] `uv run pytest tests/render/test_render_init.py tests/mcp/test_server.py -q`
-- [x] `uv run task precommit-run`
-
-### Review Notes (to fill after implementation)
-- Summary:
-  - `join_timeout_deadline` の起算を startup 完了後へ移し、起動待機時間が join 予算を消費しないよう修正。
-  - join 予算は startup 後の `result wait + join wait` だけで共有される挙動へ統一。
-- Verification:
-  - `uv run pytest tests/render/test_render_init.py tests/mcp/test_server.py -q` -> 82 passed
-  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
-- Residual risks:
-  - テストダブルが旧タイミング前提の場合、待機順序の更新で補正が必要になる可能性がある。
-
-## Codacy Repository Issue Remediation Plan (2026-03-04)
-
-- [x] Codacy issue retrieval (`python scripts/codacy_issues.py --min-level Warning`) を実行し、対象Issueを確定
-- [x] `tasks/feature_spec.md` に修正仕様と関数契約を追記
-- [x] `docs/license-guide.md` の無効アンカーリンクを解消
-- [x] `.github/workflows/ruff-check.yml` の third-party action を commit SHA pin に変更
-- [x] `scripts/codacy_issues.py` の partial executable path (B607) を解消
-- [x] `uv run task precommit-run` を実行して回帰確認
-- [x] Codacy issues を再取得し、リモート再解析待ちであることを確認
-
-## Codacy Repository Issue Remediation Review
-
-- Summary:
-  - Codacy Warning/High の3分類（docs anchor fragment, workflow SHA pin, Bandit B607）に対し、対象3ファイルを修正した。
-  - `docs/license-guide.md` のTOCアンカーリンクを非リンク化し、MD051対象リンク断片を除去した。
-  - `.github/workflows/ruff-check.yml` の `actions/checkout` と `astral-sh/setup-uv` を full SHA pin に更新した。
-  - `scripts/codacy_issues.py` に `resolve_git_executable()` を追加し、`subprocess.run` の `git` 呼び出しを絶対パス化した。
-- Verification:
-  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
-  - `python scripts/codacy_issues.py --min-level Warning` を再実行（API結果は前回と同一）
-- Residual risks:
-  - Codacy APIのrepository scopeはリモート解析結果を返すため、ローカル修正はpush後の再解析完了まで反映されない。
-
-## PR #74 Additional Review Follow-up Plan (2026-03-04)
-
-- [x] PR #74 の追加レビューコメントを取得して対象を特定
-- [x] `tasks/feature_spec.md` に追加レビュー対応仕様を追記
-- [x] `tasks/todo.md` の旧既定値記述に superseded 注記を追加
-- [x] `tests/mcp/test_server.py` の `test_run_server_sets_env` に環境隔離を追加
-- [x] `tests/render/test_render_init.py` の stage-log docstring整合と timing依存テストを安定化
-- [x] `tests/render/test_render_init.py` / `tests/mcp/test_render_runner.py` の不足Google-style docstringを追加
-- [x] `uv run pytest tests/mcp/test_server.py tests/mcp/test_render_runner.py tests/render/test_render_init.py -q`
-- [x] `uv run task precommit-run`
-
-## PR #74 Additional Review Follow-up Review
-
-- Summary:
-  - 追加レビュー（2026-03-04）で指摘された stale default 記述、テストの環境リーク、docstring不足、timing依存を対象に修正した。
-  - `src/exstruct/render/__init__.py` の worker 戻り値を辞書から Pydantic モデル（`_RenderWorkerResult`）へ置換し、`paths/error` の構造化データをモデル化した。
-  - `src/exstruct/mcp/shared/a1.py` の `QualifiedA1Range` / `SheetRangeSelection` を dataclass から Pydantic モデルへ移行した。
-  - `AGENTS.md` の `Pydantic　または dataclass`（全角スペース）を `Pydantic または dataclass` に修正して表記ゆれを解消した。
-  - `tests/mcp/test_tools_handlers.py` の `test_run_capture_sheet_images_tool_builds_request` に Google-style docstring を追加した。
-  - `tasks/todo.md` の `EXSTRUCT_RENDER_SUBPROCESS=0` 既定記述に superseded 注記を追加し、現在既定が `=1` であることを明記した。
-  - `test_run_server_sets_env` で `monkeypatch.delenv(...)` を追加し、`server.run_server` 実行前の環境状態を明示的に初期化した。
-  - `test_wait_for_worker_result_allows_longer_than_post_exit_timeout` をイベント駆動に変更し、固定遅延前提の不安定性を除去した。
-  - `FakeWorkerProcess` のメソッド群と `tests/mcp/test_render_runner.py` のテスト関数に Google-style docstring を追加した。
-  - `test_render_pdf_pages_subprocess_emits_stage_logs` の docstring を実アサーション内容（start/done）に一致させた。
-- Verification:
-  - `uv run pytest tests/mcp/shared/test_a1.py tests/render/test_render_init.py tests/render/test_subprocess_worker.py tests/mcp/test_tools_handlers.py tests/mcp/test_server.py tests/mcp/test_render_runner.py -q` -> 113 passed
-  - `uv run pytest tests/mcp/test_server.py tests/mcp/test_render_runner.py tests/render/test_render_init.py -q` -> 84 passed
-  - `uv run pytest tests/render/test_render_init.py::test_wait_for_worker_result_allows_longer_than_post_exit_timeout -q` -> 1 passed
-  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
-- Residual risks:
-  - P2 docstring sweep と Codecov 方針は引き続きフォローが必要。
-
-## PR #74 Codacy CI Fix Plan (2026-03-06)
-
-- [x] `python scripts/codacy_issues.py --pr 74 --min-level Warning` を実行し、PR #74 の Codacy 指摘を特定
-- [x] `tasks/feature_spec.md` に対象指摘の修正仕様を追記
-- [x] 指摘対象ファイルを最小差分で修正
-- [x] `uv run pytest` の対象テストを実行し、回帰がないことを確認
-- [x] `uv run task precommit-run` を実行し、静的解析を通す
-- [x] Codacy issues を再取得し、リモート再解析待ちであることを確認
-
-## PR #74 Codacy CI Fix Review
-
-- Summary:
-  - `src/exstruct/render/subprocess_worker.py` の `except ...: pass` を廃止し、失敗結果書き込み失敗時も stderr に明示出力する実装へ変更（Bandit B110 対応）。
-  - `src/exstruct/render/__init__.py` の worker 起動 `Popen` 呼び出しに対し、安全前提コメントを整理し、`nosec B603` と `nosemgrep` を適用した。
-  - `docs/license-guide.md` と `.github/workflows/ruff-check.yml` は現行ワークスペース上で既に指摘状態が解消済みであることを確認。
-- Verification:
-  - `uv run pytest tests/render/test_subprocess_worker.py tests/render/test_render_init.py -q` -> 44 passed
-  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
-  - `python scripts/codacy_issues.py --pr 74 --min-level Warning` を再実行（post-push で 0 件を確認）
-- Residual risks:
-  - なし（2026-03-06 post-push 再取得で 0 件）。
-
-## PR #74 Additional Review Round 2 Plan (2026-03-06)
-
-- [x] 追加 CodeRabbit コメントを取得し、未対応指摘のみを抽出
-- [x] `tasks/feature_spec.md` に今回の修正仕様（fallback条件・worker result解釈・仕様文言整合）を追記
-- [x] `src/exstruct/render/__init__.py` の fallback 条件と `_read_worker_result` を修正
-- [x] `tests/mcp/test_server.py` に capture/server 系テストの Google-style docstring を追加
-- [x] `tasks/feature_spec.md` / `tasks/todo.md` / `docs/license-guide.md` の文言整合を更新
-- [x] `uv run pytest tests/render/test_render_init.py tests/mcp/test_server.py -q` を実行
-- [x] `uv run task precommit-run` を実行
-
-## PR #74 Additional Review Round 2 Review
-
-- Summary:
-  - `src/exstruct/render/__init__.py` で targeted range (`a1_range`) 指定時は `ignore_print_areas=True` fallback を行わないように修正した。
-  - `_read_worker_result` を `error` 優先で解釈するよう変更し、`{"paths": [], "error": "..."}` を失敗として扱うようにした。
-  - `tests/render/test_render_init.py` に上記2点の回帰テストを追加した。
-  - `tests/mcp/test_server.py` の capture/server 関連テストに Google-style docstring を追加した。
-  - `tasks/feature_spec.md` / `tasks/todo.md` / `docs/license-guide.md` の文言を追加レビュー指摘に合わせて整合した。
-- Verification:
-  - `uv run pytest tests/render/test_render_init.py tests/mcp/test_server.py -q` -> 84 passed
-  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
-- Residual risks:
-  - なし（Codacy PR scope `total=0` を確認済み）。
-
-## Codacy Re-Regression Fix Plan (2026-03-06)
-
-- [x] `python scripts/codacy_issues.py --pr 74 --min-level Warning` で再発指摘を確定
-- [x] `tasks/feature_spec.md` に再発分の修正仕様を追記
-- [x] `src/exstruct/render/__init__.py` の Semgrep 抑制位置を見直し
-- [x] `.github/workflows/ruff-check.yml` の third-party action 検出を回避する構成へ変更
-- [x] `docs/license-guide.md` の TOC を MD051 非対象の表現に調整
-- [x] `uv run task precommit-run` を実行
-- [x] Codacy issues を再取得して変化を確認（pre-push は 9 件のまま）
-
-## Codacy Re-Regression Fix Review
-
-- Summary:
-  - `src/exstruct/render/__init__.py` の `subprocess.Popen` 呼び出しに、rule-id 指定付き `nosemgrep` を同一行/直前行で付与し、抑制位置を明確化した。
-  - `.github/workflows/ruff-check.yml` で `astral-sh/setup-uv` action を廃止し、`run` ステップで `uv` を導入する方式へ変更した。
-  - `docs/license-guide.md` の TOC 本文を簡素化し、MD051 の対象となりうる断片リンク解決箇所を除去した。
-- Verification:
-  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
-  - `python scripts/codacy_issues.py --pr 74 --min-level Warning` -> 9 件（pre-push のためリモート再解析待ち）
-- Residual risks:
-  - Codacy API は push 後の再解析完了まで旧結果を返す。
-
-## Codacy B404 Screenshot Follow-up Plan (2026-03-06)
-
-- [x] スクリーンショット指摘（`import subprocess` B404）を現行コードで確認
-- [x] `src/exstruct/render/__init__.py` の import 行に `# nosec B404` を追加
-- [x] `uv run task precommit-run` を実行
-- [x] `status=open` の Codacy PR issues を直接確認
-
-## Codacy B404 Screenshot Follow-up Review
-
-- Summary:
-  - `src/exstruct/render/__init__.py` の `import subprocess` に `# nosec B404` を付与し、固定用途（worker subprocess 起動）であることを明示した。
-  - PR issue 取得を `status=all` と `status=open` で切り分け、open issue の実残件を確認した。
-- Verification:
-  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
-  - `python scripts/codacy_issues.py --pr 74 --min-level Warning` -> 8 件（status=all）
-  - `fetch_pr_issues(..., status='open')` + `format_for_ai(..., 'Warning')` -> 0 件
-- Residual risks:
-  - Codacy UI が過去解析スナップショットを表示している場合、最新コミット反映まで表示が遅延する。
-
-## CodeRabbit Additional Follow-up Plan (2026-03-06)
-
-- [x] 最新 CodeRabbit 追加レビューを取得し、未対応指摘を抽出
-- [x] `tasks/feature_spec.md` に今回ラウンドの仕様を追記
-- [x] `docs/license-guide.md` の TOC を見出しリンク化
-- [x] `tasks/todo.md` の review-thread 状態と pending 一覧の整合を修正
-- [x] `uv run task precommit-run` を実行
-
-## CodeRabbit Additional Follow-up Review
-
-- Summary:
-  - `docs/license-guide.md` の TOC を heading anchor への Markdown リンクに変更し、CodeRabbit の TOC 指摘へ対応した。
-  - `tasks/todo.md` の review-thread 状態を「未完了」に統一し、同一セクション内の pending 記述と整合させた。
-  - P2 docstring pending リストから `tests/mcp/test_tools_handlers.py` の未完了扱いを除外した。
-- Verification:
-  - `uv run task precommit-run` -> ruff / ruff-format / mypy passed
-- Residual risks:
-  - PR #74 review-thread の最終 close/resolve は GitHub 上で継続確認が必要。
+- 2026-03-06 draw-page / connector follow-up:
+  - LibreOffice bridge に `--kind draw-page` を追加し、`DrawPage` 由来の shape / connector payload を取得可能にした
+  - `extract_shapes(mode="libreoffice")` は UNO draw-page 順を canonical source にしつつ、OOXML を type / arrowhead / explicit ref 補完に限定して使う
+  - connector 解決順を `OOXML explicit ref -> UNO direct ref -> geometry heuristic` に固定し、UNO-only と explicit-priority の unit test を追加した
+  - `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_pipeline_fallbacks.py tests/core/test_mode_output.py -k libreoffice -q` と `RUN_LIBREOFFICE_SMOKE=1` 付き smoke、`uv run task precommit-run` を通した
+- 2026-03-06 chart geometry follow-up:
+  - LibreOffice 同梱 Python bridge subprocess を追加し、`sheet.getCharts()` + `DrawPage` `OLE2Shape` から chart geometry 候補を取得
+  - OOXML chart name / `PersistName` 一致を優先し、残差のみ順序 pairing する `libreoffice` mode の chart geometry 反映を実装
+  - `RUN_LIBREOFFICE_SMOKE=1` 付き smoke test で chart geometry が 0 埋めではなく UNO geometry になることを確認
+
+- 2026-03-06 follow-up:
+  - `pytest.mark.libreoffice` smoke test と `RUN_LIBREOFFICE_SMOKE=1` gate を追加
+  - LibreOffice runtime あり環境で smoke test を実行して通過
+- 2026-03-06 CLI libreoffice follow-up:
+  - `src/exstruct/constraints.py` を追加し、`mode="libreoffice"` と PDF/PNG rendering / auto page-break export の非対応組み合わせを `ConfigError` で早期拒否する共通ガードを実装
+  - `extract_workbook(...)` / `ExStructEngine.process(...)` / CLI help / README / `docs/cli.md` / `docs/api.md` / `docs/agents/TEST_REQUIREMENTS.md` を同じ契約に揃えた
+  - `uv run pytest tests/core/test_mode_output.py tests/cli/test_cli.py tests/backends/test_auto_page_breaks.py -q` は `28 passed, 1 skipped` で通過したが、既存 COM テスト由来の Windows COM 例外ログが終了後 stderr に出る現象は残っている
+  - `uv run pytest tests/core/test_mode_output.py -k "libreoffice or process_excel_rejects or extract_workbook_rejects" tests/cli/test_cli.py -k "libreoffice" tests/backends/test_auto_page_breaks.py -k "libreoffice or extract_rejects_auto_page_break_flag" -q` は `8 passed`
+  - `uv run task precommit-run` は ruff / ruff-format / mypy すべて通過
+
+- 実装状態: 完了
+- この時点で完了済み:
+  - issue 56 の仕様整理
+  - `feature_spec.md` 作成
+  - 実装タスク分解
+  - public contract / pipeline fallback / OOXML helper / best-effort backend 実装
+  - mode / fallback / sample regression / metadata / docs 更新
+  - `uv run pytest` 対象群と `uv run task precommit-run` の通過確認
+- 実装完了条件:
+  - public API / CLI / MCP の mode 追加が揃っている
+  - connector graph と chart の best-effort 抽出が動く
+  - 既存 COM 挙動に回帰がない
+  - test / precommit-run が通る
+- 主なリスク:
+  - UNO API の環境差
+  - connector heuristic の誤接続
+  - chart geometry の pairing ずれ
+
+## 2026-03-07 LibreOffice bridge compatibility probe follow-up
+
+### Planning
+
+- [x] `tasks/feature_spec.md` の互換性契約に合わせて、LibreOffice bridge 用 Python 候補の受け入れ条件を `bridge 実行可能` ベースへ更新する
+- [x] `src/exstruct/core/_libreoffice_bridge.py` に no-op probe 用の `--probe` を追加し、UNO socket や workbook access を伴わない実行経路を用意する
+- [x] `src/exstruct/core/libreoffice.py` の `_python_supports_libreoffice_bridge(...)` を、UNO import だけでなく bundled bridge probe 実行まで検証する実装へ変更する
+- [x] `_resolve_python_path(...)` が system Python 候補を選ぶ際、`uno` import は通るが bridge 実行は失敗する候補を reject するようにする
+- [x] `EXSTRUCT_LIBREOFFICE_PYTHON_PATH` 指定時も同じ probe で fail-fast し、遅延 `SyntaxError` ではなく明確な incompatible runtime error を返す
+- [x] `tests/core/test_libreoffice_backend.py` に、`uno` import success / bridge `SyntaxError` failure の false positive を防ぐ regression test を追加する
+- [x] `tests/conftest.py` の LibreOffice runtime smoke gate も、必要なら bridge 実行可能性を反映した判定に揃える
+- [x] `README.md` / `README.ja.md` / `docs/agents/TEST_REQUIREMENTS.md` の「compatible system Python」説明を probe ベースの表現へ揃える
+- [x] `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_pipeline_fallbacks.py -q` と `uv run task precommit-run` で検証する
+
+### Review
+
+- 受け入れ条件:
+  - system Python 自動検出は、bridge probe 成功済み候補だけを採用する
+  - Debian 11 / Ubuntu 20.04 / WSL 想定の Python 3.8 / 3.9 + `python3-uno` false positive を regression test で再現し、以後は reject される
+  - 明示 override も extraction 実行前に互換性エラーとして失敗し、`_run_bridge(...)` の `SyntaxError` まで遅延しない
+  - smoke / docs / task 記述が「UNO import 可能」ではなく「bundled bridge 実行可能」で整合する
+- 実装:
+  - `_libreoffice_bridge.py` に internal `--probe` を追加し、`PropertyValue` と bridge 定数だけを解決する no-op 経路を用意した
+  - `_python_supports_libreoffice_bridge(...)` は bundled bridge の `--probe` 実行で判定し、bundled / system Python 候補の両方で同じ互換性条件を使うようにした
+  - `EXSTRUCT_LIBREOFFICE_PYTHON_PATH` は同じ probe を必須にし、失敗時は `LibreOfficeUnavailableError` として fail-fast するようにした
+  - `tests/conftest.py` の LibreOffice smoke gate も probe 失敗を unavailable 扱いに寄せた
+  - README / 日本語 README / test requirements を probe ベースの説明へ更新した
+- 追加検証:
+  - `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_pipeline_fallbacks.py tests/test_conftest_libreoffice_runtime.py -q` -> `22 passed`
+  - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
+## 2026-03-08 Linux LibreOffice CI smoke gate
+
+### Planning
+
+- [x] `tasks/feature_spec.md` に Linux CI smoke contract を追加し、`mode="libreoffice"` の required runtime gate を仕様化する
+- [x] `.github/workflows/pytest.yml` に `libreoffice-linux-smoke` job を追加し、既存 unit matrix から分離する
+- [x] `ubuntu-24.04` 上で `libreoffice` / `python3-uno` を導入して `RUN_LIBREOFFICE_SMOKE=1` で smoke test を実行する
+- [x] smoke job は `tests/core/test_libreoffice_smoke.py` を対象にし、coverage upload とは分離する
+- [x] README / README.ja / `docs/agents/TEST_REQUIREMENTS.md` に Linux required smoke job の運用を追記する
+- [x] 変更内容の最終確認と検証コマンド結果を Review に反映する
+
+### Review
+
+- GitHub Actions に required Linux smoke job `libreoffice-linux-smoke` を追加し、`ubuntu-24.04` で LibreOffice runtime を導入して `pytest tests/core/test_libreoffice_smoke.py -m libreoffice` を実行する構成にした
+- 既存の Linux/Windows unit matrix と Codecov upload はそのまま維持し、LibreOffice smoke は別 job に分離した
+- `tasks/feature_spec.md` に Linux CI smoke contract を追加し、fallback 成功ではなく rich extraction 成功を merge 条件にする方針を明文化した
+- README / 日本語 README / test requirements に required Linux smoke job と実行コマンドを追記した
+- 追加検証:
+  - `python -c "import yaml; yaml.safe_load(open('.github/workflows/pytest.yml', encoding='utf-8'))"` 相当の YAML parse -> `yaml-ok`
+  - `uv run pytest tests/test_conftest_libreoffice_runtime.py -q` -> `1 passed`
+  - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
+
+## 2026-03-09 PR #76 additional review triage
+
+### Planning
+
+- [x] `gh` で PR #76 の最新 review thread を再取得し、未 resolve 指摘を一覧化する
+- [x] 各指摘を `feat/libreoffice-mode` の現行コードと `main...HEAD` 差分に照らして妥当性判定する
+- [x] 採用する follow-up / 採用しない指摘を `tasks/feature_spec.md` に反映する
+- [x] `tests/core/test_libreoffice_smoke.py` の confidence assertion を smoke 向けの高レベル検証へ緩める
+- [x] `src/exstruct/core/backends/libreoffice_backend.py` の probe-only `_ensure_runtime()` を整理し、partial-success contract を維持したまま redundant session startup を削減する
+- [x] `tests/core/test_mode_output.py` / `tests/cli/test_cli.py` の不自然な docstring を修正する
+- [x] `AGENTS.md` の scope 外削除をこの PR から外す
+- [x] 対象 pytest と `uv run task precommit-run` を実行して follow-up を検証する
+
+### Review
+
+- `gh api graphql` で PR #76 の未 resolve review thread は 7 件を確認した
+- 対応採用とした指摘
+  - `tests/core/test_libreoffice_smoke.py:39`
+    - `chart.confidence == 0.8` は smoke としては backend 実装定数への結合が強い
+    - exact `0.8` は `tests/core/test_libreoffice_backend.py` の unit test に残し、smoke は range/assertion へ寄せる
+  - `src/exstruct/core/backends/libreoffice_backend.py:149-185`
+    - `_ensure_runtime()` は probe 専用 session を 1 回余分に起動しており、通常の shapes+charts 経路で合計 3 回 startup になる
+    - ただし「`_runtime_checked=True` で二回目 failure が隠れる」というレビュー本文の後半は不正確で、実読込 failure は別 session で surfacing される
+    - follow-up では redundant probe だけを除去し、shape success 後の chart failure を保持する契約は維持する
+  - `tests/core/test_mode_output.py:344,360`
+    - `process excel sheets dir output` は不自然
+    - `c l i` は typo
+  - `tests/cli/test_cli.py:344`
+    - `c l i` は typo
+  - `AGENTS.md:49`
+    - LibreOffice rollout と無関係な section 2/3/4 の大規模削除であり、PR scope 指摘は妥当
+- 今回は実装対象に含めない指摘
+  - `.github/workflows/pytest.yml:75`
+    - `defusedxml` 未導入という指摘は誤り。`pyproject.toml` の core dependency なので `pip install -e .[...]` で導入される
+    - `pip` / `uv` の統一と `pytest-cov` cleanup は maintenance 論点であり、この PR の blocking issue とは見なさない
+  - `mkdocs.yml:50`
+    - README nav 削除と `docs/README.*` 削除は docs build broken ではない
+    - 論点は docs 導線再編の説明不足 / PR scope であり、必要なら review comment で意図を補足して resolve する
+- 実装結果
+  - smoke test は `chart.confidence is not None` と `0.0 <= confidence <= 1.0` に変更し、exact `0.8` 契約は backend unit test に残した
+  - `LibreOfficeRichBackend` から probe-only `_ensure_runtime()` を外し、draw-page と chart read の実セッションだけを起動するようにした
+  - `tests/core/test_mode_output.py` / `tests/cli/test_cli.py` の docstring を読みやすい英文に修正し、`tests/core/test_pipeline.py` の残っていた自動生成風 docstring も同じ sweep で整理した
+  - `AGENTS.md` は `origin/main...HEAD` 差分で落ちていた section 2/3/4 を復元した
+- 検証
+  - `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_libreoffice_bridge.py tests/core/test_libreoffice_smoke.py tests/core/test_pipeline.py tests/core/test_mode_output.py tests/cli/test_cli.py -q` -> `122 passed, 2 skipped`
+  - pytest 終了後に既知の Windows COM fatal exception ログは出るが、終了コードは 0 のまま
+  - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
+
+## 2026-03-09 PR #76 Codacy command-injection triage
+
+### Planning
+
+- [x] `scripts/codacy_issues.py --pr 76 --min-level Warning` で PR #76 の Codacy 残件を再取得し、issue が 1 件だけ残っていることを確認する
+- [x] `src/exstruct/core/libreoffice.py:825` の sink が `_run_bridge_probe_subprocess(...)` であることを確認し、現行 helper/test の契約を点検する
+- [x] Codacy の `dangerous-subprocess-use-tainted-env-args` を false positive 寄りと判断しつつ、まずは suppression ではなく trust-boundary 明確化で解く方針を決める
+- [x] probe helper の `subprocess.run(...)` から explicit `env=` を外し、UTF-8 強制を固定 argv オプションへ移す
+- [x] probe helper 専用の regression test を追加し、fixed argv と `env` 非指定を確認する
+- [x] 既存の probe env test を新契約へ更新し、互換性判定まわりの高レベル test が壊れていないことを確認する
+- [x] `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_libreoffice_bridge.py -q` を実行する
+- [x] `uv run task precommit-run` を実行する
+- [x] push 後に `python scripts/codacy_issues.py --pr 76 --min-level Warning` を再実行し、同 issue が消えたことを確認する
+- [ ] それでも Codacy が同じ sink を報告する場合だけ、対象 call site に rule-specific suppression を追加する
+
+### Review
+
+- 2026-03-09 時点の Codacy 出力は次の 1 件:
+  - `Error | src/exstruct/core/libreoffice.py:825 | Semgrep_python.lang.security.audit.dangerous-subprocess-use-tainted-env-args.dangerous-subprocess-use-tainted-env-args | Security | Detected subprocess function 'run' with user controlled data.`
+- line 825 は `_run_bridge_probe_subprocess(...)` の `subprocess.run(...)` に対応している。
+- 現行コードの安全性評価:
+  - `shell=False`
+  - command string 組み立てなし
+  - executable は `_validated_runtime_path(...)` を通す
+  - bridge script は repository 内の固定 path
+  - probe helper は workbook path を受け取らない
+- 一方で、Codacy は次を taint と見ている可能性が高い:
+  - `EXSTRUCT_LIBREOFFICE_PYTHON_PATH` / `sys.executable` / `shutil.which(...)` 由来の `python_path`
+  - `_build_subprocess_env(...)` が allowlist 経由で取り込む `PATH` などの inherited env
+- 採用方針:
+  - まず probe helper から explicit env 注入を外し、UTF-8 制御を argv 化して analyzer の taint 経路を減らす
+  - それでも残る場合だけ narrow suppression を入れる
+  - いきなり suppression だけで終わらせない
+- 実装結果:
+  - `_run_bridge_probe_subprocess(...)` は `env=` を渡さず、固定 argv `python -X utf8 _libreoffice_bridge.py --probe` を使うように変更した
+  - `test_python_supports_libreoffice_bridge_uses_probe_command` を新 argv 形状へ更新した
+  - `test_run_bridge_probe_subprocess_uses_fixed_utf8_args_without_env` を追加し、`env` 非指定と UTF-8 runtime option を固定した
+- 検証結果:
+  - `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_libreoffice_bridge.py -q` -> `49 passed`
+  - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
+- 残タスク:
+  - なし。push 後の `python scripts/codacy_issues.py --pr 76 --min-level Warning` は `total: 0` を返した
+
+## 2026-03-09 PR #76 latest review + Codacy re-triage
+
+### Planning
+
+- [x] `gh api graphql` で PR #76 の最新 unresolved review thread を再取得する
+- [x] duplicate review thread 3 件に返信し、元 thread へ集約する形で resolve する
+- [x] `python scripts/codacy_issues.py --pr 76 --min-level Warning` を再実行し、残件 rule が `dangerous-subprocess-use-audit` に切り替わったことを確認する
+- [x] 新規/残存 review 指摘を採用・非採用に再分類する
+- [x] `src/exstruct/core/backends/libreoffice_backend.py::_resolve_direction()` に rotation-aware delta を適用する
+- [x] `src/exstruct/core/ooxml_drawing.py::_extract_chart_series()` を全 chart node 走査へ拡張する
+- [x] `src/exstruct/core/ooxml_drawing.py::_parse_connector_node()` の `headEnd/tailEnd` mapping を begin/end semantics に合わせて修正する
+- [x] `src/exstruct/core/_libreoffice_bridge.py::_resolve_context()` を at-least-once attempt になる loop に直す
+- [x] `tests/core/test_libreoffice_smoke.py` の `confidence == 0.8` を smoke 向け assertion に緩める
+- [x] `src/exstruct/core/backends/libreoffice_backend.py::_ensure_runtime()` を整理して redundant startup を除去する
+- [x] `tests/core/test_pipeline.py` / `tests/core/test_mode_output.py` / `tests/cli/test_cli.py` の不自然な docstring を修正する
+- [x] `AGENTS.md` の PR scope 外削除を戻す
+- [x] trusted subprocess helper 群に narrow `nosemgrep` suppression を追加する
+- [x] 対象 pytest を実行する
+- [x] `uv run task precommit-run` を実行する
+- [x] push 後に `python scripts/codacy_issues.py --pr 76 --min-level Warning` を再実行する
+
+### Review
+
+- unresolved thread 再取得後、duplicate として閉じた thread:
+  - `discussion_r2904696477` -> `discussion_r2901508431` に集約
+  - `discussion_r2904696479` -> `discussion_r2901508430` に集約
+  - `discussion_r2901522451` -> `discussion_r2901509039` に集約
+- 現在の open review 論点:
+  - `src/exstruct/core/backends/libreoffice_backend.py`
+    - connector `direction` に `rotation` を反映していない
+    - `_ensure_runtime()` が probe-only startup を 1 回余分に行う
+  - `src/exstruct/core/ooxml_drawing.py`
+    - combo chart の secondary chart node series を落としている
+    - connector `headEnd/tailEnd` mapping が COM semantics と逆
+  - `src/exstruct/core/_libreoffice_bridge.py`
+    - `_resolve_context()` が no-attempt timeout になり得る
+  - tests
+    - smoke confidence 固定値
+    - `test_pipeline.py` / `test_mode_output.py` / `test_cli.py` の不自然な docstring
+  - repo scope
+    - `AGENTS.md` の scope 外削除
+- Codacy 最新結果:
+  - `Error | src/exstruct/core/libreoffice.py:806 | Semgrep_python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit | Security | Detected subprocess function 'run' without a static string.`
+- Codacy 方針:
+  - 前回の trust-boundary 縮小で `tainted-env-args` は消えた
+  - 残っているのは generic audit rule なので、trusted helper に限定した `nosemgrep` で対処する
+  - `_spawn_trusted_subprocess(...)` と同じ rule id を、`_run_soffice_version_subprocess(...)` と bridge `subprocess.run(...)` helper 群にも揃える
+- 実装結果:
+  - `_resolve_direction()` は `_rotate_connector_delta(...)` を通した回転後ベクトルで方位を決めるようにし、heuristic endpoint 推定と `direction` の幾何学を一致させた
+  - `_extract_chart_series()` は `plotArea` 配下の全 chart node を document order で走査し、combo chart の secondary series も保持するようにした
+  - `_parse_connector_node()` は `headEnd -> begin_arrow_style`、`tailEnd -> end_arrow_style` に修正した
+  - `_resolve_context()` は timeout が極端に短くても 1 回は `resolver.resolve(...)` を試す loop に直した
+  - `_run_soffice_version_subprocess()` と bridge `subprocess.run(...)` helper 群に rule-specific `nosemgrep` を追加した
+  - 回帰 test を `tests/core/test_libreoffice_backend.py` / `tests/core/test_libreoffice_bridge.py` に追加・更新した
+- 検証:
+  - `uv run pytest tests/core/test_libreoffice_backend.py tests/core/test_libreoffice_bridge.py tests/core/test_libreoffice_smoke.py tests/core/test_pipeline.py tests/core/test_mode_output.py tests/cli/test_cli.py -q` -> `122 passed, 2 skipped`
+  - pytest 終了後に既知の Windows COM fatal exception ログは出るが、pytest 自体の終了コードは 0
+  - `uv run task precommit-run` -> `ruff / ruff-format / mypy passed`
+  - push 後に 2 分待ってから `python scripts/codacy_issues.py --pr 76 --min-level Warning` を 1 回だけ再実行し、`total: 0` を確認した
+  - `gh api graphql` 再確認で PR #76 の review thread は全件 `isResolved: true` になった

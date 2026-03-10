@@ -1,3 +1,5 @@
+"""Public ExStruct package exports and convenience APIs."""
+
 from __future__ import annotations
 
 import logging
@@ -93,7 +95,7 @@ __all__ = [
 ]
 
 
-ExtractionMode = Literal["light", "standard", "verbose"]
+ExtractionMode = Literal["light", "libreoffice", "standard", "verbose"]
 
 
 def extract(
@@ -104,7 +106,7 @@ def extract(
 
     Parameters:
         file_path (str | Path): Path to the workbook file (.xlsx, .xlsm, .xls).
-        mode (ExtractionMode): Extraction detail level. "light" includes cells and table detection only (no COM, shapes/charts empty; print areas via openpyxl). "standard" includes texted shapes, arrows, charts (COM if available) and print areas. "verbose" also includes shape/chart sizes, cell link map, colors map, and formulas map.
+        mode (ExtractionMode): Extraction detail level. "light" includes cells and table detection only (no COM, shapes/charts empty; print areas via openpyxl). "libreoffice" is a best-effort non-COM mode that adds merged cells, shapes, connectors, and charts when the LibreOffice backend is available. "standard" includes texted shapes, arrows, charts (COM if available) and print areas. "verbose" also includes shape/chart sizes, cell link map, colors map, and formulas map.
         alpha_col: When True, convert CellRow column keys to Excel-style ABC names (A, B, ..., Z, AA, ...) instead of 0-based numeric strings.
 
     Returns:
@@ -132,6 +134,7 @@ def export(
     *,
     pretty: bool = False,
     indent: int | None = None,
+    include_backend_metadata: bool = False,
 ) -> None:
     """
     Save WorkbookData to a file (format inferred from extension).
@@ -158,16 +161,27 @@ def export(
     format_hint = (fmt or dest.suffix.lstrip(".") or "json").lower()
     match format_hint:
         case "json":
-            save_as_json(data, dest, pretty=pretty, indent=indent)
+            save_as_json(
+                data,
+                dest,
+                pretty=pretty,
+                indent=indent,
+                include_backend_metadata=include_backend_metadata,
+            )
         case "yaml" | "yml":
-            save_as_yaml(data, dest)
+            save_as_yaml(data, dest, include_backend_metadata=include_backend_metadata)
         case "toon":
-            save_as_toon(data, dest)
+            save_as_toon(data, dest, include_backend_metadata=include_backend_metadata)
         case _:
             raise ValueError(f"Unsupported export format: {format_hint}")
 
 
-def export_sheets(data: WorkbookData, dir_path: str | Path) -> dict[str, Path]:
+def export_sheets(
+    data: WorkbookData,
+    dir_path: str | Path,
+    *,
+    include_backend_metadata: bool = False,
+) -> dict[str, Path]:
     """
     Export each sheet as an individual JSON file.
 
@@ -188,7 +202,12 @@ def export_sheets(data: WorkbookData, dir_path: str | Path) -> dict[str, Path]:
         >>> "Sheet1" in paths
         True
     """
-    return save_sheets(data, Path(dir_path), fmt="json")
+    return save_sheets(
+        data,
+        Path(dir_path),
+        fmt="json",
+        include_backend_metadata=include_backend_metadata,
+    )
 
 
 def export_sheets_as(
@@ -198,6 +217,7 @@ def export_sheets_as(
     *,
     pretty: bool = False,
     indent: int | None = None,
+    include_backend_metadata: bool = False,
 ) -> dict[str, Path]:
     """
     Export each sheet in the given format (json/yaml/toon); returns sheet name to path map.
@@ -222,7 +242,14 @@ def export_sheets_as(
         >>> wb = extract("input.xlsx")
         >>> _ = export_sheets_as(wb, "out_yaml", fmt="yaml")  # doctest: +SKIP
     """
-    return save_sheets(data, Path(dir_path), fmt=fmt, pretty=pretty, indent=indent)
+    return save_sheets(
+        data,
+        Path(dir_path),
+        fmt=fmt,
+        pretty=pretty,
+        indent=indent,
+        include_backend_metadata=include_backend_metadata,
+    )
 
 
 def export_print_areas_as(
@@ -233,6 +260,7 @@ def export_print_areas_as(
     pretty: bool = False,
     indent: int | None = None,
     normalize: bool = False,
+    include_backend_metadata: bool = False,
 ) -> dict[str, Path]:
     """
     Export each print area as a PrintAreaView.
@@ -264,6 +292,7 @@ def export_print_areas_as(
         pretty=pretty,
         indent=indent,
         normalize=normalize,
+        include_backend_metadata=include_backend_metadata,
     )
 
 
@@ -275,6 +304,7 @@ def export_auto_page_breaks(
     pretty: bool = False,
     indent: int | None = None,
     normalize: bool = False,
+    include_backend_metadata: bool = False,
 ) -> dict[str, Path]:
     """
     Export auto page-break areas (COM-computed) as PrintAreaView files.
@@ -312,6 +342,7 @@ def export_auto_page_breaks(
         pretty=pretty,
         indent=indent,
         normalize=normalize,
+        include_backend_metadata=include_backend_metadata,
     )
 
 
@@ -331,6 +362,7 @@ def process_excel(
     stream: TextIO | None = None,
     *,
     alpha_col: bool = False,
+    include_backend_metadata: bool = False,
 ) -> None:
     """
     Convenience wrapper: extract -> serialize (file or stdout) -> optional PDF/PNG.
@@ -339,20 +371,27 @@ def process_excel(
         file_path: Input Excel workbook (path string or Path).
         output_path: None for stdout; otherwise, write to file (string or Path).
         out_fmt: json/yaml/yml/toon.
-        image: True to also output PNGs (requires Excel + COM + pypdfium2).
-        pdf: True to also output PDF (requires Excel + COM + pypdfium2).
+        image: True to also output PNGs (requires Excel + COM + pypdfium2 and is
+            not supported in `mode="libreoffice"`).
+        pdf: True to also output PDF (requires Excel + COM + pypdfium2 and is not
+            supported in `mode="libreoffice"`).
         dpi: DPI for image output.
-        mode: light/standard/verbose (same meaning as `extract`).
+        mode: light/libreoffice/standard/verbose (same meaning as `extract`).
         pretty: Pretty-print JSON.
         indent: JSON indent width.
         sheets_dir: Directory to write per-sheet files (string or Path).
         print_areas_dir: Directory to write per-print-area files (string or Path).
-        auto_page_breaks_dir: Directory to write per-auto-page-break files (COM only).
+        auto_page_breaks_dir: Directory to write per-auto-page-break files (COM only
+            and not supported in `mode="libreoffice"`).
         stream: IO override when output_path is None.
         alpha_col: When True, convert CellRow column keys to Excel-style
             ABC names (A, B, ...) instead of 0-based numeric strings.
+        include_backend_metadata: When True, include shape/chart backend metadata
+            fields (`provenance`, `approximation_level`, `confidence`) in output.
 
     Raises:
+        ConfigError: If `mode="libreoffice"` is combined with PDF/PNG rendering or
+            auto page-break export.
         ValueError: If an unsupported format or mode is given.
         PrintAreaError: When exporting auto page breaks without available data.
         RenderError: When rendering fails (Excel/COM/pypdfium2 issues).
@@ -376,6 +415,7 @@ def process_excel(
                 include_print_areas=None if mode == "light" else True,
                 include_shape_size=True if mode == "verbose" else False,
                 include_chart_size=True if mode == "verbose" else False,
+                include_backend_metadata=include_backend_metadata,
             ),
             destinations=DestinationOptions(
                 sheets_dir=sheets_dir,

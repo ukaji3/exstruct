@@ -65,12 +65,13 @@ process_excel(
     output_path=None,  # default: stdout (redirect if you want a file)
     sheets_dir=Path("out_sheets"),  # optional per-sheet outputs
     out_fmt="json",
+    include_backend_metadata=True,
     image=True,
     pdf=True,
     mode="standard",
     pretty=True,
 )
-# Same as: exstruct input.xlsx --format json --pdf --image --mode standard --pretty --sheets-dir out_sheets > out.json
+# Same as: exstruct input.xlsx --format json --include-backend-metadata --pdf --image --mode standard --pretty --sheets-dir out_sheets > out.json
 ```
 
 ## Dependencies
@@ -78,8 +79,8 @@ process_excel(
 - Core extraction: pandas, openpyxl (installed with the package).
 - YAML export: `pyyaml` (lazy import; missing module raises `MissingDependencyError`).
 - TOON export: `python-toon` (lazy import; missing module raises `MissingDependencyError`).
-- Auto page-break extraction/export: **Excel + COM** required (feature is skipped when COM is unavailable; CLI hides the flag in non-COM environments).
-- Rendering (PDF/PNG): **Excel + COM + `pypdfium2`** are mandatory. Missing Excel/COM or `pypdfium2` surfaces as `RenderError`/`MissingDependencyError`.
+- Auto page-break extraction/export: **Excel + COM** required. `mode="libreoffice"` rejects auto page-break requests with `ConfigError`.
+- Rendering (PDF/PNG): **Excel + COM + `pypdfium2`** are mandatory. Missing Excel/COM or `pypdfium2` surfaces as `RenderError`/`MissingDependencyError`, and `mode="libreoffice"` rejects PDF/PNG requests with `ConfigError`.
 
 ## Auto-generated API (mkdocstrings)
 
@@ -193,12 +194,14 @@ See generated/models.md for the detailed model fields (run `python scripts/gen_m
 
 ### Model helpers (SheetData / WorkbookData)
 
-- `to_json(pretty=False, indent=None)` → JSON string (pretty when requested)
-- `to_yaml()` → YAML string (requires `pyyaml`)
-- `to_toon()` → TOON string (requires `python-toon`)
-- `save(path, pretty=False, indent=None)` → infers format from suffix (`.json/.yaml/.yml/.toon`)
+- `to_json(pretty=False, indent=None, include_backend_metadata=False)` → JSON string (pretty when requested)
+- `to_yaml(include_backend_metadata=False)` → YAML string (requires `pyyaml`)
+- `to_toon(include_backend_metadata=False)` → TOON string (requires `python-toon`)
+- `save(path, pretty=False, indent=None, include_backend_metadata=False)` → infers format from suffix (`.json/.yaml/.yml/.toon`)
 - `WorkbookData.__getitem__(name)` → get a SheetData by name
 - `WorkbookData.__iter__()` → yields `(sheet_name, SheetData)` in order
+
+Serialized output omits shape/chart backend metadata (`provenance`, `approximation_level`, `confidence`) by default to reduce token usage. Set `include_backend_metadata=True` when you need those fields.
 
 Example:
 
@@ -216,6 +219,7 @@ first.save("sheet.yaml")  # requires pyyaml
 - Exception types:
   - `SerializationError`: Unsupported format requested (`serialize_workbook`, export APIs).
   - `MissingDependencyError`: Optional dependency (`pyyaml` / `python-toon` / `pypdfium2`) is missing; message includes install instructions.
+  - `ConfigError`: Invalid option combinations such as `mode="libreoffice"` with PDF/PNG rendering or auto page-break export.
   - `RenderError`: Excel/COM is unavailable or PDF/PNG rendering fails.
   - `PrintAreaError` (ValueError-compatible): `export_auto_page_breaks` invoked when no `auto_print_areas` are available.
   - `OutputError`: Writing output to disk/stream failed (original exception kept in `__cause__`).

@@ -58,10 +58,43 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Chart metadata including series and layout.",
   "properties": {
+    "approximation_level": {
+      "anyOf": [
+        {
+          "enum": [
+            "direct",
+            "heuristic",
+            "partial"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "How directly the backend could determine this chart metadata.",
+      "title": "Approximation Level"
+    },
     "chart_type": {
       "description": "Chart type (e.g., Column, Line).",
       "title": "Chart Type",
       "type": "string"
+    },
+    "confidence": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Best-effort confidence score between 0.0 and 1.0.",
+      "title": "Confidence"
     },
     "error": {
       "anyOf": [
@@ -98,6 +131,23 @@
       "description": "Chart name.",
       "title": "Name",
       "type": "string"
+    },
+    "provenance": {
+      "anyOf": [
+        {
+          "enum": [
+            "excel_com",
+            "libreoffice_uno"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Backend provenance for this chart.",
+      "title": "Provenance"
     },
     "series": {
       "description": "Series included in the chart.",

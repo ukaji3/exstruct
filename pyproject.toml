@@ -1,6 +1,6 @@
 [project]
 name = "exstruct"
-version = "0.5.3"
+version = "0.6.0"
 description = "Excel to structured JSON (tables, shapes, charts) for LLM/RAG pipelines"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -10,6 +10,7 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+    "defusedxml>=0.7.1",
     "numpy>=2.3.5",
     "openpyxl>=3.1.5",
     "pandas>=2.3.3",
@@ -130,6 +131,7 @@ plugins = ["pydantic.mypy"]
 markers = [
     "com: requires Excel COM (Windows + Excel)",
     "render: requires Excel COM and pypdfium2; set RUN_RENDER_SMOKE=1 to enable",
+    "libreoffice: requires LibreOffice runtime; set RUN_LIBREOFFICE_SMOKE=1 to enable",
 ]
 
 [tool.taskipy.tasks]

@@ -4,6 +4,27 @@ All notable changes to this project are documented in this file. This changelog 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-06
+
+### Added
+
+- Added a new `libreoffice` extraction mode across the Python API, CLI, and MCP. This mode provides best-effort rich extraction for `.xlsx`/`.xlsm` without Excel COM and can add merged cells, shapes, connectors, and charts when the LibreOffice runtime is available.
+- Added a LibreOffice-backed rich extraction pipeline, including headless session management, timeout/profile cleanup handling, explicit fallback reasons, and non-COM fallback workbook generation when the runtime is unavailable.
+- Added best-effort shape, connector, and chart reconstruction for `libreoffice` mode by combining LibreOffice UNO geometry with OOXML metadata.
+- Added provenance/fidelity metadata for rich objects: shapes and charts now report `provenance`, `approximation_level`, and `confidence`.
+- Added LibreOffice-focused regression coverage, including mode validation, `.xls` rejection, connector/chart extraction, unavailable-runtime fallback, and optional smoke tests.
+
+### Changed
+
+- Updated docs across README, CLI, API, architecture, and release notes to describe `libreoffice` as a best-effort rich mode rather than a strict subset of COM output.
+- Updated pipeline/backend reporting so `light`, `libreoffice`, and COM-backed rich extraction paths are distinguished more clearly.
+- Clarified public contracts and help text for mode support, fallback behavior, and LibreOffice limitations in v1.
+
+### Fixed
+
+- Fixed early validation for `mode="libreoffice"` so unsupported combinations with PDF/PNG rendering and auto page-break export now fail consistently in CLI and API before processing starts.
+- Fixed unsupported `.xls` handling in `libreoffice` mode by returning a clear early error instead of attempting runtime processing.
+
 ## [0.5.3] - 2026-03-03
 
 ### Added

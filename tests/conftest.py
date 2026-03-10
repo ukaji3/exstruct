@@ -1,10 +1,15 @@
+"""Pytest configuration and environment gating for the test suite."""
+
 from __future__ import annotations
 
 from functools import lru_cache
 import importlib.util
 import os
+from pathlib import Path
 import re
+import subprocess
 import sys
+from types import ModuleType
 
 import pytest
 
@@ -12,6 +17,8 @@ IS_WINDOWS = sys.platform == "win32"
 SKIP_COM_TESTS = os.getenv("SKIP_COM_TESTS") == "1"
 FORCE_COM_TESTS = os.getenv("FORCE_COM_TESTS") == "1"
 RUN_RENDER_SMOKE = os.getenv("RUN_RENDER_SMOKE") == "1"
+RUN_LIBREOFFICE_SMOKE = os.getenv("RUN_LIBREOFFICE_SMOKE") == "1"
+FORCE_LIBREOFFICE_SMOKE = os.getenv("FORCE_LIBREOFFICE_SMOKE") == "1"
 
 
 def _markexpr_requests_com(markexpr: str) -> bool:
@@ -35,6 +42,10 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers",
         "render: requires Excel COM and pypdfium2; set RUN_RENDER_SMOKE=1 to enable.",
+    )
+    config.addinivalue_line(
+        "markers",
+        "libreoffice: requires LibreOffice runtime; set RUN_LIBREOFFICE_SMOKE=1 to enable.",
     )
 
 
@@ -61,6 +72,60 @@ def _has_pdfium() -> bool:
 def _has_pillow() -> bool:
     """Return True if Pillow (PIL) is importable."""
     return importlib.util.find_spec("PIL") is not None
+
+
+@lru_cache(maxsize=1)
+def _has_libreoffice_runtime() -> bool:
+    """Return True if a runnable LibreOffice executable is available."""
+    libreoffice_module = _load_libreoffice_runtime_module()
+    unavailable_error: type[BaseException] = (
+        libreoffice_module.LibreOfficeUnavailableError
+    )
+    raw_path = os.getenv("EXSTRUCT_LIBREOFFICE_PATH")
+    which_soffice = libreoffice_module._which_soffice
+    resolve_python_path = libreoffice_module._resolve_python_path
+    soffice_path = Path(raw_path) if raw_path else which_soffice()
+    if not isinstance(soffice_path, Path) or not soffice_path.exists():
+        return False
+    try:
+        python_path = resolve_python_path(soffice_path)
+    except (unavailable_error, OSError):
+        return False
+    if not isinstance(python_path, Path) or not python_path.exists():
+        return False
+    try:
+        subprocess.run(
+            [str(soffice_path), "--version"],
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=5.0,
+        )
+    except (
+        FileNotFoundError,
+        OSError,
+        subprocess.TimeoutExpired,
+        subprocess.CalledProcessError,
+    ):
+        return False
+    return True
+
+
+@lru_cache(maxsize=1)
+def _load_libreoffice_runtime_module() -> ModuleType:
+    """Load the LibreOffice runtime helper without importing the full package."""
+
+    module_path = (
+        Path(__file__).resolve().parents[1] / "src/exstruct/core/libreoffice.py"
+    )
+    module_name = "tests._libreoffice_runtime_probe"
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Failed to load LibreOffice runtime helper.")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def _com_skip_reason() -> str | None:
@@ -98,10 +163,34 @@ def _render_skip_reason() -> str | None:
     return None
 
 
+def _libreoffice_skip_reason() -> str | None:
+    """
+    Return a skip reason for libreoffice-marked tests, or None when they should run.
+
+    LibreOffice smoke tests are gated by RUN_LIBREOFFICE_SMOKE=1.
+    """
+    if not RUN_LIBREOFFICE_SMOKE:
+        return (
+            "LibreOffice smoke tests disabled; set RUN_LIBREOFFICE_SMOKE=1 to enable."
+        )
+    if not _has_libreoffice_runtime():
+        if FORCE_LIBREOFFICE_SMOKE:
+            raise RuntimeError(
+                "LibreOffice runtime is unavailable but FORCE_LIBREOFFICE_SMOKE=1 is set."
+            )
+        return "LibreOffice runtime is unavailable."
+    return None
+
+
 def pytest_runtest_setup(item: pytest.Item) -> None:
     """Skip tests based on resource markers and environment availability."""
     if item.get_closest_marker("render") is not None:
         reason = _render_skip_reason()
+        if reason:
+            pytest.skip(reason)
+        return
+    if item.get_closest_marker("libreoffice") is not None:
+        reason = _libreoffice_skip_reason()
         if reason:
             pytest.skip(reason)
         return

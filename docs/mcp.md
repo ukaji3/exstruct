@@ -122,13 +122,22 @@ Example:
 
 - `options.alpha_col` defaults to `true` in MCP (column keys become `A`, `B`, ...).
 - Set `options.alpha_col=false` if you need legacy 0-based numeric string keys.
+- `options.include_backend_metadata` defaults to `false` to keep shape/chart output compact.
+- Set `options.include_backend_metadata=true` when you need `provenance`, `approximation_level`, and `confidence`.
 - `mode` is an extraction detail level (not sheet scope):
 
 | Mode | When to use | Main output characteristics |
 |---|---|---|
 | `light` | Fast, structure-first extraction | cells + table candidates + print areas |
-| `standard` | Default for most agent flows | balanced detail and size |
-| `verbose` | Need the richest metadata | adds links/maps and richer metadata |
+| `libreoffice` | Best-effort rich extraction without Excel COM | `light` + merged cells + shapes + connectors + charts |
+| `standard` | Default for Windows + Excel agent flows | balanced COM-backed detail and size |
+| `verbose` | Need the richest COM metadata | adds links/maps and richer metadata |
+
+Notes:
+
+- `libreoffice` is available for `.xlsx/.xlsm` only.
+- `libreoffice` is best-effort and not a strict subset of COM output.
+- `libreoffice` does not render PDFs/PNGs and does not compute auto page-break areas in v1.
 
 ## Quick start for agents (recommended)
 

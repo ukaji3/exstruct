@@ -28,3 +28,13 @@ def test_sheet_schema_definitions_present() -> None:
     assert isinstance(defs, Mapping)
     assert "CellRow" in defs
     assert "PrintArea" in defs
+
+
+def test_shape_and_chart_schemas_constrain_confidence() -> None:
+    """Ensure generated schemas expose the backend confidence range."""
+
+    for name in ("shape.json", "chart.json"):
+        schema = _load_schema(name)
+        confidence = schema["properties"]["confidence"]["anyOf"][0]
+        assert confidence["minimum"] == 0.0
+        assert confidence["maximum"] == 1.0
