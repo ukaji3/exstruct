@@ -97,11 +97,41 @@ jobs:
         shell: powershell
         run: |
           choco install libreoffice-fresh -y --no-progress
+      - name: Discover LibreOffice bundled Python
+        shell: powershell
+        run: |
+          $programDir = Split-Path -Parent $env:EXSTRUCT_LIBREOFFICE_PATH
+          $patterns = @(
+            'python.exe',
+            'python.bin',
+            'python',
+            'python-core-*\python.exe',
+            'python-core-*\python',
+            'python-core-*\bin\python.exe',
+            'python-core-*\bin\python'
+          )
+          foreach ($pattern in $patterns) {
+            $candidate = Get-ChildItem -Path (Join-Path $programDir $pattern) -File -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($null -ne $candidate) {
+              "EXSTRUCT_LIBREOFFICE_PYTHON_PATH=$($candidate.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+              Write-Host "Discovered LibreOffice Python: $($candidate.FullName)"
+              exit 0
+            }
+          }
+          Write-Host "LibreOffice program directory contents:"
+          Get-ChildItem -Path $programDir -ErrorAction SilentlyContinue | Select-Object Name, FullName
+          throw "Could not discover a bundled LibreOffice Python executable under $programDir"
       - name: Verify LibreOffice runtime
         shell: powershell
         run: |
           if (-not (Test-Path $env:EXSTRUCT_LIBREOFFICE_PATH)) {
             throw "LibreOffice executable not found at $env:EXSTRUCT_LIBREOFFICE_PATH"
+          }
+          if (-not $env:EXSTRUCT_LIBREOFFICE_PYTHON_PATH) {
+            throw "EXSTRUCT_LIBREOFFICE_PYTHON_PATH was not discovered"
+          }
+          if (-not (Test-Path $env:EXSTRUCT_LIBREOFFICE_PYTHON_PATH)) {
+            throw "LibreOffice Python executable not found at $env:EXSTRUCT_LIBREOFFICE_PYTHON_PATH"
           }
           & $env:EXSTRUCT_LIBREOFFICE_PATH --version
       - name: Run LibreOffice smoke tests

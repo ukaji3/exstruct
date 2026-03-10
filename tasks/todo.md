@@ -713,3 +713,24 @@
   - `python3 -m pytest tests/core/test_libreoffice_backend.py -q` -> `48 passed`
   - `python3 -m pytest tests/test_conftest_libreoffice_runtime.py -q` -> `3 passed`
   - `python3 -m pre_commit run -a` -> `ruff / ruff-format / mypy passed`
+
+## 2026-03-10 Windows LibreOffice CI failure third follow-up
+
+### Planning
+
+- [x] 最新の workflow run / logs を再確認し、failure が依然として runtime gate setup にあることを確認する
+- [x] bundled Python auto-detection と Windows workflow assumptions を見直し、CI 固有の残ギャップを特定する
+- [x] workflow で bundled Python path を明示 discovery して `EXSTRUCT_LIBREOFFICE_PYTHON_PATH` を渡す最小修正を入れる
+- [x] YAML parse と関連 validation を実行し、変更を push する
+
+### Review
+
+- 最新 run `22905850626` でも failure は `libreoffice-windows-smoke` の setup error で、`soffice.exe --version` 成功後に `tests/conftest.py::_has_libreoffice_runtime()` が `False` になっていた
+- code 側の bundled Python auto-detection は `python.exe` / `python.bin` / `python` / `python-core-*` 系を探索するが、workflow では `EXSTRUCT_LIBREOFFICE_PATH` しか固定しておらず、hosted runner 上の actual bundled Python path は runtime gate に委ねられていた
+- `.github/workflows/pytest.yml` に `Discover LibreOffice bundled Python` step を追加し、LibreOffice install 後に bundled Python executable を探索して `EXSTRUCT_LIBREOFFICE_PYTHON_PATH` として後続 step に渡すようにした
+- bundled Python が見つからない場合は、smoke 実行前に program directory listing を出して fail-fast するようにし、次回以降の CI 調査を容易にした
+- `Verify LibreOffice runtime` step でも discovered Python path の存在確認を追加した
+- 検証:
+  - `python3 - <<'PY' ... yaml.safe_load('.github/workflows/pytest.yml') ...` -> `yaml-ok`
+  - `python3 -m pytest tests/test_conftest_libreoffice_runtime.py -q` -> `3 passed`
+  - `python3 -m pre_commit run -a` -> `ruff / ruff-format / mypy passed`

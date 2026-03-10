@@ -864,6 +864,24 @@ pairing ルールは次のとおり。
 - `tests/core/test_libreoffice_backend.py` の probe subprocess regression test を、allowlisted env を forward する契約へ更新する。
 - `tests/test_conftest_libreoffice_runtime.py` と `python -m pre_commit run -a` を再実行する。
 
+## 2026-03-10 Windows LibreOffice workflow override follow-up
+
+### Issue
+
+- `libreoffice-windows-smoke` は probe env を forward した後も、Windows hosted runner 上で bundled Python auto-detection に依存する runtime gate のまま失敗し続けた。
+- CI は `soffice.exe` の場所までは固定しているが、Chocolatey が導入する LibreOffice 26.x の bundled Python 配置は runner image / package variant に依存し得るため、workflow 側で明示 discovery した方が failure surface を狭められる。
+
+### Contract
+
+- Windows smoke workflow は LibreOffice install 後に bundled Python executable を探索し、`EXSTRUCT_LIBREOFFICE_PYTHON_PATH` として後続 step に引き渡す。
+- discovery は既存 runtime helper が探索する bundled path 群 (`python.exe`, `python.bin`, `python`, `python-core-*`, `python-core-*\\bin`) に合わせる。
+- bundled Python が見つからない場合は smoke test 実行前に job を fail し、program directory listing を残して原因調査を容易にする。
+
+### Verification
+
+- `.github/workflows/pytest.yml` が YAML として parse できることを確認する。
+- Windows verify step で `EXSTRUCT_LIBREOFFICE_PYTHON_PATH` の存在確認を行う。
+
 ## 2026-03-09 PR #76 latest review + Codacy re-triage
 
 ### Review-thread cleanup
