@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import json
+import os
 from pathlib import Path
 import subprocess
 from typing import cast
@@ -1459,6 +1460,7 @@ def test_probe_uno_bridge_handshake_uses_bridge_script(
     python_path.write_text("", encoding="utf-8")
     process = _FakeLibreOfficeProcess()
     calls: dict[str, object] = {}
+    monkeypatch.setenv("PATH", "/tmp/runtime-path")
 
     def _fake_run(
         args: list[str], **kwargs: object
@@ -1490,6 +1492,7 @@ def test_probe_uno_bridge_handshake_uses_bridge_script(
     assert args[args.index("--connect-timeout") + 1] == "1.5"
     env = cast(dict[str, str], calls["env"])
     assert env["PYTHONIOENCODING"] == "utf-8"
+    assert env["PATH"] == f"{python_path.resolve().parent}{os.pathsep}/tmp/runtime-path"
     assert calls["timeout"] == 1.5
     assert calls["cwd"] == python_path.resolve().parent
 
@@ -2090,6 +2093,7 @@ def test_python_supports_libreoffice_bridge_uses_probe_command(
     python_path = tmp_path / "python3"
     python_path.write_text("", encoding="utf-8")
     captured: dict[str, object] = {}
+    monkeypatch.setenv("PATH", "/tmp/path-entry")
 
     def _fake_run(
         args: list[str], **kwargs: object
@@ -2108,14 +2112,14 @@ def test_python_supports_libreoffice_bridge_uses_probe_command(
     args = cast(list[str], captured["args"])
     kwargs = cast(dict[str, object], captured["kwargs"])
     assert args[0] == str(python_path.resolve())
-    assert args[1] == "-X"
-    assert args[2] == "utf8"
-    assert args[3].endswith("_libreoffice_bridge.py")
-    assert args[4] == "--probe"
+    assert args[1].endswith("_libreoffice_bridge.py")
+    assert args[2] == "--probe"
+    env = cast(dict[str, str], kwargs["env"])
+    assert env["PATH"] == f"{python_path.resolve().parent}{os.pathsep}/tmp/path-entry"
     assert kwargs["cwd"] == python_path.resolve().parent
 
 
-def test_run_bridge_probe_subprocess_uses_fixed_utf8_args_with_allowlisted_env(
+def test_run_bridge_probe_subprocess_uses_fixed_args_with_allowlisted_env(
     tmp_path: Path, monkeypatch: MonkeyPatch
 ) -> None:
     """Verify that probe subprocesses pass only the allowlisted env plus UTF-8."""
@@ -2145,12 +2149,10 @@ def test_run_bridge_probe_subprocess_uses_fixed_utf8_args_with_allowlisted_env(
     args = cast(list[str], captured["args"])
     kwargs = cast(dict[str, object], captured["kwargs"])
     assert args[0] == str(python_path.resolve())
-    assert args[1] == "-X"
-    assert args[2] == "utf8"
-    assert args[3].endswith("_libreoffice_bridge.py")
-    assert args[4] == "--probe"
+    assert args[1].endswith("_libreoffice_bridge.py")
+    assert args[2] == "--probe"
     env = cast(dict[str, str], kwargs["env"])
-    assert env["PATH"] == "/tmp/path-entry"
+    assert env["PATH"] == f"{python_path.resolve().parent}{os.pathsep}/tmp/path-entry"
     assert env["SYSTEMROOT"] == "/tmp/system-root"
     assert env["PYTHONIOENCODING"] == "utf-8"
     assert "SECRET_TOKEN" not in env
@@ -2471,6 +2473,7 @@ def test_run_bridge_extract_subprocess_uses_fixed_argv_and_env(
     python_path.write_text("", encoding="utf-8")
     workbook_path.write_text("", encoding="utf-8")
     captured: dict[str, object] = {}
+    monkeypatch.setenv("PATH", "/tmp/existing-path")
 
     def _fake_run(
         args: list[str], **kwargs: object
@@ -2506,6 +2509,9 @@ def test_run_bridge_extract_subprocess_uses_fixed_argv_and_env(
     assert "--file-stdin" in args
     assert args[args.index("--kind") + 1] == "draw-page"
     env = cast(dict[str, str], captured["env"])
+    assert env["PATH"] == (
+        f"{python_path.resolve().parent}{os.pathsep}/tmp/existing-path"
+    )
     assert env["PYTHONIOENCODING"] == "utf-8"
     assert captured["input"] == str(workbook_path.resolve())
     assert captured["timeout"] == 2.0

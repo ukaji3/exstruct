@@ -833,7 +833,11 @@ def _bridge_subprocess_cwd(python_path: Path) -> Path:
     return _validated_runtime_path(python_path).parent
 
 
-def _build_subprocess_env(*, pythonioencoding: str | None = None) -> dict[str, str]:
+def _build_subprocess_env(
+    *,
+    pythonioencoding: str | None = None,
+    runtime_dirs: Sequence[Path] = (),
+) -> dict[str, str]:
     """Return a minimal inherited environment for bridge-related subprocesses."""
 
     env: dict[str, str] = {}
@@ -841,6 +845,12 @@ def _build_subprocess_env(*, pythonioencoding: str | None = None) -> dict[str, s
         value = os.environ.get(key)
         if value:
             env[key] = value
+    runtime_paths = [_subprocess_path_arg(path) for path in runtime_dirs]
+    if runtime_paths:
+        inherited_path = env.get("PATH")
+        env["PATH"] = os.pathsep.join(
+            [*runtime_paths, *([inherited_path] if inherited_path else [])]
+        )
     if pythonioencoding is not None:
         env["PYTHONIOENCODING"] = pythonioencoding
     return env
@@ -874,16 +884,16 @@ def _run_bridge_probe_subprocess(
     """Run the bundled LibreOffice bridge in `--probe` mode."""
 
     bridge_path = Path(__file__).with_name("_libreoffice_bridge.py")
-    env = _build_subprocess_env(pythonioencoding="utf-8")
+    runtime_dir = _bridge_subprocess_cwd(python_path)
+    env = _build_subprocess_env(pythonioencoding="utf-8", runtime_dirs=(runtime_dir,))
     # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
     # Safe by construction: validated Python executable + bundled local script +
     # fixed probe flag under shell=False. Probe mode forwards only the shared
-    # allowlisted environment needed for runtime-linked UNO imports.
+    # allowlisted environment, while prepending the runtime dir needed for
+    # Windows-hosted UNO imports and DLL resolution.
     return subprocess.run(  # nosec B603  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
         [
             _subprocess_executable_arg(python_path),
-            "-X",
-            "utf8",
             _subprocess_path_arg(bridge_path),
             "--probe",
         ],
@@ -909,7 +919,8 @@ def _run_bridge_extract_subprocess(
     """Run the bundled LibreOffice bridge for workbook extraction."""
 
     bridge_path = Path(__file__).with_name("_libreoffice_bridge.py")
-    env = _build_subprocess_env(pythonioencoding="utf-8")
+    runtime_dir = _bridge_subprocess_cwd(python_path)
+    env = _build_subprocess_env(pythonioencoding="utf-8", runtime_dirs=(runtime_dir,))
     input_text = _subprocess_path_arg(file_path)
     # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
     # Safe by construction: executable/script paths are local validated files, the
@@ -934,7 +945,7 @@ def _run_bridge_extract_subprocess(
         encoding="utf-8",
         timeout=timeout_sec,
         env=env,
-        cwd=_bridge_subprocess_cwd(python_path),
+        cwd=runtime_dir,
     )
 
 
@@ -948,7 +959,8 @@ def _run_bridge_handshake_subprocess(
     """Run the bundled LibreOffice bridge in handshake mode."""
 
     bridge_path = Path(__file__).with_name("_libreoffice_bridge.py")
-    env = _build_subprocess_env(pythonioencoding="utf-8")
+    runtime_dir = _bridge_subprocess_cwd(python_path)
+    env = _build_subprocess_env(pythonioencoding="utf-8", runtime_dirs=(runtime_dir,))
     # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
     # Safe by construction: validated Python executable + bundled local script +
     # fixed handshake flags under shell=False. Host/port remain argv elements, not
@@ -971,7 +983,7 @@ def _run_bridge_handshake_subprocess(
         encoding="utf-8",
         timeout=timeout_sec,
         env=env,
-        cwd=_bridge_subprocess_cwd(python_path),
+        cwd=runtime_dir,
     )
 
 
