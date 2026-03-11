@@ -801,3 +801,21 @@
   - `uv run ruff check tests/conftest.py tests/test_conftest_libreoffice_runtime.py` -> pass
   - `uv run mypy tests/conftest.py tests/test_conftest_libreoffice_runtime.py` -> pass
   - `uv run task precommit-run` は pre-commit hook remote fetch が `CONNECT tunnel failed, response 403` で失敗（環境制約）
+
+
+## 2026-03-11 PR #79 Windows LibreOffice smoke CI fix
+
+### Planning
+
+- [x] 現行 `libreoffice-windows-smoke` workflow と runtime 正規化実装を確認する
+- [x] Windows で `soffice.com` 優先となるよう runtime path 正規化と workflow を修正する
+- [x] 回帰テストを追加し、対象 pytest を実行して検証する
+- [x] 変更内容を自己レビューし、commit/PR メッセージを作成する
+
+### Review
+
+- `src/exstruct/core/libreoffice.py` で runtime path 正規化時に Windows の `soffice.exe` を `soffice.com` 優先へ自動変換する helper を追加した。
+- `src/exstruct/core/libreoffice.py` の `_which_soffice()` は `soffice.com` を探索候補に追加し、検出 path を正規化して返すようにした。
+- `.github/workflows/pytest.yml` の Windows smoke job は `soffice.com` を既定にしつつ、discover step で `.com` 優先 / `.exe` fallback を明示し `EXSTRUCT_LIBREOFFICE_PATH` を再設定するよう変更した。
+- 同 workflow の verify step で `--version` 実行後 `$LASTEXITCODE` を確認し、非ゼロを即失敗にするようにした。
+- `tests/core/test_libreoffice_backend.py` に runtime path 正規化の Windows/非 Windows 回帰テストを追加した。

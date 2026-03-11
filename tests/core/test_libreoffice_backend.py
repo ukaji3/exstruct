@@ -37,6 +37,7 @@ from exstruct.core.libreoffice import (
     _run_bridge_extract_subprocess,
     _run_bridge_probe_subprocess,
     _start_soffice_startup_attempt,
+    _validated_runtime_path,
 )
 from exstruct.core.ooxml_drawing import (
     DrawingConnectorRef,
@@ -1957,6 +1958,51 @@ def test_libreoffice_session_reports_both_startup_attempt_failures(
     assert cleaned_paths == [created_dir]
     assert session._soffice_process is None
     assert session._temp_profile_dir is None
+
+
+def test_validated_runtime_path_prefers_windows_console_soffice(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Verify that Windows `soffice.exe` paths normalize to `soffice.com` when present."""
+
+    monkeypatch.setattr("exstruct.core.libreoffice.sys.platform", "win32")
+
+    base_path = Path("C:/LibreOffice/program/soffice.exe")
+
+    def _fake_exists(self: Path) -> bool:
+        return self.name.lower() == "soffice.com"
+
+    monkeypatch.setattr(Path, "exists", _fake_exists)
+
+    assert _validated_runtime_path(base_path).name.lower() == "soffice.com"
+
+
+def test_validated_runtime_path_keeps_windows_soffice_exe_without_console_variant(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Verify that Windows runtime normalization keeps `.exe` when `.com` is absent."""
+
+    monkeypatch.setattr("exstruct.core.libreoffice.sys.platform", "win32")
+
+    base_path = Path("C:/LibreOffice/program/soffice.exe")
+
+    monkeypatch.setattr(Path, "exists", lambda _self: False)
+
+    assert _validated_runtime_path(base_path).name.lower() == "soffice.exe"
+
+
+def test_validated_runtime_path_keeps_non_windows_runtime(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    """Verify that non-Windows runtime normalization does not rewrite executable names."""
+
+    monkeypatch.setattr("exstruct.core.libreoffice.sys.platform", "linux")
+
+    base_path = Path("/opt/libreoffice/program/soffice.exe")
+
+    monkeypatch.setattr(Path, "exists", lambda _self: True)
+
+    assert _validated_runtime_path(base_path).name.lower() == "soffice.exe"
 
 
 def test_resolve_python_path_prefers_override(

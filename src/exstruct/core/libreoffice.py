@@ -301,10 +301,10 @@ class LibreOfficeSession:
 def _which_soffice() -> Path | None:
     """Return the first discoverable ``soffice`` executable on ``PATH``."""
 
-    for candidate in ("soffice", "soffice.exe"):
+    for candidate in ("soffice", "soffice.com", "soffice.exe"):
         resolved = shutil.which(candidate)
         if resolved:
-            return Path(resolved)
+            return _validated_runtime_path(Path(resolved))
     return None
 
 
@@ -809,10 +809,22 @@ def _reserve_tcp_port() -> int:
 def _validated_runtime_path(path: Path) -> Path:
     """Return a normalized runtime path before it is used in subprocess argv."""
 
+    normalized_path = _prefer_windows_console_soffice(path)
     try:
-        return path.resolve(strict=False)
+        return normalized_path.resolve(strict=False)
     except OSError:
+        return normalized_path
+
+
+def _prefer_windows_console_soffice(path: Path) -> Path:
+    """Prefer ``soffice.com`` when a Windows caller points at ``soffice.exe``."""
+
+    if sys.platform != "win32" or path.name.lower() != "soffice.exe":
         return path
+    console_launcher = path.with_name("soffice.com")
+    if console_launcher.exists():
+        return console_launcher
+    return path
 
 
 def _subprocess_executable_arg(path: Path) -> str:

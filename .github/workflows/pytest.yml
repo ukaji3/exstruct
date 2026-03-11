@@ -81,7 +81,7 @@ jobs:
       PYTHONIOENCODING: "utf-8"
       RUN_LIBREOFFICE_SMOKE: "1"
       FORCE_LIBREOFFICE_SMOKE: "1"
-      EXSTRUCT_LIBREOFFICE_PATH: 'C:\Program Files\LibreOffice\program\soffice.exe'
+      EXSTRUCT_LIBREOFFICE_PATH: 'C:\Program Files\LibreOffice\program\soffice.com'
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.12
@@ -97,10 +97,24 @@ jobs:
         shell: powershell
         run: |
           choco install libreoffice-fresh -y --no-progress
-      - name: Discover LibreOffice bundled Python
+      - name: Discover LibreOffice runtime paths
         shell: powershell
         run: |
           $programDir = Split-Path -Parent $env:EXSTRUCT_LIBREOFFICE_PATH
+          $consoleSoffice = Join-Path $programDir 'soffice.com'
+          $windowedSoffice = Join-Path $programDir 'soffice.exe'
+          if (Test-Path $consoleSoffice) {
+            $selectedSoffice = $consoleSoffice
+          } elseif (Test-Path $windowedSoffice) {
+            $selectedSoffice = $windowedSoffice
+          } else {
+            Write-Host "LibreOffice program directory contents:"
+            Get-ChildItem -Path $programDir -ErrorAction SilentlyContinue | Select-Object Name, FullName
+            throw "Could not find soffice.com or soffice.exe under $programDir"
+          }
+          "EXSTRUCT_LIBREOFFICE_PATH=$selectedSoffice" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Selected LibreOffice executable: $selectedSoffice"
+
           $patterns = @(
             'python.exe',
             'python.bin',
@@ -132,6 +146,9 @@ jobs:
             throw "LibreOffice Python executable not found at $env:EXSTRUCT_LIBREOFFICE_PYTHON_PATH"
           }
           & $env:EXSTRUCT_LIBREOFFICE_PATH --version
+          if ($LASTEXITCODE -ne 0) {
+            throw "LibreOffice version probe failed with exit code $LASTEXITCODE"
+          }
       - name: Run LibreOffice smoke tests
         run: |
           pytest tests/core/test_libreoffice_smoke.py -m libreoffice --maxfail=1 --disable-warnings -q

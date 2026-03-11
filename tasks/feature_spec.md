@@ -1055,3 +1055,15 @@ pairing ルールは次のとおり。
     2. timeout=30.0 (only after first timeout)
   - Returns `True` when retry probe or fallback session succeeds.
   - Returns `False` on expected runtime-unavailable failures.
+
+
+## 2026-03-11 PR #79 Windows LibreOffice smoke stabilization
+
+- `_validated_runtime_path(path: Path) -> Path`
+  - Windows で `soffice.exe` が指定された場合、同ディレクトリの `soffice.com` が存在すれば `soffice.com` に正規化する。
+  - 非 Windows では入力 path を維持する。
+- `_which_soffice() -> Path | None`
+  - PATH 探索順を `soffice` → `soffice.com` → `soffice.exe` とし、見つかった path は runtime path 正規化を通す。
+- GitHub Actions `libreoffice-windows-smoke`
+  - `EXSTRUCT_LIBREOFFICE_PATH` は `soffice.com` を優先し、存在しない場合のみ `soffice.exe` を fallback とする。
+  - Verify step は `--version` 実行後に `$LASTEXITCODE` を検証し、非ゼロを fail-fast する。
