@@ -1,5 +1,27 @@
 # Feature Spec
 
+## 2026-03-12 v0.6.1 release notes and changelog
+
+### Issue
+
+- PR #79 と、そのマージ前に同ブランチへ積まれた Windows LibreOffice smoke stabilization 変更を `v0.6.1` としてパッチリリースする。
+- 公開用の release notes と `CHANGELOG.md` がまだ `v0.6.0` のままで、Windows smoke job 追加と runtime stabilization の内容が反映されていない。
+
+### Documentation contract
+
+- `v0.6.1` のリリース文書は、`v0.6.0..314ac86` の差分に基づいて要点を整理する。
+- 主題は次の 3 点に絞る。
+  - GitHub Actions への Windows LibreOffice smoke job 追加
+  - Windows 向け LibreOffice runtime/path discovery の安定化
+  - smoke runtime gate の false-negative 抑制
+- 既存の `v0.6.0` release notes と重複して LibreOffice mode 全体を再説明しない。今回は patch release の差分だけを書く。
+
+### Verification
+
+- `CHANGELOG.md` に `## [0.6.1] - 2026-03-12` を追加する。
+- `docs/release-notes/v0.6.1.md` を追加する。
+- `mkdocs.yml` の Release Notes nav に `v0.6.1` を追加する。
+
 ## 2026-03-10 PR #76 review + Codacy follow-up
 
 ### Issue

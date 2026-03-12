@@ -4,6 +4,23 @@ All notable changes to this project are documented in this file. This changelog 
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-03-12
+
+### Added
+
+- Added a dedicated GitHub Actions Windows LibreOffice smoke job on `windows-2025` that installs `libreoffice-fresh`, discovers runtime paths, and runs `tests/core/test_libreoffice_smoke.py` with `RUN_LIBREOFFICE_SMOKE=1`.
+- Added Windows-focused regression coverage for LibreOffice runtime normalization, bundled Python discovery, bridge subprocess environment setup, and smoke-gate timeout fallback behavior.
+
+### Changed
+
+- Updated README, README.ja, and test requirements to document LibreOffice smoke coverage on both Linux and Windows CI.
+- Changed LibreOffice bridge subprocess execution on Windows so probe, handshake, and extraction runs use the runtime directory as `cwd` and prepend runtime paths to `PATH`.
+
+### Fixed
+
+- Fixed Windows LibreOffice runtime discovery to prefer `soffice.com` when it is available and to detect bundled LibreOffice Python under `python-core-*` layouts.
+- Fixed false-negative Windows LibreOffice smoke gating by retrying slow `soffice --version` probes and falling back to a short-lived session probe before treating the runtime as unavailable.
+
 ## [0.6.0] - 2026-03-06
 
 ### Added

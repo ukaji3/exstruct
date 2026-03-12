@@ -1,5 +1,26 @@
 # Todo
 
+## 2026-03-12 v0.6.1 release notes and changelog
+
+### Planning
+
+- [x] `v0.6.0..314ac86` の差分を確認し、`v0.6.1` で告知する変更点を抽出する
+- [x] `tasks/feature_spec.md` に今回のリリース文書方針を記録する
+- [x] `CHANGELOG.md` に `v0.6.1` エントリを追加する
+- [x] `docs/release-notes/v0.6.1.md` を作成し、patch release の要点をまとめる
+- [x] `mkdocs.yml` の release notes nav を更新する
+- [x] 変更差分を確認し、最低限の文書整合性検証を行う
+
+### Review
+
+- `CHANGELOG.md` には `2026-03-12` 付けで `0.6.1` セクションを追加し、PR #79 系列の差分を `Added / Changed / Fixed` に整理した。
+- `docs/release-notes/v0.6.1.md` を新規追加し、Windows LibreOffice smoke job 追加、runtime/path discovery 安定化、bridge subprocess の Windows 対応、smoke gate false-negative 抑制を patch release の要点として記載した。
+- `mkdocs.yml` の Release Notes nav に `v0.6.1` を追加し、公開サイトから新しい release notes に遷移できるようにした。
+- 検証:
+  - `python -c "import yaml, pathlib; yaml.safe_load(pathlib.Path('mkdocs.yml').read_text(encoding='utf-8')); print('yaml-ok')"` -> `yaml-ok`
+  - `git diff --check` -> 空白エラーなし。LF/CRLF の警告のみ
+  - 目視確認で `CHANGELOG.md` 冒頭、`docs/release-notes/v0.6.1.md`、`mkdocs.yml` の nav 追加を確認した
+
 ## 2026-03-10 PR #76 review + Codacy follow-up
 
 ### Planning
