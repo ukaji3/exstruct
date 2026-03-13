@@ -64,3 +64,12 @@
 
 - When a spec makes structured audit fields mandatory (for example `scope` or finding `type`), copy those exact fields into the producing skill contract; partial paraphrases in workflow docs are not enough.
 - If a human-facing artifact needs one canonical label while machine-readable metadata supports multiple labels, encode the canonical label explicitly (for example `primary_domain`) instead of inferring it from array order or merged headings.
+
+## 2026-03-13 ADR reviewer scope and gating lessons
+
+- When a review skill is responsible for compatibility or public break judgment, make the relevant public `docs/` pages part of its required scope; internal specs alone are not enough evidence.
+- When lint and design review are split into separate skills, encode a clean linter result as an explicit precondition in the skill, spec, and workflow docs so `ready` cannot bypass mandatory structural checks.
+
+## 2026-03-13 AGENTS retention policy lessons
+
+- When AGENTS explains how to preserve or migrate durable documentation, explicitly direct agents to the relevant repository skills; otherwise the ADR workflow is easy to bypass with ad hoc manual judgment.

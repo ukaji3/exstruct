@@ -29,6 +29,16 @@
 - [x] `README.md` の主ドメインを決定する `primary_domain` ルールを `adr-index.md` と `index.yaml` に追加する
 - [x] review 指摘反映後の validator / YAML parse / 差分チェックを再実行する
 
+### Planning (Phase 3)
+
+- [x] Phase 3 の対象を `adr-reviewer` に確定し、`adr-linter` との差分を明文化する
+- [x] `adr-reviewer` の verdict / finding type / escalation ルールを定義する
+- [x] `.agents/skills/adr-reviewer/` の `SKILL.md` / `agents/openai.yaml` を追加する
+- [x] `dev-docs/agents/adr-governance.md`, `adr-workflow.md`, `adr-criteria.md` に Phase 3 を反映する
+- [x] `dev-docs/specs/adr-review.md` を追加し、設計レビュー契約を固定する
+- [x] 公開 surface 向け `docs/` scope と clean `adr-linter` 前提を Phase 3 契約へ反映する
+- [x] issue #90 セクションの `tasks/feature_spec.md` / `tasks/todo.md` を更新し、検証結果を記録する
+
 ### Review
 
 - issue #90 は、ADR 文書を 1 本生成する話ではなく、ADR 要否判定から草案作成、品質検査、整合性監査、索引化までを段階導入する skill 群の設計 issue として理解した。
@@ -71,17 +81,29 @@
   - review follow-up として、`adr-reconciler` の Output Contract に `scope` と `findings[].type` を追加し、`adr-indexer` の machine-readable metadata に `primary_domain` を追加した
   - `decision-map.md` は `domains` 配列の各要素を独立見出しとして表現し、`README.md` の主ドメインは `index.yaml.primary_domain` を source of truth にする方針へ修正した
 - 検証:
-  - `.agents/skills/` のディレクトリ一覧で `adr-reconciler` と `adr-indexer` が追加されていることを確認した
-  - `python C:\Users\HARUMI\.codex\skills\.system\skill-creator\scripts\quick_validate.py .agents\skills\adr-reconciler`
-  - `python C:\Users\HARUMI\.codex\skills\.system\skill-creator\scripts\quick_validate.py .agents\skills\adr-indexer`
-  - `python` で `dev-docs/adr/index.yaml` と `agents/openai.yaml` 2 本の YAML parse が通ることを確認した
+- `.agents/skills/` のディレクトリ一覧で `adr-reconciler` と `adr-indexer` が追加されていることを確認した
+- `python C:\Users\HARUMI\.codex\skills\.system\skill-creator\scripts\quick_validate.py .agents\skills\adr-reconciler`
+- `python C:\Users\HARUMI\.codex\skills\.system\skill-creator\scripts\quick_validate.py .agents\skills\adr-indexer`
+- `python` で `dev-docs/adr/index.yaml` と `agents/openai.yaml` 2 本の YAML parse が通ることを確認した
+- `git diff --check -- <changed files>` で実害のある差分エラーがないことを確認した
+- `tasks/feature_spec.md`, `dev-docs/agents/`, `dev-docs/specs/adr-index.md`, `.agents/skills/` の参照更新を目視確認した
+- `adr-reconciler` と `adr-indexer` の契約用語が `SKILL.md`、`adr-workflow.md`、`adr-governance.md`、`adr-criteria.md`、`adr-index.md` で一致していることを確認した
+- Phase 3 として `adr-reviewer` を追加し、`adr-linter` の構造検査と分離した設計レビュー専用 skill として定義した
+- `adr-reviewer` の verdict は `ready`, `revise`, `escalate` に固定し、finding 種別は `decision-gap`, `scope-conflict`, `evidence-risk`, `rollout-gap`, `ownership-escalation` を採用した
+- `dev-docs/specs/adr-review.md` を追加し、review focus、verdict rule、finding contract を恒久 spec として分離した
+- `adr-workflow` は `adr-drafter` -> clean `adr-linter` -> `adr-reviewer` の順序に更新し、AI の責務外に触れる ADR は `escalate` で人へ戻す方針にした
+- 公開 API / CLI / MCP に触れる ADR では、`adr-reviewer` が関連 `docs/` を review scope に含める契約へ修正した
+- `adr-reviewer` の契約を `SKILL.md`, `adr-governance.md`, `adr-criteria.md`, `adr-workflow.md`, `adr-review.md` でそろえる
+- 検証:
+  - `python C:\Users\HARUMI\.codex\skills\.system\skill-creator\scripts\quick_validate.py .agents\skills\adr-reviewer`
+  - `python` で `.agents/skills/adr-reviewer/agents/openai.yaml` の YAML parse が通ることを確認した
   - `git diff --check -- <changed files>` で実害のある差分エラーがないことを確認した
-  - `tasks/feature_spec.md`, `dev-docs/agents/`, `dev-docs/specs/adr-index.md`, `.agents/skills/` の参照更新を目視確認した
-  - `adr-reconciler` と `adr-indexer` の契約用語が `SKILL.md`、`adr-workflow.md`、`adr-governance.md`、`adr-criteria.md`、`adr-index.md` で一致していることを確認した
+  - `rg` で `ready`, `revise`, `escalate`, `decision-gap`, `scope-conflict`, `evidence-risk`, `rollout-gap`, `ownership-escalation` が `SKILL.md` と `dev-docs/*.md` で一致していることを確認した
+  - follow-up として、public `docs/` scope と clean `adr-linter` 前提を追加後も `quick_validate.py` と `git diff --check` が通ることを確認した
 
 ### Future phase backlog
 
-- [ ] Phase 3 で `adr-reviewer` の入出力契約を定義し、ドラフトレビュー観点を固定する
+- [x] Phase 3 で `adr-reviewer` の入出力契約を定義し、ドラフトレビュー観点を固定する
 
 ## 2026-03-13 PR #91 unresolved review follow-up
 

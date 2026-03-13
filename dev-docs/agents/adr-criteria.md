@@ -115,3 +115,25 @@ AI エージェントは判定時に最低限次を返す。
 - updated artifacts
 - added or changed ADR entries
 - consistency findings
+
+## Phase 3: ドラフトレビューの出力要件
+
+`adr-reviewer` は ADR 草案の設計レビューで最低限次を返す。
+
+- prerequisite: 現行 draft に未解消の `adr-linter` `high` / `medium` finding が残っていない
+- verdict: `ready` / `revise` / `escalate`
+- scope:
+  - 対象 ADR 草案
+  - 調査した関連 ADR / `docs/` (公開 API / CLI / MCP が関係する場合) / `specs` / `src` / `tests`
+  - 参照した issue / PR / diff context
+- findings:
+  - type: `decision-gap` / `scope-conflict` / `evidence-risk` / `rollout-gap` / `ownership-escalation`
+  - severity: `high` / `medium` / `low`
+  - summary
+  - why it matters
+  - suggested revision
+  - evidence:
+    - draft の該当節または claim
+    - related sources
+- open questions
+- residual risks
