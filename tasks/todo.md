@@ -1,5 +1,84 @@
 # Todo
 
+## 2026-03-13 PR #91 unresolved review follow-up
+
+### Planning
+
+- [x] PR #91 の未 resolve review thread を最新状態で取得し、論点を列挙する
+- [x] 各 thread を現行コードとテストで照合し、採用/非採用を分類する
+- [x] 採用した指摘だけを最小差分で修正し、必要な検証を行う
+- [x] 非採用の thread には判断理由を返信して resolve する
+- [x] 実施内容、検証結果、未解決事項を Review セクションに記録する
+
+### Review
+
+- PR #91 の review thread は、初回 16 件に加えて push 後の CodeRabbit follow-up 2 件を含め、最終的に 18 件すべてを resolve した。
+- 初回 16 件の分類は、13 件を採用、2 件を重複、1 件を対応不要と判定した。
+- 採用した修正:
+  - `dev-docs/specs/excel-extraction.md`
+    - `libreoffice` mode を追加
+    - rich backend failure 時に保持される pre-com artifact を実装どおり明記
+    - `light` mode の説明を pre-com artifact を含む形へ修正
+  - `dev-docs/agents/contributing.md`
+    - `integrate.py` と `modeling.py` の責務を実装どおりに修正
+  - `dev-docs/agents/overview.md`
+    - mode 一覧と backend 説明に `libreoffice` を追加
+  - `dev-docs/architecture/contributor-guide.md`
+    - backend ファイルパスを `core/backends/*` に修正
+  - `dev-docs/architecture/overview.md`
+    - アーキテクチャ概要に LibreOffice backend を追加
+  - `dev-docs/testing/test-requirements.md`
+    - coverage target を `80%` に修正
+    - `CellRow.r` を 1-based に修正
+    - pandas dtype を `dtype=str` に修正
+    - merged cell の空値正規化を `" "` に修正
+    - 参照 spec 名を `dev-docs/specs/data-model.md` に修正
+    - Windows smoke contract の `soffice.com` 優先 / `soffice.exe` fallback を現行運用に合わせて修正
+  - `dev-docs/specs/patch/model-migration-notes.md`
+    - canonical model が `patch/models.py` に既にあり、`internal.py` に重複定義が残っている現状へ修正
+    - 移行手順を「移設」ではなく「重複解消と import 統一」へ修正
+- 非採用/重複:
+  - `dev-docs/agents/overview.md` の CodeRabbit mode 指摘は Copilot 指摘と重複
+  - `dev-docs/specs/excel-extraction.md` の CodeRabbit mode 指摘は Copilot 指摘と重複
+  - `tasks/todo.md` 上の PR Summary 指摘は、現在の PR 本文がすでに `dev-docs/` 配下の internal docs 追加を明記しているため対応不要
+- 検証:
+  - `gh api graphql` で PR #91 の unresolved review thread を取得
+  - 現行コード照合:
+    - `codecov.yml`
+    - `src/exstruct/core/cells.py`
+    - `src/exstruct/core/integrate.py`
+    - `src/exstruct/core/modeling.py`
+    - `src/exstruct/core/pipeline.py`
+    - `src/exstruct/mcp/patch/models.py`
+    - `src/exstruct/mcp/patch/internal.py`
+    - `src/exstruct/mcp/patch_runner.py`
+    - `src/exstruct/mcp/patch/service.py`
+  - `git diff --check -- <changed files>` で whitespace error なしを確認
+- GitHub:
+  - commit `1a8e6ba` と `3bad843` を `origin/docs/adr` へ push 済み
+  - 最終確認で review thread 18 件すべて `isResolved: true`
+  - 対応不要の PR Summary 指摘は thread reply 権限がなかったため、PR comment `#issuecomment-4052594372` で理由を補足した
+- 追加 follow-up:
+  - push 後に CodeRabbit から `test-requirements.md` へ 2 件の新規 thread が追加されたが、`dev-docs/specs/data-model.md` 参照名と Windows smoke の `soffice.com` 優先契約へ追随して解消した
+
+## 2026-03-13 AI agent document retention policy
+
+### Planning
+
+- [x] 既存の `AGENTS.md`、`tasks/feature_spec.md`、`tasks/todo.md` を確認し、現状の task 文書が担っている役割を整理する
+- [x] 残すべき設計判断と破棄可能な作業メモの境界を定義する
+- [x] `AGENTS.md` に、文書保持ポリシー、ADR 化条件、白紙化禁止の粒度を追記する
+- [x] 変更内容を確認し、今回の運用変更がそのまま AI 指示として使えることを確認する
+
+### Review
+
+- `AGENTS.md` に `## ドキュメント保持ポリシー` を追加し、`tasks/feature_spec.md` と `tasks/todo.md` をファイル単位で白紙化しない運用を明文化した。
+- task 文書の役割分離、残すべき情報、捨ててよい情報、完了時の移管手順、ADR 作成条件、セッション終了チェックを一か所にまとめた。
+- `dev-docs/README.md` の整理に合わせ、内部向け恒久文書の移管先を `dev-docs/adr/`、`dev-docs/specs/`、`dev-docs/architecture/` に揃え、公開契約だけを `docs/*.md` に残す方針へ修正した。
+- 検証:
+  - `AGENTS.md` の追記内容を目視確認し、役割分離、残す/捨てる基準、完了時の必須手順、ADR 条件が含まれていることを確認した
+  - doc-only 変更のためテストは未実行
+
 ## 2026-03-12 v0.6.1 release notes and changelog
 
 ### Planning
