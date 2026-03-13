@@ -54,3 +54,8 @@
 
 - For Windows cold-start runtime checks, avoid single-shot `soffice --version` gating with a short timeout; add an explicit longer retry before declaring runtime unavailable.
 - If a fallback probe is expensive (full session startup), place a cheaper retry tier ahead of it to reduce false negatives under CI install jitter.
+
+## 2026-03-13 ADR governance contract alignment lessons
+
+- When a shared policy document defines a required output artifact (here: the `specs`/`src`/`tests` evidence triad), mirror that requirement in every dependent skill contract; do not assume downstream docs will fill the gap.
+- In decision workflows, collect verification evidence before any terminal verdict, including negative outcomes like `not-needed`; otherwise the process silently permits ungrounded dismissals.

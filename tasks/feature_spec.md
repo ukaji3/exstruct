@@ -1,5 +1,62 @@
 # Feature Spec
 
+## 2026-03-13 issue #90 ADR management skills
+
+### Issue
+
+- issue #90 は、ADR を単発で書くための補助ではなく、AI エージェントが設計判断を継続的に扱うための ADR ガバナンス Skills 群を設計するタスクである。
+- 既存リポジトリには `dev-docs/adr/` と `dev-docs/agents/` はあるが、ADR 要否判定、草案生成、品質検査、整合性監査、索引化を担う専用 skill 群と運用文書は未整備である。
+- この issue の第一段階では、skill 群の役割分割、Phase 1 の導入対象、exstruct 固有の ADR 判定基準、AI 向け運用文書の構成を定義する必要がある。
+
+### Design contract
+
+- ADR 関連の成果物は、`ADR = why / specs = what / tests = evidence / src = how` の既存整理に従う。
+- Phase 1 の skill は 3 つに固定する。
+  - `adr-suggester`
+    - issue / PR / diff を見て、ADR `required` / `recommended` / `not-needed` を判定する
+    - verdict 前に `specs` / `src` / `tests` の evidence triad を集める
+    - 新規 ADR タイトル候補と、確認すべき既存 ADR を返す
+    - `not-needed` を含むすべての判定結果に evidence triad を添える
+    - ADR 草案本文までは生成しない
+  - `adr-drafter`
+    - issue、diff、tests、specs、既存 ADR を根拠に、新規 ADR 草案または既存 ADR 更新提案を作る
+    - `Tests` / `Code` / `Related specs` の evidence を必ず列挙する
+    - `ADR 不要` の場合は、その理由を返す
+  - `adr-linter`
+    - ADR 文書の `状態`、必須セクション、evidence、supersede 関係、片面的な consequence を検査する
+    - 出力は修正文案ではなく findings 中心とする
+- Phase 2 以降は次の責務を予約し、Phase 1 skill に混ぜない。
+  - `adr-reconciler`: ADR と specs / tests / src の整合性監査
+  - `adr-indexer`: ADR 一覧、タグ、関係マップ更新
+  - `adr-reviewer`: ADR 草案の設計レビュー
+- scope は次に限定する。
+  - ADR 管理 skill 群の責務分割
+  - Phase 1 skill の確定
+  - exstruct 固有の ADR 必須 / 推奨 / 不要判定基準
+  - `dev-docs/agents/` 配下に置く ADR 運用文書の構成
+- out of scope は次を含む。
+  - 全 skill の即時実装完了
+  - ADR 本文の大量生成
+  - PR bot や CI 連携の細部実装
+  - 既存ドキュメント全面改修
+- `dev-docs/agents/` には少なくとも次を追加する。
+  - `adr-governance.md`: ADR の目的、作成/更新条件、status 遷移、evidence 要件、supersede ルール
+  - `adr-criteria.md`: ADR 必須 / 推奨 / 不要の判定基準と exstruct 固有領域
+  - `adr-workflow.md`: issue から ADR 判定、草案、lint、merge 後運用までの流れ
+- ADR 要否判定は `required` / `recommended` だけでなく `not-needed` でも evidence triad を必須とし、issue や PR の説明だけで判定を終えてはならない。
+- `.agents/skills/` には Phase 1 の skill ディレクトリを追加し、各 skill は `SKILL.md` と `agents/openai.yaml` を持つ。
+
+### Verification
+
+- issue #90 の要点を、skill 設計タスクとして一文で説明できる。
+- 既存土台として参照すべき場所を列挙できる。
+  - `dev-docs/adr/`
+  - `dev-docs/agents/`
+  - `.agents/skills/`
+- 次の実装計画で、Phase 1 の対象と ADR 判定ルール定義を最初の論点として扱う。
+- `dev-docs/agents/` に ADR 運用文書 3 本が追加されている。
+- `.agents/skills/adr-suggester/`, `.agents/skills/adr-drafter/`, `.agents/skills/adr-linter/` が追加されている。
+
 ## 2026-03-13 PR #91 unresolved review follow-up
 
 ### Issue
