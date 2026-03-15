@@ -9,9 +9,11 @@ This page shows the primary APIs, minimal runnable examples, expected outputs, a
 - [API Reference](#api-reference)
   - [TOC](#toc)
   - [Quick Examples](#quick-examples)
+  - [Editing API](#editing-api)
   - [Dependencies](#dependencies)
   - [Auto-generated API mkdocstrings](#auto-generated-api-mkdocstrings)
     - [Core functions](#core-functions)
+    - [Editing functions](#editing-functions)
     - [Engine and options](#engine-and-options)
   - [Models](#models)
     - [Model helpers SheetData / WorkbookData](#model-helpers-sheetdata--workbookdata)
@@ -73,6 +75,36 @@ process_excel(
 )
 # Same as: exstruct input.xlsx --format json --include-backend-metadata --pdf --image --mode standard --pretty --sheets-dir out_sheets > out.json
 ```
+
+## Editing API
+
+Phase 1 exposes workbook editing as a first-class Python package under
+`exstruct.edit`.
+
+```python
+from pathlib import Path
+
+from exstruct.edit import PatchOp, PatchRequest, patch_workbook
+
+result = patch_workbook(
+    PatchRequest(
+        xlsx_path=Path("book.xlsx"),
+        ops=[PatchOp(op="set_value", sheet="Sheet1", cell="A1", value="updated")],
+        backend="openpyxl",
+    )
+)
+
+print(result.out_path)
+print(result.engine)
+```
+
+Key points:
+
+- `exstruct.edit` does not require MCP `PathPolicy`.
+- `PatchOp`, `PatchRequest`, `MakeRequest`, and `PatchResult` keep the existing
+  MCP patch contract in Phase 1.
+- Use `list_patch_op_schemas()` / `get_patch_op_schema()` to inspect the public
+  operation schema programmatically.
 
 ## Dependencies
 
@@ -137,6 +169,20 @@ Python APIの最新情報は以下の自動生成セクションを参照して�
       show_root_heading: true
 
 ::: exstruct.process_excel
+    handler: python
+    options:
+      show_signature_annotations: true
+      show_root_heading: true
+
+### Editing functions
+
+::: exstruct.edit.patch_workbook
+    handler: python
+    options:
+      show_signature_annotations: true
+      show_root_heading: true
+
+::: exstruct.edit.make_workbook
     handler: python
     options:
       show_signature_annotations: true

@@ -128,6 +128,16 @@ def test_patch_tool_input_applies_top_level_sheet_fallback() -> None:
     assert payload.ops[0].sheet == "Sheet1"
 
 
+def test_patch_tool_input_applies_top_level_sheet_to_json_string_op() -> None:
+    payload = PatchToolInput(
+        xlsx_path="input.xlsx",
+        sheet="Sheet1",
+        ops=['{"op":"set_value","cell":"A1","value":"x"}'],
+    )
+    assert payload.ops[0].sheet == "Sheet1"
+    assert payload.ops[0].cell == "A1"
+
+
 def test_patch_tool_input_prioritizes_op_sheet_over_top_level() -> None:
     payload = PatchToolInput(
         xlsx_path="input.xlsx",
@@ -169,6 +179,16 @@ def test_make_tool_input_applies_top_level_sheet_fallback() -> None:
         ops=[{"op": "set_value", "cell": "A1", "value": "x"}],
     )
     assert payload.ops[0].sheet == "Sheet1"
+
+
+def test_make_tool_input_applies_top_level_sheet_to_json_string_op() -> None:
+    payload = MakeToolInput(
+        out_path="output.xlsx",
+        sheet="Sheet1",
+        ops=['{"op":"set_value","cell":"A1","value":"x"}'],
+    )
+    assert payload.ops[0].sheet == "Sheet1"
+    assert payload.ops[0].cell == "A1"
 
 
 def test_make_tool_input_accepts_add_sheet_name_alias() -> None:
