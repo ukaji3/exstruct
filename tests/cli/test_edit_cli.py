@@ -5,7 +5,7 @@ import io
 import json
 from pathlib import Path
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from pydantic import BaseModel
 import pytest
 
@@ -32,6 +32,14 @@ def _create_workbook(path: Path) -> None:
     sheet["A1"] = "old"
     workbook.save(path)
     workbook.close()
+
+
+def _read_cell(path: Path, sheet_name: str, cell: str) -> object:
+    workbook = load_workbook(path)
+    try:
+        return workbook[sheet_name][cell].value
+    finally:
+        workbook.close()
 
 
 def _run_cli(args: list[str], *, stdin_text: str | None = None) -> CliResult:
@@ -111,6 +119,35 @@ def test_patch_cli_reads_ops_from_stdin(tmp_path: Path) -> None:
     payload = json.loads(result.stdout)
     assert payload["error"] is None
     assert Path(payload["out_path"]).exists()
+
+
+def test_patch_cli_applies_top_level_sheet_fallback(tmp_path: Path) -> None:
+    source = tmp_path / "book.xlsx"
+    ops_path = tmp_path / "ops.json"
+    _create_workbook(source)
+    ops_path.write_text(
+        json.dumps([{"op": "set_value", "cell": "A1", "value": "fallback"}]),
+        encoding="utf-8",
+    )
+
+    result = _run_cli(
+        [
+            "patch",
+            "--input",
+            str(source),
+            "--ops",
+            str(ops_path),
+            "--sheet",
+            "Sheet1",
+            "--backend",
+            "openpyxl",
+        ]
+    )
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["error"] is None
+    assert _read_cell(Path(payload["out_path"]), "Sheet1", "A1") == "fallback"
 
 
 def test_patch_cli_returns_nonzero_for_invalid_ops_json(tmp_path: Path) -> None:
@@ -223,6 +260,39 @@ def test_make_cli_creates_workbook_and_returns_json(tmp_path: Path) -> None:
     payload = json.loads(result.stdout)
     assert payload["error"] is None
     assert output.exists()
+
+
+def test_make_cli_applies_top_level_sheet_fallback(tmp_path: Path) -> None:
+    output = tmp_path / "created.xlsx"
+    ops_path = tmp_path / "ops.json"
+    ops_path.write_text(
+        json.dumps(
+            [
+                {"op": "add_sheet", "sheet": "Data"},
+                {"op": "set_value", "cell": "A1", "value": "fallback"},
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = _run_cli(
+        [
+            "make",
+            "--output",
+            str(output),
+            "--ops",
+            str(ops_path),
+            "--sheet",
+            "Data",
+            "--backend",
+            "openpyxl",
+        ]
+    )
+
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload["error"] is None
+    assert _read_cell(output, "Data", "A1") == "fallback"
 
 
 def test_make_cli_returns_nonzero_when_backend_raises_runtime_error(

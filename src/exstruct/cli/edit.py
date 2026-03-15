@@ -16,11 +16,11 @@ from exstruct.edit import (
     PatchBackend,
     PatchOp,
     PatchRequest,
-    coerce_patch_ops,
     get_patch_op_schema,
     list_patch_op_schemas,
     make_workbook,
     patch_workbook,
+    resolve_top_level_sheet_for_payload,
 )
 from exstruct.mcp.validate_input import ValidateInputRequest, validate_input
 
@@ -207,7 +207,7 @@ def _run_patch_command(args: argparse.Namespace) -> int:
     """Execute the patch subcommand."""
 
     try:
-        ops = _load_patch_ops(args.ops)
+        ops = _load_patch_ops(args.ops, sheet=args.sheet)
         request_kwargs: dict[str, Any] = {
             "xlsx_path": args.input,
             "ops": ops,
@@ -236,7 +236,7 @@ def _run_make_command(args: argparse.Namespace) -> int:
     """Execute the make subcommand."""
 
     try:
-        ops = _load_patch_ops(args.ops)
+        ops = _load_patch_ops(args.ops, sheet=args.sheet)
         request = MakeRequest(
             out_path=args.output,
             ops=ops,
@@ -294,7 +294,7 @@ def _run_validate_command(args: argparse.Namespace) -> int:
     return 0 if result.is_readable else 1
 
 
-def _load_patch_ops(source: str | None) -> list[PatchOp]:
+def _load_patch_ops(source: str | None, *, sheet: str | None = None) -> list[PatchOp]:
     """Load patch ops from a JSON file or stdin."""
 
     if source is None:
@@ -302,8 +302,15 @@ def _load_patch_ops(source: str | None) -> list[PatchOp]:
     payload = _load_json_value(source)
     if not isinstance(payload, list):
         raise ValueError("--ops must contain a JSON array.")
-    normalized_ops = coerce_patch_ops(payload)
-    return [PatchOp(**op_payload) for op_payload in normalized_ops]
+    resolved_payload = resolve_top_level_sheet_for_payload(
+        {"ops": payload, "sheet": sheet}
+    )
+    if not isinstance(resolved_payload, dict):
+        raise TypeError("Top-level sheet resolution must return a dict payload.")
+    resolved_ops = resolved_payload.get("ops")
+    if not isinstance(resolved_ops, list):
+        raise TypeError("Resolved patch ops payload must contain an ops list.")
+    return [PatchOp(**op_payload) for op_payload in resolved_ops]
 
 
 def _load_json_value(source: str) -> object:
