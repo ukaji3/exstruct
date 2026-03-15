@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import lru_cache
 import importlib.util
 import os
@@ -10,6 +11,7 @@ import re
 import subprocess
 import sys
 from types import ModuleType
+from typing import ParamSpec, TypeVar, cast
 
 import pytest
 
@@ -21,6 +23,25 @@ RUN_LIBREOFFICE_SMOKE = os.getenv("RUN_LIBREOFFICE_SMOKE") == "1"
 FORCE_LIBREOFFICE_SMOKE = os.getenv("FORCE_LIBREOFFICE_SMOKE") == "1"
 _LIBREOFFICE_VERSION_PROBE_TIMEOUT_SEC = 5.0
 _LIBREOFFICE_VERSION_PROBE_RETRY_TIMEOUT_SEC = 30.0
+_FixtureParam = ParamSpec("_FixtureParam")
+_FixtureReturn = TypeVar("_FixtureReturn")
+
+
+def _typed_autouse_fixture() -> (
+    Callable[
+        [Callable[_FixtureParam, _FixtureReturn]],
+        Callable[_FixtureParam, _FixtureReturn],
+    ]
+):
+    """Return a typed autouse fixture decorator for strict mypy runs."""
+
+    return cast(
+        Callable[
+            [Callable[_FixtureParam, _FixtureReturn]],
+            Callable[_FixtureParam, _FixtureReturn],
+        ],
+        pytest.fixture(autouse=True),
+    )
 
 
 def _markexpr_requests_com(markexpr: str) -> bool:
@@ -117,7 +138,9 @@ def _has_libreoffice_runtime() -> bool:
     )
 
 
-def _run_soffice_version_probe(*, soffice_path: Path, timeout_sec: float) -> bool | None:
+def _run_soffice_version_probe(
+    *, soffice_path: Path, timeout_sec: float
+) -> bool | None:
     """Run ``soffice --version`` and map expected outcomes for runtime gating."""
 
     try:
@@ -238,7 +261,7 @@ def pytest_runtest_setup(item: pytest.Item) -> None:
             pytest.skip(reason)
 
 
-@pytest.fixture(autouse=True)
+@_typed_autouse_fixture()
 def _skip_com_for_non_com_tests(
     request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch
 ) -> None:

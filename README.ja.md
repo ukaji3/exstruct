@@ -666,14 +666,14 @@ ExStruct はパイプライン型のアーキテクチャを採用し、
 抽出戦略（Backend）とオーケストレーション（Pipeline）、
 そして意味モデルの構築を分離しています。
 
-→ 参照: [docs/architecture/pipeline.md](docs/architecture/pipeline.md)
+→ 参照: [dev-docs/architecture/pipeline.md](dev-docs/architecture/pipeline.md)
 
 ## コントリビュート
 
 ExStruct の内部実装を拡張する場合は、
 コントリビューター向けのアーキテクチャガイドを確認してください。
 
-→ [docs/contributors/architecture.md](docs/contributors/architecture.md)
+→ [dev-docs/architecture/contributor-guide.md](dev-docs/architecture/contributor-guide.md)
 
 ## カバレッジに関する注意
 

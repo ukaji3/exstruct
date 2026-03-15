@@ -609,13 +609,13 @@ It is suitable for teams that:
 
 ExStruct adopts a pipeline-oriented architecture that separates extraction strategy (Backend), orchestration (Pipeline), and semantic modeling.
 
-See: [docs/architecture/pipeline.md](docs/architecture/pipeline.md)
+See: [dev-docs/architecture/pipeline.md](dev-docs/architecture/pipeline.md)
 
 ## Contributing
 
 If you plan to extend ExStruct internals, read the contributor architecture guide first.
 
-See: [docs/contributors/architecture.md](docs/contributors/architecture.md)
+See: [dev-docs/architecture/contributor-guide.md](dev-docs/architecture/contributor-guide.md)
 
 ## Coverage Note
 
