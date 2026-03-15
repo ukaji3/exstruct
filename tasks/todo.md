@@ -65,3 +65,20 @@
 - Verification:
   - `uv run pytest tests/mcp/patch/test_normalize.py tests/mcp/test_tool_models.py tests/mcp/test_server.py -q`
   - `uv run task precommit-run`
+
+## 2026-03-15 pr #102 docs review follow-up
+
+### Planning
+
+- [x] unresolved review thread の内容を確認し、実文書との差分だけを直す
+- [x] `data-model.md` の import path 表記を Python module path に揃える
+- [x] `architecture/overview.md` の `edit/` tree を実ファイル構成に合わせる
+- [x] 文書差分を確認し、必要なら PR thread を resolve する
+
+### Review
+
+- `dev-docs/specs/data-model.md` の “actual locations” は filesystem path ではなく Python import path を示す表現に修正した。
+- `dev-docs/architecture/overview.md` の `edit/` tree に `chart_types.py` と `errors.py` を追加した。
+- Verification:
+  - `git diff --check`
+  - `uv run task precommit-run`

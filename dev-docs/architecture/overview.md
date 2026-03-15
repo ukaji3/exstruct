@@ -32,6 +32,8 @@ exstruct/
   edit/
     __init__.py
     api.py
+    chart_types.py
+    errors.py
     service.py
     models.py
     normalize.py

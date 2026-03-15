@@ -82,3 +82,15 @@
 - invalid op 型の失敗は `ValueError(build_patch_op_error_message(...))` に統一する。
 - docstring warning 対応は、この PR で新規追加した `src/exstruct/edit/*.py` の不足 module docstring 補完までに限定する。
 - PR 本文は `.github/pull_request_template.md` の見出し構造に合わせるが、Acceptance Criteria は issue #99 phase 1 用に書き換える。
+
+## 2026-03-15 pr #102 docs review follow-up
+
+### Goal
+
+- PR #102 の docs review 指摘のうち、import path 表記の誤りと architecture tree の欠落だけを最小差分で修正する。
+- 永続文書の説明を現行実装と一致させ、Phase 1 の API / runtime 契約自体は変更しない。
+
+### Accepted findings
+
+- `dev-docs/specs/data-model.md` の “actual locations” 先頭 bullet が import path と言いながら filesystem path を示している。
+- `dev-docs/architecture/overview.md` の `edit/` tree に `chart_types.py` と `errors.py` が抜けている。
