@@ -1,0 +1,67 @@
+from __future__ import annotations
+
+from typing import Literal
+
+PatchOpType = Literal[
+    "set_value",
+    "set_formula",
+    "add_sheet",
+    "set_range_values",
+    "fill_formula",
+    "set_value_if",
+    "set_formula_if",
+    "draw_grid_border",
+    "set_bold",
+    "set_font_size",
+    "set_font_color",
+    "set_fill_color",
+    "set_dimensions",
+    "auto_fit_columns",
+    "merge_cells",
+    "unmerge_cells",
+    "set_alignment",
+    "set_style",
+    "apply_table_style",
+    "create_chart",
+    "restore_design_snapshot",
+]
+PatchStatus = Literal["applied", "skipped"]
+PatchValueKind = Literal["value", "formula", "sheet", "style", "dimension", "chart"]
+PatchBackend = Literal["auto", "com", "openpyxl"]
+PatchEngine = Literal["com", "openpyxl"]
+OnConflictPolicy = Literal["overwrite", "skip", "rename"]
+FormulaIssueLevel = Literal["warning", "error"]
+FormulaIssueCode = Literal[
+    "invalid_token",
+    "ref_error",
+    "name_error",
+    "div0_error",
+    "value_error",
+    "na_error",
+    "circular_ref_suspected",
+]
+
+HorizontalAlignType = Literal[
+    "general",
+    "left",
+    "center",
+    "right",
+    "fill",
+    "justify",
+    "centerContinuous",
+    "distributed",
+]
+VerticalAlignType = Literal["top", "center", "bottom", "justify", "distributed"]
+
+__all__ = [
+    "FormulaIssueCode",
+    "FormulaIssueLevel",
+    "HorizontalAlignType",
+    "OnConflictPolicy",
+    "PatchBackend",
+    "PatchEngine",
+    "PatchOpType",
+    "PatchStatus",
+    "PatchValueKind",
+    "VerticalAlignType",
+]

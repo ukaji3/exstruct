@@ -67,3 +67,20 @@ adrs:
     superseded_by: []
     related_specs:
       - docs/mcp.md
+  - id: ADR-0006
+    title: Public Edit API and Host-Owned Safety Boundary
+    status: proposed
+    path: dev-docs/adr/ADR-0006-public-edit-api-and-host-boundary.md
+    primary_domain: editing
+    domains:
+      - editing
+      - api
+      - mcp
+      - safety
+    supersedes: []
+    superseded_by: []
+    related_specs:
+      - dev-docs/specs/editing-api.md
+      - dev-docs/specs/data-model.md
+      - docs/api.md
+      - docs/mcp.md

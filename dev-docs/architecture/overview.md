@@ -29,6 +29,15 @@ exstruct/
   io/
     serialize.py
   render/
+  edit/
+    __init__.py
+    api.py
+    service.py
+    models.py
+    normalize.py
+    op_schema.py
+    specs.py
+    types.py
   cli/
     main.py
 ```
@@ -73,9 +82,18 @@ PDF/PNG output (for RAG use cases)
 
 CLI entry point
 
+### edit/
+
+First-class public workbook editing API
+
+- `api.py` / `service.py` → public patch/make entry points for Python callers
+- `models.py` → public edit request/result models
+- `normalize.py` / `specs.py` / `op_schema.py` → public patch-op normalization and schema metadata
+- Phase 1 keeps the proven backend execution under `mcp/patch/*` while `edit/` becomes the canonical public import path
+
 ### mcp/patch (Patch Implementation)
 
-Patch functionality is responsibility-separated under `src/exstruct/mcp/patch/`.
+MCP editing remains the integration layer around the public edit API.
 
 - `patch_runner.py` → compatibility facade for maintaining existing import paths
 - `patch/internal.py` → internal compatibility layer for patch implementation (non-public)
@@ -87,6 +105,14 @@ Patch functionality is responsibility-separated under `src/exstruct/mcp/patch/`.
 - `patch/ops/xlwings_ops.py` → op application entry point for xlwings
 - `patch/normalize.py` / `patch/specs.py` → op normalization and spec metadata
 - `shared/a1.py` / `shared/output_path.py` → shared utilities for A1 notation and output paths
+
+### mcp/
+
+Host-layer responsibilities for MCP and agent tooling
+
+- `io.py` → `PathPolicy` sandbox boundary
+- `tools.py` / `server.py` → tool transport, artifact mirroring, runtime defaults, and thread offloading
+- The MCP layer keeps safety policy and host behavior out of the public Python editing API
 
 ---
 

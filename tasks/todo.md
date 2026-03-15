@@ -19,3 +19,26 @@
 - `adr-reconciler` findings: なし
 - Verification: `rg -n "^## " tasks/feature_spec.md tasks/todo.md`
 - Verification: `git diff --check -- tasks/feature_spec.md tasks/todo.md`
+
+## 2026-03-15 issue #99 phase 1 public edit API
+
+### Planning
+
+- [x] issue #99 の Phase 1 境界を確認し、public API / MCP host boundary を整理する
+- [x] `exstruct.edit` の公開面を定義する
+- [x] op schema / normalize / type metadata の public import path を追加する
+- [x] 既存 MCP compatibility path を維持する
+- [x] ADR / internal spec / public docs を更新する
+- [x] `uv run task precommit-run` を完走する
+
+### Review
+
+- `src/exstruct/edit/` を追加し、`patch_workbook` / `make_workbook` と patch 契約の公開 import path を導入した。
+- `exstruct.edit` は `PathPolicy` を要求せず、既存の patch request/result 契約をそのまま利用する。
+- `src/exstruct/mcp/patch/types.py`, `chart_types.py`, `specs.py`, `normalize.py`, `src/exstruct/mcp/op_schema.py` は `exstruct.edit` の契約モジュールを参照する互換 path に更新した。
+- 恒久文書として `dev-docs/specs/editing-api.md` と `dev-docs/adr/ADR-0006-public-edit-api-and-host-boundary.md` を追加し、ADR index artifacts も同期した。
+- Verification:
+  - `uv run pytest tests/edit/test_api.py`
+  - `uv run pytest tests/mcp/patch/test_normalize.py -q`
+  - `uv run pytest tests/mcp/patch/test_service.py tests/mcp/test_patch_runner.py tests/mcp/test_make_runner.py -q`
+  - `uv run task precommit-run`

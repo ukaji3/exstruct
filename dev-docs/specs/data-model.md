@@ -258,16 +258,18 @@ Common:
 
 ---
 
-# Appendix A. MCP Patch Models
+# Appendix A. Editing Models
 
-The model group used by MCP patch/make operations remains importable from
-`exstruct.mcp.patch_runner` for backward compatibility.
+The model group used by workbook editing remains importable from both
+`exstruct.edit` and `exstruct.mcp.patch_runner` for backward compatibility.
 
 The actual locations are as follows.
 
-- Canonical models: `src/exstruct/mcp/patch/models.py`
+- Primary public import path: `src/exstruct/edit/models.py`
+- Current backing implementation: `src/exstruct/mcp/patch/models.py`
 - Compatibility facade: `src/exstruct/mcp/patch_runner.py`
-- Service layer: `src/exstruct/mcp/patch/service.py`
+- Public service layer: `src/exstruct/edit/service.py`
+- MCP integration layer: `src/exstruct/mcp/patch/service.py`
 
 Primary models:
 

@@ -37,10 +37,20 @@ This document is a human-readable map for navigating ADRs by domain.
 
 - `ADR-0004` Patch Backend Selection Policy (`accepted`)
 - `ADR-0005` PathPolicy Safety Boundary (`accepted`)
+- `ADR-0006` Public Edit API and Host-Owned Safety Boundary (`proposed`)
 
 ## safety
 
 - `ADR-0005` PathPolicy Safety Boundary (`accepted`)
+- `ADR-0006` Public Edit API and Host-Owned Safety Boundary (`proposed`)
+
+## editing
+
+- `ADR-0006` Public Edit API and Host-Owned Safety Boundary (`proposed`)
+
+## api
+
+- `ADR-0006` Public Edit API and Host-Owned Safety Boundary (`proposed`)
 
 ## Supersession Relationships
 
