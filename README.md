@@ -90,6 +90,23 @@ By default, the CLI keeps legacy 0-based numeric string column keys (`"0"`, `"1"
 By default, serialized shape/chart output omits backend metadata (`provenance`, `approximation_level`, `confidence`) to reduce token usage. Use `--include-backend-metadata` or the corresponding Python/MCP option when you need it.
 Note: MCP `exstruct_extract` defaults to `options.alpha_col=true`, which differs from the CLI default (`false`).
 
+## Quick Start Editing CLI
+
+```bash
+exstruct patch --input book.xlsx --ops ops.json --backend openpyxl
+exstruct patch --input book.xlsx --ops - --dry-run --pretty < ops.json
+exstruct make --output new.xlsx --ops ops.json --backend openpyxl
+exstruct ops list
+exstruct ops describe create_chart --pretty
+exstruct validate --input book.xlsx --pretty
+```
+
+- `patch` and `make` print JSON `PatchResult` to stdout.
+- `ops list` / `ops describe` expose the public patch-op schema.
+- `validate` reports workbook readability (`is_readable`, `warnings`, `errors`).
+- Phase 2 keeps the legacy extraction CLI unchanged; it does not add
+  `exstruct extract` or interactive safety flags yet.
+
 ## MCP Server (stdio)
 
 ### Quick Start with `uvx` (recommended)

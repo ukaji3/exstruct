@@ -1,6 +1,11 @@
 # CLI User Guide
 
-This page explains how to run ExStruct from the command line, what each flag does, and common workflows. The CLI wraps `process_excel` under the hood.
+This page explains how to run ExStruct from the command line, what each flag
+does, and common workflows.
+
+- Extraction keeps the legacy `exstruct INPUT.xlsx ...` form and wraps
+  `process_excel`.
+- Editing uses subcommands such as `exstruct patch` and wraps `exstruct.edit`.
 
 ## Basic usage
 
@@ -13,6 +18,58 @@ exstruct INPUT.xlsx --format toon           # TOON output (needs python-toon)
 
 - `INPUT.xlsx` supports `.xlsx/.xlsm/.xls`.
 - Exit code `0` on success, `1` on failure.
+
+## Editing commands
+
+Phase 2 adds JSON-first editing commands while keeping the extraction entrypoint
+unchanged.
+
+```bash
+exstruct patch --input book.xlsx --ops ops.json --backend openpyxl
+exstruct patch --input book.xlsx --ops - --dry-run --pretty < ops.json
+exstruct make --output new.xlsx --ops ops.json --backend openpyxl
+exstruct ops list
+exstruct ops describe create_chart --pretty
+exstruct validate --input book.xlsx --pretty
+```
+
+- `patch` serializes `PatchResult` to stdout and exits `1` only when
+  `PatchResult.error` is present.
+- `make` serializes `PatchResult` for new workbook creation.
+- `ops list` returns compact `{op, description}` summaries.
+- `ops describe` returns the detailed schema for one patch op.
+- `validate` returns input readability checks (`is_readable`, `warnings`,
+  `errors`).
+
+## Editing options
+
+### `patch`
+
+| Flag | Description |
+| ---- | ----------- |
+| `--input PATH` | Existing workbook to edit. |
+| `--ops FILE|-` | JSON array of patch ops from a file or stdin. |
+| `--output PATH` | Optional output workbook path. If omitted, the existing default patch output naming applies. |
+| `--sheet TEXT` | Top-level sheet fallback for patch ops. |
+| `--on-conflict {overwrite,skip,rename}` | Output conflict policy. |
+| `--backend {auto,openpyxl,com}` | Backend selection. |
+| `--auto-formula` | Treat `=...` values in `set_value` ops as formulas. |
+| `--dry-run` | Simulate changes without saving. |
+| `--return-inverse-ops` | Return inverse ops when supported. |
+| `--preflight-formula-check` | Run formula-health validation before saving when supported. |
+| `--pretty` | Pretty-print JSON output. |
+
+### `make`
+
+`make` accepts the same flags as `patch`, except that `--output PATH` is
+required and `--input` is not used. `--ops` is optional; omitting it creates an
+empty workbook.
+
+### `ops` and `validate`
+
+- `exstruct ops list [--pretty]`
+- `exstruct ops describe OP [--pretty]`
+- `exstruct validate --input PATH [--pretty]`
 
 ## Options
 
@@ -59,6 +116,8 @@ exstruct sample.xlsx --pdf --image --dpi 144 -o out.json
 ## Notes
 
 - Optional dependencies are lazy-imported. Missing packages raise a `MissingDependencyError` with install hints.
+- Editing commands are JSON-first and do not add interactive confirmation,
+  backup creation, or path-restriction flags in Phase 2.
 - On non-COM environments, prefer `--mode libreoffice` for best-effort rich extraction on `.xlsx/.xlsm`, or `--mode light` for minimal extraction.
 - `--mode libreoffice` is best-effort, not a strict subset of COM output. It does not render PDFs/PNGs and does not compute auto page-break areas in v1.
 - `--mode libreoffice` combined with `--pdf`, `--image`, or `--auto-page-breaks-dir` fails early with a configuration error instead of silently ignoring the option.

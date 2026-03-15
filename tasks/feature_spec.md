@@ -94,3 +94,78 @@
 
 - `dev-docs/specs/data-model.md` の “actual locations” 先頭 bullet が import path と言いながら filesystem path を示している。
 - `dev-docs/architecture/overview.md` の `edit/` tree に `chart_types.py` と `errors.py` が抜けている。
+
+## 2026-03-15 issue #99 phase 2 editing CLI
+
+### Goal
+
+- Excel editing を first-class CLI として公開し、`exstruct.edit` を薄く包む operational interface を追加する。
+- 既存の抽出 CLI `exstruct INPUT.xlsx ...` は互換維持し、編集系だけ subcommand を追加する。
+- `PatchResult` と既存 patch op/schema 契約を崩さず、agent 向けに JSON-first な CLI を提供する。
+
+### Public contract
+
+- New CLI subcommands:
+  - `exstruct patch`
+  - `exstruct make`
+  - `exstruct ops list`
+  - `exstruct ops describe`
+  - `exstruct validate`
+- Chosen Phase 2 boundaries:
+  - keep legacy extraction CLI entrypoint unchanged
+  - do not add `exstruct extract` in this phase
+  - `validate` means input-file readability validation, not patch request static validation
+  - default output for new edit commands is JSON to stdout
+- `patch` contract:
+  - required flags: `--input`, `--ops`
+  - optional flags: `--output`, `--sheet`, `--on-conflict`, `--backend`, `--auto-formula`, `--dry-run`, `--return-inverse-ops`, `--preflight-formula-check`, `--pretty`
+  - `--ops` accepts a top-level JSON array from file or stdin (`-`)
+  - exit `0` when `PatchResult.error is None`; otherwise emit serialized `PatchResult` and exit `1`
+- `make` contract:
+  - required flag: `--output`
+  - optional flags: `--ops`, `--sheet`, `--on-conflict`, `--backend`, `--auto-formula`, `--dry-run`, `--return-inverse-ops`, `--preflight-formula-check`, `--pretty`
+  - omitted `--ops` defaults to `[]`
+- `ops` contract:
+  - `list` returns compact JSON summaries (`op`, `description`)
+  - `describe` returns detailed schema metadata for one op
+- `validate` contract:
+  - required flag: `--input`
+  - output shape follows the existing input validation result (`is_readable`, `warnings`, `errors`)
+
+### Implementation boundary
+
+- `patch` / `make` / `ops` use `exstruct.edit` as the primary integration surface.
+- `validate` may reuse the existing validation logic, but must not require MCP `PathPolicy`.
+- Phase 2 does not change:
+  - backend selection/fallback policy
+  - patch result schema
+  - MCP tool payloads or server safety policy
+- Phase 2 also excludes:
+  - backup / confirmation / allow-root / deny-glob flags
+  - summary-mode output
+  - request-envelope JSON input
+
+### ADR verdict
+
+- `adr-suggester`: `required`
+- rationale: public CLI contract and CLI/API/MCP responsibility alignment change at policy level, while legacy extraction CLI compatibility is intentionally preserved.
+- existing ADR candidates:
+  - `ADR-0006-public-edit-api-and-host-boundary`
+  - `ADR-0005-path-policy-safety-boundary`
+  - `ADR-0004-patch-backend-selection-policy`
+- suggested next action: `new-adr`
+- candidate ADR title: `Editing CLI as Public Operational Interface`
+
+### Permanent references
+
+- ADR:
+  - `dev-docs/adr/ADR-0007-editing-cli-as-public-operational-interface.md`
+- Internal specs:
+  - `dev-docs/specs/editing-api.md`
+  - `dev-docs/specs/editing-cli.md`
+  - `dev-docs/architecture/overview.md`
+- Public docs:
+  - `docs/cli.md`
+  - `docs/api.md`
+  - `README.md`
+  - `README.ja.md`

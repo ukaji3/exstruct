@@ -3,6 +3,9 @@
 This document defines the Phase 1 public editing contract exposed from
 `exstruct.edit`.
 
+Phase 2 adds a CLI wrapper around this contract; the CLI-specific surface is
+documented separately in `dev-docs/specs/editing-cli.md`.
+
 ## Public import path
 
 - Primary public package: `exstruct.edit`

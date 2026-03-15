@@ -80,6 +80,22 @@ CLI の既定では列キーは従来どおり 0 始まりの数値文字列（`
 CLI の既定では shape/chart の `provenance` / `approximation_level` / `confidence` も出力しません。必要な場合は `--include-backend-metadata` を指定してください。
 注意: MCP の `exstruct_extract` は `options.alpha_col=true` が既定で、CLI の既定（`false`）とは異なります。
 
+## クイックスタート Editing CLI
+
+```bash
+exstruct patch --input book.xlsx --ops ops.json --backend openpyxl
+exstruct patch --input book.xlsx --ops - --dry-run --pretty < ops.json
+exstruct make --output new.xlsx --ops ops.json --backend openpyxl
+exstruct ops list
+exstruct ops describe create_chart --pretty
+exstruct validate --input book.xlsx --pretty
+```
+
+- `patch` / `make` は JSON の `PatchResult` を標準出力に出します。
+- `ops list` / `ops describe` で public patch-op schema を確認できます。
+- `validate` はワークブックの読取可否（`is_readable`, `warnings`, `errors`）を返します。
+- Phase 2 では既存の抽出 CLI はそのまま維持し、`exstruct extract` や対話的な safety flag はまだ追加しません。
+
 ## MCPサーバー (標準入出力)
 
 ### uvx を使ったクイックスタート（推奨）
