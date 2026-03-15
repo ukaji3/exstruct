@@ -216,7 +216,7 @@ Overall code coverage must be **80% or higher**.
 - [RENDER-01] PDF/PNG smoke tests for Excel+COM+pypdfium2 (env ON/OFF)
 - [MODE-08] In light, extract print_areas with openpyxl and exclude them from default output (automatic determination)
 
-## 2.6 Pipeline
+## 9.1 Pipeline
 
 - [PIPE-01] build_pre_com_pipeline includes only the required steps according to include_* and mode
 - [PIPE-02] build_cells_tables_workbook reflects print_areas conditionally and preserves table_candidates
@@ -230,7 +230,7 @@ Overall code coverage must be **80% or higher**.
 - [PIPE-MOD-01] build_workbook_data builds WorkbookData/SheetData from raw containers
 - [PIPE-MOD-02] collect_sheet_raw_data collects extracted data into raw containers
 
-## 2.7 Backend
+## 9.2 Backend
 
 - [BE-01] OpenpyxlBackend switches cell extraction paths depending on whether include_links is enabled
 - [BE-02] OpenpyxlBackend continues with an empty list when table detection fails
@@ -240,16 +240,16 @@ Overall code coverage must be **80% or higher**.
 - [BE-06] OpenpyxlBackend continues with an empty map when merged_cells extraction fails
 - [BE-07] Unimplemented merged_cells in ComBackend raises NotImplementedError
 
-## 2.8 Ranges
+## 9.3 Ranges
 
 - [RNG-01] parse_range_zero_based can normalize sheet-qualified ranges such as "Sheet1!A1:B2"
 
-## 2.9 Table Detection
+## 9.4 Table Detection
 
 - [TBL-01] Rectangular merging does not consolidate rectangles in a containment relationship
 - [TBL-02] Can generate table candidate range strings from a value matrix
 
-## 2.10 Workbook
+## 9.5 Workbook
 
 - [WB-01] openpyxl_workbook calls close regardless of whether an exception occurs
 - [WB-02] openpyxl_workbook sets filters to suppress known openpyxl warnings
@@ -257,11 +257,11 @@ Overall code coverage must be **80% or higher**.
 - [WB-04] _find_open_workbook returns None on a top-level exception
 - [WB-05] xlwings_workbook does not start App if an existing workbook is found
 
-## 2.11 Logging
+## 9.6 Logging
 
 - [LOG-01] log_fallback outputs a warning log including the reason code
 
-## 2.12 Integration/E2E
+## 9.7 Integration/E2E
 
 - [E2E-01] The full flow light extraction → serialize_workbook → export_sheets succeeds
 - [E2E-02] Engine.process can output JSON to a stream when output_path=None

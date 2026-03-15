@@ -26,8 +26,10 @@ sequenceDiagram
     OpenpyxlBackend-->>Pipeline: cells / tables / print_areas
 
     alt Rich backend available
-        Pipeline->>RichBackend: extract()
-        RichBackend-->>Pipeline: shapes / charts
+        Pipeline->>RichBackend: extract_shapes(mode=...)
+        RichBackend-->>Pipeline: shapes
+        Pipeline->>RichBackend: extract_charts(mode=...)
+        RichBackend-->>Pipeline: charts
     else runtime unavailable
         Pipeline->>Pipeline: log_fallback()
     end
