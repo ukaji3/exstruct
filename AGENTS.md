@@ -2,6 +2,26 @@
 
 ## 0. Overview
 
+This repository is organized around the following top-level directories:
+
+```text
+exstruct/
+|- src/           # Main library and implementation code
+|- tests/         # Automated tests
+|- sample/        # Sample workbooks and example inputs
+|- schemas/       # JSON schemas and validation-related assets
+|- scripts/       # Utility and maintenance scripts
+|- benchmark/     # Benchmark code and performance measurements
+|- docs/          # User-facing documentation
+|- dev-docs/      # All developer-facing documentation
+|- tasks/         # Temporary task notes and working files
+|- drafts/        # Draft documents and work-in-progress materials
+|- dist/          # Build artifacts and packaged outputs
+`- site/          # Generated documentation site output
+```
+
+For internal development guidance, architecture notes, ADRs, specifications, and testing references, use `dev-docs/` as the canonical location. Developer-facing documentation should be written there rather than scattered across the repository.
+
 ## 1. Workflow Design
 
 ### 1. Use Plan mode by default
