@@ -1,3 +1,5 @@
+"""Literal type aliases used by the public workbook editing contract."""
+
 from __future__ import annotations
 
 from typing import Literal

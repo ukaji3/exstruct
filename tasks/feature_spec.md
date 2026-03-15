@@ -61,3 +61,24 @@
 - Public docs:
   - `docs/api.md`
   - `docs/mcp.md`
+
+## 2026-03-15 pr #102 review follow-up
+
+### Goal
+
+- PR #102 の妥当な review 指摘だけを取り込み、Phase 1 の公開契約を変えずに不整合と正規化漏れを修正する。
+- `coerce_patch_ops` / `resolve_top_level_sheet_for_payload` の JSON-string op 対応を、dict op と同じ indexed error shape で安定化する。
+- ADR-0006 の status metadata を `accepted` に統一し、PR metadata warning は最小範囲で解消する。
+
+### Accepted findings
+
+- `coerce_patch_ops([None])` が `AttributeError` を漏らし、indexed validation error にならない。
+- `resolve_top_level_sheet_for_payload` が JSON-string op を未解決のまま返し、top-level `sheet` fallback を適用できない。
+- `ADR-0006` の本文と index artifacts の status が不一致。
+
+### Chosen constraints
+
+- public API signature と import path は変更しない。
+- invalid op 型の失敗は `ValueError(build_patch_op_error_message(...))` に統一する。
+- docstring warning 対応は、この PR で新規追加した `src/exstruct/edit/*.py` の不足 module docstring 補完までに限定する。
+- PR 本文は `.github/pull_request_template.md` の見出し構造に合わせるが、Acceptance Criteria は issue #99 phase 1 用に書き換える。

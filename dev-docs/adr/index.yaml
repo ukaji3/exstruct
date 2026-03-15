@@ -69,7 +69,7 @@ adrs:
       - docs/mcp.md
   - id: ADR-0006
     title: Public Edit API and Host-Owned Safety Boundary
-    status: proposed
+    status: accepted
     path: dev-docs/adr/ADR-0006-public-edit-api-and-host-boundary.md
     primary_domain: editing
     domains:

@@ -1,3 +1,5 @@
+"""Patch-op specification metadata exposed from the public edit API."""
+
 from __future__ import annotations
 
 from typing import Final, cast

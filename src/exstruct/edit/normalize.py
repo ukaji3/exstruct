@@ -1,5 +1,8 @@
+"""Normalization helpers for public and MCP patch-op payloads."""
+
 from __future__ import annotations
 
+from collections.abc import Sequence
 import json
 from typing import Any, cast
 
@@ -8,18 +11,30 @@ from exstruct.mcp.shared.a1 import parse_range_geometry
 from .specs import get_alias_map_for_op
 
 
-def coerce_patch_ops(ops_data: list[dict[str, Any] | str]) -> list[dict[str, Any]]:
+def coerce_patch_ops(ops_data: Sequence[object]) -> list[dict[str, Any]]:
     """Normalize patch operations payload for public and MCP callers."""
 
     normalized_ops: list[dict[str, Any]] = []
     for index, raw_op in enumerate(ops_data):
-        parsed_op = (
-            dict(raw_op)
-            if isinstance(raw_op, dict)
-            else parse_patch_op_json(raw_op, index=index)
-        )
+        parsed_op = _coerce_patch_op_mapping(raw_op, index=index)
         normalized_ops.append(normalize_patch_op_aliases(parsed_op, index=index))
     return normalized_ops
+
+
+def _coerce_patch_op_mapping(raw_op: object, *, index: int) -> dict[str, Any]:
+    """Coerce one raw patch operation into a normalized mapping."""
+
+    if isinstance(raw_op, dict):
+        return dict(raw_op)
+    if isinstance(raw_op, str):
+        return parse_patch_op_json(raw_op, index=index)
+    raise ValueError(
+        build_patch_op_error_message(
+            index,
+            "patch op must be an object or JSON string, "
+            f"got {type(raw_op).__name__}: {raw_op!r}",
+        )
+    )
 
 
 def resolve_top_level_sheet_for_payload(data: object) -> object:
@@ -31,12 +46,11 @@ def resolve_top_level_sheet_for_payload(data: object) -> object:
     if not isinstance(ops_raw, list):
         return data
     top_level_sheet = normalize_top_level_sheet(data.get("sheet"))
-    resolved_ops: list[object] = []
+    resolved_ops: list[dict[str, Any]] = []
     for index, op_raw in enumerate(ops_raw):
-        if not isinstance(op_raw, dict):
-            resolved_ops.append(op_raw)
-            continue
-        op_copy = normalize_patch_op_aliases(dict(op_raw), index=index)
+        op_copy = normalize_patch_op_aliases(
+            _coerce_patch_op_mapping(op_raw, index=index), index=index
+        )
         op_name_raw = op_copy.get("op")
         op_name = op_name_raw if isinstance(op_name_raw, str) else ""
         op_sheet = op_copy.get("sheet")

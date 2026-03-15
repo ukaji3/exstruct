@@ -55,6 +55,14 @@ def test_coerce_patch_ops_normalizes_draw_grid_border_range() -> None:
     assert "range" not in result[0]
 
 
+def test_coerce_patch_ops_rejects_non_object_non_string_payload() -> None:
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid patch operation at ops\[0\]: patch op must be an object or JSON string, got NoneType: None",
+    ):
+        coerce_patch_ops([None])
+
+
 def test_resolve_top_level_sheet_for_payload() -> None:
     payload = {
         "sheet": "Sheet1",
@@ -70,8 +78,34 @@ def test_resolve_top_level_sheet_for_payload() -> None:
     assert ops[1]["sheet"] == "Data"
 
 
+def test_resolve_top_level_sheet_for_payload_normalizes_json_string_ops() -> None:
+    payload = {
+        "sheet": "Sheet1",
+        "ops": ['{"op":"set_value","cell":"A1","value":"x"}'],
+    }
+    resolved = resolve_top_level_sheet_for_payload(payload)
+    assert isinstance(resolved, dict)
+    ops = resolved["ops"]
+    assert ops[0] == {
+        "op": "set_value",
+        "sheet": "Sheet1",
+        "cell": "A1",
+        "value": "x",
+    }
+
+
 def test_resolve_top_level_sheet_for_payload_rejects_missing_sheet() -> None:
     with pytest.raises(ValueError, match="missing sheet"):
         resolve_top_level_sheet_for_payload(
             {"ops": [{"op": "set_value", "cell": "A1", "value": "x"}]}
         )
+
+
+def test_resolve_top_level_sheet_for_payload_rejects_non_object_non_string_ops() -> (
+    None
+):
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid patch operation at ops\[0\]: patch op must be an object or JSON string, got NoneType: None",
+    ):
+        resolve_top_level_sheet_for_payload({"sheet": "Sheet1", "ops": [None]})

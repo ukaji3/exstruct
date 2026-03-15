@@ -1,3 +1,5 @@
+"""Human-readable patch operation schema metadata for public callers."""
+
 from __future__ import annotations
 
 from typing import Any, get_args

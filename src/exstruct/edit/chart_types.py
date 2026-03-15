@@ -1,3 +1,5 @@
+"""Chart type constants and COM mappings exposed by the edit API."""
+
 from __future__ import annotations
 
 from typing import Final
