@@ -1,5 +1,51 @@
 # Feature Spec
 
+## 2026-03-15 issue #96 pre-commit mypy fixture decorator error
+
+### Issue
+
+- `uv run task precommit-run` が `tests/conftest.py:243` の mypy エラー `Untyped decorator makes function "_skip_com_for_non_com_tests" untyped` で失敗する。
+- `uv run mypy tests/conftest.py --strict` は通るため、失敗は pre-commit の isolated mypy hook で `@pytest.fixture` が untyped decorator 扱いになる差分に起因している。
+- 既存の COM gating 挙動は変えずに、fixture decorator の型情報だけを補う必要がある。
+
+### Design contract
+
+- 修正対象は `tests/conftest.py` に限定し、repo-wide な mypy 緩和や ignore 追加では解決しない。
+- autouse fixture `_skip_com_for_non_com_tests` の実行順序、環境変数操作、skip 判定ロジックは変更しない。
+- decorator typing は strict mypy と pre-commit hook の両方で解釈できる形にする。
+- 既存コードベースの `cast(...)` を使った decorator typing 回避パターンと整合する最小差分を優先する。
+
+### Verification
+
+- `pre-commit run mypy --all-files` が通る。
+- `uv run task precommit-run` が通る。
+- `tests/conftest.py` の fixture 本体ロジックに挙動差分がない。
+
+## 2026-03-15 issue #95 docs 配下の旧開発文書整理
+
+### Issue
+
+- `dev-docs/` への役割分離後も、`docs/` 配下に旧来の開発者向け文書が残っている。
+- `mkdocs.yml` では `agents/`, `architecture/`, `contributors/` を公開対象外にしているため、現状は「公開されないが repo には残る」二重管理状態になっている。
+- issue #95 では、公開契約を壊さずに旧開発文書を `docs/` から削除し、残る参照を `dev-docs/` 側へ付け替える必要がある。
+
+### Documentation contract
+
+- `docs/` には利用者向け公開文書だけを残し、内部向け開発文書は `dev-docs/` に統一する。
+- 削除対象は `docs/agents/`, `docs/architecture/`, `docs/contributors/` 配下の旧開発文書とする。
+- 既存の repo 内参照で次は `dev-docs/` 側へ更新する。
+  - `README.md` / `README.ja.md` の内部アーキテクチャ導線
+  - `docs/release-notes/v0.2.61.md` の test requirements 参照
+- 公開サイトの nav 対象は維持し、ユーザー向け `docs/*.md` の契約は削除しない。
+- 変更は doc-only とし、実装コードや公開 API 契約は変更しない。
+
+### Verification
+
+- `docs/agents/`, `docs/architecture/`, `docs/contributors/` が削除されている。
+- `README.md` / `README.ja.md` の内部向けリンクが `dev-docs/architecture/` 側を指す。
+- `docs/release-notes/v0.2.61.md` の内部 test requirements 参照が `dev-docs/testing/test-requirements.md` を指す。
+- `rg` で repo 内の現行参照を確認し、削除済みパスへの運用上の参照が残っていない。
+
 ## 2026-03-13 issue #90 ADR management skills
 
 ### Issue

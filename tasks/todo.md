@@ -1,5 +1,62 @@
 # Todo
 
+## 2026-03-15 issue #96 pre-commit mypy fixture decorator error
+
+### Planning
+
+- [x] pre-commit mypy failure を再現し、`uv run mypy` との差分を確認する
+- [x] 別 issue を起票して追跡先を用意する
+- [x] `tasks/feature_spec.md` に修正方針と検証条件を記録する
+- [x] `tests/conftest.py` の fixture decorator typing を最小差分で修正する
+- [x] mypy / precommit-run を再実行し、結果を Review に記録する
+
+### Review
+
+- `uv run task precommit-run` の失敗原因は、`tests/conftest.py` の autouse fixture `@pytest.fixture(autouse=True)` が pre-commit の isolated mypy hook で untyped decorator 扱いされることだった。
+- 再現差分:
+  - `uv run mypy tests/conftest.py --strict` は通る。
+  - `pre-commit run mypy --all-files` は `tests/conftest.py:243` の `Untyped decorator makes function "_skip_com_for_non_com_tests" untyped` で落ちる。
+- 追跡用に GitHub issue #96 `Fix pre-commit mypy fixture decorator error in tests/conftest.py` を起票した。
+- 実装:
+  - `tests/conftest.py` に strict mypy 向けの `_typed_autouse_fixture()` helper を追加した。
+  - helper は `pytest.fixture(autouse=True)` を `Callable[[Callable[P, R]], Callable[P, R]]` として `cast(...)` し、fixture 本体シグネチャを preserved する。
+  - `_skip_com_for_non_com_tests` のロジック、環境変数操作、COM gating 条件は変更していない。
+- 検証:
+  - `pre-commit run mypy --all-files` -> pass
+  - `uv run mypy tests/conftest.py --strict` -> pass
+  - `uv run task precommit-run` -> pass
+
+## 2026-03-15 issue #95 docs 配下の旧開発文書整理
+
+### Planning
+
+- [x] issue #95 の意図と `docs/` / `dev-docs/` の現状を確認する
+- [x] `tasks/feature_spec.md` に削除対象、更新対象、検証条件を記録する
+- [x] `docs/agents/`, `docs/architecture/`, `docs/contributors/` を削除し、残る参照を更新する
+- [x] `rg` と必要な文書確認で参照整合性を検証する
+- [x] Review を記録し、恒久文書への追加移管が不要か確認する
+
+### Review
+
+- issue #95 は、`dev-docs/` への役割分離後に残っていた `docs/` 配下の旧開発文書を削除し、repo 内の残存リンクを canonical な `dev-docs/` パスへ寄せる整理タスクとして扱った。
+- 調査結果:
+  - `mkdocs.yml` は既に `agents/`, `architecture/`, `contributors/` を `exclude_docs` に入れており、対象文書は公開サイト nav 外だった。
+  - `docs/agents/*.md`, `docs/architecture/pipeline.md`, `docs/contributors/architecture.md` には `dev-docs/` 側の移管先が存在していた。
+  - 残存参照は主に `README.md`, `README.ja.md`, `docs/release-notes/v0.2.61.md` に限られていた。
+- 実施した変更:
+  - `docs/agents/` の 10 ファイルを削除した。
+  - `docs/architecture/pipeline.md` と `docs/contributors/architecture.md` を削除した。
+  - `README.md` / `README.ja.md` の内部アーキテクチャ導線を `dev-docs/architecture/pipeline.md` と `dev-docs/architecture/contributor-guide.md` へ更新した。
+  - `docs/release-notes/v0.2.61.md` の test requirements 参照を `dev-docs/testing/test-requirements.md` へ更新した。
+- 恒久文書の扱い:
+  - 追加で `dev-docs/` へ移管すべき内容はなかった。canonical な内部文書は既に `dev-docs/agents/`, `dev-docs/architecture/`, `dev-docs/specs/`, `dev-docs/testing/` に存在する。
+  - ADR 追加は不要と判断した。今回の変更は既存の文書配置方針に従う cleanup であり、新しい設計判断や公開契約変更は含まない。
+- 検証:
+  - `Get-ChildItem docs -Recurse -File` で `docs/` 配下に公開向け文書だけが残っていることを確認した。
+  - `rg -n "docs/agents/|docs/architecture/pipeline\\.md|docs/contributors/architecture\\.md" README.md README.ja.md docs mkdocs.yml dev-docs` で、削除済みパスへの運用上の参照が残っていないことを確認した。
+  - `git diff --check` は whitespace error なし。CRLF 変換警告のみ。
+  - `uv run task precommit-run` は `tests/conftest.py:243` の既存 mypy エラー `Untyped decorator makes function "_skip_com_for_non_com_tests" untyped` で失敗した。issue #95 の doc-only 変更とは無関係のため、今回の差分では未対応とした。
+
 ## 2026-03-13 issue #90 ADR management skills
 
 ### Planning
