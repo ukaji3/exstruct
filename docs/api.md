@@ -105,6 +105,8 @@ Key points:
   MCP patch contract in Phase 1.
 - Use `list_patch_op_schemas()` / `get_patch_op_schema()` to inspect the public
   operation schema programmatically.
+- The matching operational CLI is `exstruct patch`, `exstruct make`,
+  `exstruct ops`, and `exstruct validate`.
 
 ## Dependencies
 

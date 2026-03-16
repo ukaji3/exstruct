@@ -1,4 +1,4 @@
-"""Command-line interface for running ExStruct extraction."""
+"""Command-line interface for ExStruct extraction and editing."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import sys
 
 from exstruct import process_excel
 from exstruct.cli.availability import ComAvailability, get_com_availability
+from exstruct.cli.edit import is_edit_subcommand, run_edit_cli
 
 
 def _ensure_utf8_stdout() -> None:
@@ -56,7 +57,16 @@ def build_parser(
         Configured argument parser.
     """
     parser = argparse.ArgumentParser(
-        description="Dev-only CLI stub for ExStruct extraction."
+        description="CLI for ExStruct extraction.",
+        epilog=(
+            "Editing commands:\n"
+            "  exstruct patch --input book.xlsx --ops ops.json\n"
+            "  exstruct make --output new.xlsx --ops ops.json\n"
+            "  exstruct ops list\n"
+            "  exstruct ops describe create_chart\n"
+            "  exstruct validate --input book.xlsx"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("input", type=Path, help="Excel file (.xlsx/.xlsm/.xls)")
     parser.add_argument(
@@ -150,8 +160,12 @@ def main(argv: list[str] | None = None) -> int:
         Exit code (0 for success, 1 for failure).
     """
     _ensure_utf8_stdout()
+    resolved_argv = list(sys.argv[1:] if argv is None else argv)
+    if is_edit_subcommand(resolved_argv):
+        return run_edit_cli(resolved_argv)
+
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(resolved_argv)
 
     input_path: Path = args.input
     if not input_path.exists():

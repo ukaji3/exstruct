@@ -41,3 +41,4 @@ ADRs record what was decided, under which constraints, and which trade-offs were
 | `ADR-0004` | Patch Backend Selection Policy | `accepted` | `mcp` |
 | `ADR-0005` | PathPolicy Safety Boundary | `accepted` | `safety` |
 | `ADR-0006` | Public Edit API and Host-Owned Safety Boundary | `accepted` | `editing` |
+| `ADR-0007` | Editing CLI as Public Operational Interface | `accepted` | `editing` |

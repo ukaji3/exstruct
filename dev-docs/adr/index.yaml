@@ -84,3 +84,21 @@ adrs:
       - dev-docs/specs/data-model.md
       - docs/api.md
       - docs/mcp.md
+  - id: ADR-0007
+    title: Editing CLI as Public Operational Interface
+    status: accepted
+    path: dev-docs/adr/ADR-0007-editing-cli-as-public-operational-interface.md
+    primary_domain: editing
+    domains:
+      - editing
+      - cli
+      - compatibility
+    supersedes: []
+    superseded_by: []
+    related_specs:
+      - dev-docs/specs/editing-api.md
+      - dev-docs/specs/editing-cli.md
+      - docs/cli.md
+      - docs/api.md
+      - README.md
+      - README.ja.md

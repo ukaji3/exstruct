@@ -82,3 +82,28 @@
 - Verification:
   - `git diff --check`
   - `uv run task precommit-run`
+
+## 2026-03-15 issue #99 phase 2 editing CLI
+
+### Planning
+
+- [x] issue #99 の Phase 2 を CLI 追加として固定し、legacy extraction CLI との互換境界を明文化する
+- [x] `patch` / `make` / `ops list` / `ops describe` / `validate` の CLI surface を実装する
+- [x] `patch` / `make` を `exstruct.edit` に接続し、JSON-first 出力と exit code 契約を整える
+- [x] `validate` を入力ファイル検証 CLI として追加し、MCP `PathPolicy` なしで動作させる
+- [x] CLI 回帰/新規テストを追加し、legacy extraction path の互換を確認する
+- [x] ADR / internal spec / public docs / README.ja parity を更新する
+- [x] targeted pytest と `uv run task precommit-run` を実行する
+
+### Review
+
+- `src/exstruct/cli/edit.py` を追加し、`patch` / `make` / `ops` / `validate` の editing CLI を実装した。
+- `src/exstruct/cli/main.py` は first-token dispatch で editing subcommands だけを edit parser に回し、legacy extraction CLI はそのまま維持した。
+- `patch` / `make` は `exstruct.edit` を呼び、`PatchResult` JSON を stdout に出したうえで `error is None` のときだけ exit `0` にした。
+- `validate` は既存の入力ファイル検証ロジックを CLI に昇格し、`is_readable` / `warnings` / `errors` を JSON で返すようにした。
+- 恒久文書として `dev-docs/specs/editing-cli.md` と `dev-docs/adr/ADR-0007-editing-cli-as-public-operational-interface.md` を追加し、ADR index artifacts と CLI/API/README 文書を更新した。
+- Verification:
+  - `uv run pytest tests/cli/test_edit_cli.py tests/cli/test_cli.py tests/cli/test_cli_alpha_col.py tests/edit/test_api.py tests/mcp/test_validate_input.py -q`
+  - `uv run pytest tests/core/test_mode_output.py -q`
+  - `uv run task precommit-run`
+  - `git diff --check`

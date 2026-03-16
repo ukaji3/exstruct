@@ -41,6 +41,7 @@ exstruct/
     specs.py
     types.py
   cli/
+    edit.py
     main.py
 ```
 
@@ -83,6 +84,12 @@ PDF/PNG output (for RAG use cases)
 ### cli/
 
 CLI entry point
+
+- `main.py` keeps the legacy extraction CLI and dispatches to editing
+  subcommands only when the first token matches `patch` / `make` / `ops` /
+  `validate`
+- `edit.py` contains the Phase 2 editing parser, JSON serialization helpers,
+  and wrappers around `exstruct.edit`
 
 ### edit/
 

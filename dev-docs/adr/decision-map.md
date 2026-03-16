@@ -32,6 +32,7 @@ This document is a human-readable map for navigating ADRs by domain.
 
 - `ADR-0003` Output Serialization Omission Policy (`accepted`)
 - `ADR-0004` Patch Backend Selection Policy (`accepted`)
+- `ADR-0007` Editing CLI as Public Operational Interface (`accepted`)
 
 ## mcp
 
@@ -47,10 +48,15 @@ This document is a human-readable map for navigating ADRs by domain.
 ## editing
 
 - `ADR-0006` Public Edit API and Host-Owned Safety Boundary (`accepted`)
+- `ADR-0007` Editing CLI as Public Operational Interface (`accepted`)
 
 ## api
 
 - `ADR-0006` Public Edit API and Host-Owned Safety Boundary (`accepted`)
+
+## cli
+
+- `ADR-0007` Editing CLI as Public Operational Interface (`accepted`)
 
 ## Supersession Relationships
 
