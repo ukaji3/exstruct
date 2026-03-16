@@ -305,9 +305,8 @@ The patch implementation is layered to keep compatibility while enabling refacto
 
 - `exstruct.edit`: first-class Python editing API
 - `exstruct.mcp.patch_runner`: compatibility facade (existing import path)
-- `exstruct.mcp.patch.service`: patch/make orchestration
-- `exstruct.mcp.patch.engine.*`: backend execution boundaries (openpyxl/com)
-- `exstruct.mcp.patch.runtime`: runtime utilities (path/backend selection)
+- `exstruct.edit.service` / `exstruct.edit.runtime` / `exstruct.edit.engine.*`: canonical editing core used by MCP
+- `exstruct.mcp.patch.service` / `exstruct.mcp.patch.runtime` / `exstruct.mcp.patch.engine.*`: compatibility shims around that core
 - `exstruct.mcp.patch.ops.*`: backend-specific op application entrypoints
 
 This keeps MCP tool I/O stable while allowing the Python API and host policy to

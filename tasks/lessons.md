@@ -78,3 +78,8 @@
 
 - When a template defines a required section such as `状態`, mirror that exact requirement in the producing or linting skill checklist; validating only the value is not enough if the section itself can be omitted.
 - When recording validation commands in tracked docs, avoid machine-specific absolute paths; use a placeholder or portable form so the evidence remains reproducible across contributors.
+
+## 2026-03-16 pytest collection naming lessons
+
+- When adding new pytest files under different directories, keep the basename unique across the repository unless the directories are explicit Python packages; duplicate `test_*.py` basenames can trigger `import file mismatch` during collection.
+- For new test modules, run a targeted `--collect-only` check against any similarly named legacy test files before reporting completion.

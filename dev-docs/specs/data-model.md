@@ -266,10 +266,10 @@ The model group used by workbook editing remains importable from both
 The actual locations are as follows.
 
 - Primary public import path: `exstruct.edit` / `exstruct.edit.models`
-- Current backing implementation module: `exstruct.mcp.patch.models`
+- Current backing implementation module: `exstruct.edit.models`
 - Compatibility facade import path: `exstruct.mcp.patch_runner`
 - Public service layer import path: `exstruct.edit.service`
-- MCP integration layer import path: `exstruct.mcp.patch.service`
+- MCP integration layer import path: `exstruct.mcp.patch.service` (shim)
 
 Primary models:
 

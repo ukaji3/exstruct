@@ -1,10 +1,10 @@
-"""Compatibility wrapper for the legacy xlwings engine import path."""
+"""Canonical xlwings engine boundary for workbook editing."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from exstruct.mcp.patch.models import PatchOp
+from exstruct.edit.models import PatchOp
 from exstruct.mcp.patch.ops.xlwings_ops import apply_xlwings_ops
 
 
@@ -14,7 +14,7 @@ def apply_xlwings_engine(
     ops: list[PatchOp],
     auto_formula: bool,
 ) -> list[object]:
-    """Apply patch operations using the legacy xlwings engine boundary."""
+    """Apply patch operations using the existing xlwings backend implementation."""
     return apply_xlwings_ops(input_path, output_path, ops, auto_formula)
 
 

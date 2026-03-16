@@ -31,9 +31,15 @@ exstruct/
   render/
   edit/
     __init__.py
+    a1.py
     api.py
     chart_types.py
+    engine/
+      __init__.py
+      openpyxl_engine.py
+      xlwings_engine.py
     errors.py
+    runtime.py
     service.py
     models.py
     normalize.py
@@ -95,21 +101,22 @@ CLI entry point
 
 First-class public workbook editing API
 
-- `api.py` / `service.py` → public patch/make entry points for Python callers
-- `models.py` → public edit request/result models
+- `api.py` → public patch/make entry points for Python callers
+- `service.py` → canonical patch/make orchestration used by both Python API and MCP
+- `models.py` → canonical edit request/result models
+- `runtime.py` → canonical backend selection and conflict-handling helpers
+- `engine/*` → canonical backend execution boundaries
+- `a1.py` → A1 helpers owned by the edit core
 - `normalize.py` / `specs.py` / `op_schema.py` → public patch-op normalization and schema metadata
-- Phase 1 keeps the proven backend execution under `mcp/patch/*` while `edit/` becomes the canonical public import path
+- `ops` still execute through `mcp/patch/ops/*` and `patch/internal.py` in Phase 3; `mcp/patch/*` above that layer is now compatibility glue
 
 ### mcp/patch (Patch Implementation)
 
 MCP editing remains the integration layer around the public edit API.
 
-- `patch_runner.py` → compatibility facade for maintaining existing import paths
+- `patch_runner.py` → compatibility facade for maintaining existing import paths and syncing host overrides
 - `patch/internal.py` → internal compatibility layer for patch implementation (non-public)
-- `patch/service.py` → orchestration of `run_patch` / `run_make`
-- `patch/runtime.py` → runtime utilities for path/backend selection
-- `patch/engine/openpyxl_engine.py` → openpyxl execution boundary
-- `patch/engine/xlwings_engine.py` → xlwings (COM) execution boundary
+- `patch/service.py` / `patch/runtime.py` / `patch/engine/*` → compatibility shims around `exstruct.edit`
 - `patch/ops/openpyxl_ops.py` → op application entry point for openpyxl
 - `patch/ops/xlwings_ops.py` → op application entry point for xlwings
 - `patch/normalize.py` / `patch/specs.py` → op normalization and spec metadata
