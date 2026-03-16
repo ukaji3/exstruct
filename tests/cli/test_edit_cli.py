@@ -482,10 +482,13 @@ def test_main_prefers_existing_legacy_input_for_ambiguous_command_names(
     [
         ["patch", "--help"],
         ["patch", "--input", "book.xlsx", "--ops", "ops.json"],
+        ["patch", "--input=book.xlsx", "--ops=ops.json"],
         ["make", "--help"],
         ["make", "--ops", "ops.json"],
+        ["make", "--ops=ops.json"],
         ["ops", "list"],
         ["validate", "--input", "book.xlsx"],
+        ["validate", "--input=book.xlsx"],
     ],
 )
 def test_is_edit_subcommand_keeps_explicit_edit_syntax_even_when_name_collides(

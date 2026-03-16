@@ -9,6 +9,7 @@
 - [x] `_load_patch_ops` の defensive guard を CLI 契約に沿う例外型へ揃える
 - [x] 回帰テストを追加して `patch` / `make` の failure path を検証する
 - [x] command-name collision で legacy extraction が壊れないよう dispatch を調整する
+- [x] explicit edit syntax 判定が `--flag=value` form も扱えるようにする
 - [x] targeted pytest と `uv run task precommit-run` を実行する
 
 ### Review
@@ -19,6 +20,7 @@
 - `tests/cli/test_edit_cli.py` に helper 契約破壊を monkeypatch で注入する回帰テストを追加し、`patch` / `make` の両方で clean failure を確認した。
 - `src/exstruct/cli/edit.py` の dispatch 判定は edit 固有シグナルがない限り既存ファイル名を優先するように調整し、`patch` / `make` / `ops` / `validate` と同名の legacy input を extraction path に戻した。
 - `tests/cli/test_edit_cli.py` に command-name collision の回帰テストと、衝突時でも `--input` / `ops list` / `--help` などの explicit edit syntax が edit CLI を維持するテストを追加した。
+- PR `#104` の追加 review 指摘に対応し、explicit edit syntax 判定は `--input=book.xlsx` / `--ops=ops.json` / `--input=...` の `--flag=value` form も edit CLI として扱うようにした。
 - 永続化が必要な新規仕様や ADR 判断はなく、この task section は session 記録としてのみ保持する。
 - Verification:
   - `uv run pytest tests/cli/test_edit_cli.py -q`

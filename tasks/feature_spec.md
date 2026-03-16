@@ -14,6 +14,7 @@
 - `dev-docs/specs/editing-cli.md` は JSON parse / validation / local I/O failure を CLI error + exit `1` と規定しており、同モジュール内の invariant guard だけ例外挙動が異なる理由はない。
 - `src/exstruct/cli/main.py` の first-token dispatch は `patch` / `make` / `ops` / `validate` と同名の既存ファイル入力を edit CLI に誤送しうるため、legacy extraction compatibility の要件と衝突する。
 - 既存回帰テストは `patch.xlsx` のような非衝突ケースしか見ておらず、command-name collision を防げない。
+- explicit edit syntax の判定は `--input=book.xlsx` のような `--flag=value` 形式を見落としており、同名ファイルが存在すると valid な edit invocation を extraction に誤送しうる。
 
 ### Chosen constraints
 
@@ -21,6 +22,7 @@
 - defensive guard は `TypeError` 拡張ではなく `ValueError` に統一し、既存の user-facing error path に載せる。
 - 回帰テストは monkeypatch で helper 契約破壊を注入し、`patch` と `make` の双方で clean failure を確認する。
 - edit dispatch は bare token だけではなく edit 固有シグナルも見て判定し、既存ファイル名との衝突時は extraction を優先する。
+- explicit edit syntax には `--flag value` だけでなく `--flag=value` の long-option form も含める。
 
 ## 2026-03-15 tasks document cleanup
 

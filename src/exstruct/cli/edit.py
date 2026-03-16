@@ -92,7 +92,18 @@ def _targets_edit_cli_explicitly(command: str, remainder: list[str]) -> bool:
     """Return whether argv contains edit-only syntax for one subcommand."""
 
     tokens = _EXPLICIT_EDIT_TOKENS[command]
-    return any(token in tokens for token in remainder)
+    return any(_matches_explicit_edit_token(token, tokens) for token in remainder)
+
+
+def _matches_explicit_edit_token(token: str, tokens: frozenset[str]) -> bool:
+    """Return whether one argv token clearly targets the edit CLI."""
+
+    if token in tokens:
+        return True
+    if not token.startswith("--"):
+        return False
+    option_name, _, _ = token.partition("=")
+    return option_name in tokens
 
 
 def build_edit_parser() -> argparse.ArgumentParser:
