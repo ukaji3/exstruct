@@ -1,5 +1,61 @@
 # Feature Spec
 
+## 2026-03-16 issue #99 phase 3 MCP rewiring to public edit core
+
+### Goal
+
+- issue `#99` の Phase 3 として、MCP patch/make 実行経路を `exstruct.edit` 正本の editing core に再配線する。
+- workbook editing の source of truth を `exstruct.edit` に寄せ、MCP は host/integration layer と互換 facade に責務を限定する。
+- public API / CLI / MCP tool contract、`PathPolicy` safety boundary、backend selection/fallback policy は維持したまま内部 ownership を整理する。
+
+### Current state
+
+- `src/exstruct/edit/service.py` の `patch_workbook()` / `make_workbook()` は `exstruct.mcp.patch.service.run_patch()` / `run_make()` を `policy=None` で呼ぶだけの薄い wrapper である。
+- `src/exstruct/mcp/tools.py` の `run_patch_tool()` / `run_make_tool()` は `PatchRequest` / `MakeRequest` を組み立てて `exstruct.mcp.patch_runner.run_patch()` / `run_make()` に委譲している。
+- `src/exstruct/mcp/patch_runner.py` は `service.run_patch()` / `run_make()` に委譲する互換 facade であり、`get_com_availability` monkeypatch 伝播だけを自前で持っている。
+- editing model の実体は依然として `src/exstruct/mcp/patch/models.py` にあり、`src/exstruct/edit/models.py` はそれを再 export している。
+- `src/exstruct/mcp/patch/runtime.py` と `src/exstruct/mcp/patch/engine/*` は patch/make orchestration の実効依存として残っている。
+
+### Chosen scope
+
+- 今回の canonical core は `edit.models` / `edit.runtime` / `edit.engine.*` / `edit.service` までを対象とする。
+- 低レベル op 実装 (`mcp.patch.internal`, `mcp.patch.ops.*`) は Phase 3 では全面移管しない。必要最小限の import 差し替えで edit-backed engine から再利用する。
+- `mcp.patch.models` / `runtime` / `engine.*` / `service` / `patch_runner` は backward compatibility を維持する shim として残す。
+- `mcp.tools` / `mcp.server` は host 責務のみを維持し、tool payload shape、artifact mirroring、thread offload、server default `on_conflict` を保持する。
+
+### Contract invariants
+
+- `exstruct.edit` の public import path は維持する。
+- `PatchOp`, `PatchRequest`, `MakeRequest`, `PatchResult`, `PatchDiffItem`, `PatchErrorDetail`, `FormulaIssue` は `exstruct.edit` と `exstruct.mcp.patch_runner` の両方から引き続き import 可能にする。
+- CLI (`exstruct patch`, `exstruct make`, `exstruct ops`, `exstruct validate`) の引数・JSON 出力・exit code は変更しない。
+- MCP tools (`exstruct_patch`, `exstruct_make`) の入出力 shape、tool 名、`mirror_artifact`, `mirrored_out_path`, server default `on_conflict` 挙動は変更しない。
+- `PathPolicy` は引き続き MCP host-owned behavior とし、`exstruct.edit` の public API には持ち込まない。
+- backend selection / fallback policy と既存 warning / error payload shape は変更しない。
+
+### Implementation decisions
+
+- `src/exstruct/edit/models.py` に editing models の実体を移し、`src/exstruct/mcp/patch/models.py` は edit models を再 export する互換 module に変える。
+- `src/exstruct/edit/runtime.py` を新設または同等の ownership 移管で、path-policy 非依存な runtime helper を保持する。MCP 固有の path 解決はここに置かない。
+- `src/exstruct/edit/engine/openpyxl_engine.py` と `src/exstruct/edit/engine/xlwings_engine.py` を canonical engine boundary にし、既存 `mcp.patch.ops.*` を内部 backend adapter として呼ぶ。
+- `src/exstruct/edit/service.py` が patch/make orchestration の正本となり、`src/exstruct/mcp/patch/service.py` は request を edit core に流す wrapper にする。
+- `src/exstruct/mcp/patch_runner.py` は `PathPolicy` を使って request path を許可済み絶対 path に正規化し、その後で edit core を呼ぶ。`get_com_availability` の monkeypatch も edit runtime に同期する。
+- `src/exstruct/mcp/tools.py` は request/result tool model の変換と artifact mirroring を担当し続けるが、editing behavior 自体は持たない。
+
+### Test and verification requirements
+
+- `tests/edit/test_api.py` は public API の成功経路に加えて、editing models の ownership が `edit` 側へ寄った後も import compatibility が保たれることを検証する。
+- patch/make orchestration の主要回帰は `tests/edit` 側に移し、backend auto/com/openpyxl、fallback、formula preflight、make seed flow を core 観点で固定する。
+- `tests/mcp/test_patch_runner.py` / `tests/mcp/test_make_runner.py` は `PathPolicy` による root/deny_glob と相対 path 解決、legacy monkeypatch override を固定する shim test として維持する。
+- `tests/mcp/test_tools_handlers.py` / `tests/mcp/test_server.py` は tool payload 変換、default `on_conflict`、artifact mirroring、thread offload など host behavior の不変性を確認する。
+- `tests/mcp/patch/test_models_internal_coverage.py` は `mcp.patch.models` が `edit.models` の互換 facade であることを確認する方向へ更新する。
+- 最終検証は `uv run pytest tests/edit -q`、`uv run pytest tests/mcp/test_patch_runner.py tests/mcp/test_make_runner.py tests/mcp/test_tools_handlers.py tests/mcp/test_server.py -q`、`uv run pytest tests/mcp/patch -q`、`uv run task precommit-run` とする。
+
+### ADR / docs retention
+
+- 現時点の ADR verdict は `not-needed`。理由は ADR-0006 が既に「public edit API を正本、MCP は host boundary」という方針を記録しており、Phase 3 はその内部実装寄せだからである。
+- ただし implementation 中に public contract、backend policy、safety boundary、MCP payload shape のいずれかを変更する必要が出た場合は、ADR-0006 更新または新規 ADR を再判定する。
+- 恒久文書の更新対象は `dev-docs/specs/editing-api.md`、`dev-docs/specs/data-model.md` Appendix A、`dev-docs/architecture/overview.md`、`docs/mcp.md` を最低ラインとする。
+
 ## 2026-03-16 pr #103 unresolved review follow-up
 
 ### Goal

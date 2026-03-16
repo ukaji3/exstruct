@@ -1,5 +1,23 @@
 # Todo
 
+## 2026-03-16 issue #99 phase 3 MCP rewiring to public edit core
+
+### Planning
+
+- [ ] `exstruct.edit` を workbook editing の canonical core にする Phase 3 境界を固定する
+- [ ] `edit.models` を editing model の正本にし、`mcp.patch.models` を互換 shim に切り替える
+- [ ] `edit.runtime` に backend 選択・conflict handling・make seed orchestration を集約する
+- [ ] `edit.engine.*` を canonical engine boundary にし、`mcp.patch.engine.*` を互換 shim に寄せる
+- [ ] `edit.service` に patch/make orchestration を移し、`mcp.patch.service` を edit-backed wrapper に整理する
+- [ ] `mcp.patch_runner` で `PathPolicy` による path canonicalization と legacy monkeypatch override を吸収する
+- [ ] `mcp.tools` / `mcp.server` は tool payload、default `on_conflict`、artifact mirroring、thread offload など host 責務のみを維持する
+- [ ] core test と MCP shim test を分離して回帰を追加する
+- [ ] `dev-docs/specs/editing-api.md`、`dev-docs/specs/data-model.md`、`dev-docs/architecture/overview.md`、`docs/mcp.md` を現行実装に合わせて更新する
+- [ ] `uv run pytest tests/edit -q` を実行する
+- [ ] `uv run pytest tests/mcp/test_patch_runner.py tests/mcp/test_make_runner.py tests/mcp/test_tools_handlers.py tests/mcp/test_server.py -q` を実行する
+- [ ] `uv run pytest tests/mcp/patch -q` を実行する
+- [ ] `uv run task precommit-run` を実行する
+
 ## 2026-03-16 pr #103 unresolved review follow-up
 
 ### Planning
