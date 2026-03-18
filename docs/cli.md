@@ -1,11 +1,12 @@
 # CLI User Guide
 
 This page explains how to run ExStruct from the command line, what each flag
-does, and common workflows.
+does, and the recommended workflows for extraction and workbook editing.
 
 - Extraction keeps the legacy `exstruct INPUT.xlsx ...` form and wraps
   `process_excel`.
-- Editing uses subcommands such as `exstruct patch` and wraps `exstruct.edit`.
+- Editing uses subcommands such as `exstruct patch`, wraps `exstruct.edit`, and
+  serves as the canonical operational / agent interface for workbook editing.
 
 ## Basic usage
 
@@ -22,7 +23,10 @@ exstruct INPUT.xlsx --format toon           # TOON output (needs python-toon)
 ## Editing commands
 
 Phase 2 adds JSON-first editing commands while keeping the extraction entrypoint
-unchanged.
+unchanged. Prefer these commands for local shell automation or AI-agent edit
+workflows. If you are writing direct Python workbook-editing code,
+`openpyxl` / `xlwings` are usually simpler; use `exstruct.edit` only when you
+need ExStruct's patch contract inside Python.
 
 ```bash
 exstruct patch --input book.xlsx --ops ops.json --backend openpyxl
@@ -33,13 +37,43 @@ exstruct ops describe create_chart --pretty
 exstruct validate --input book.xlsx --pretty
 ```
 
-- `patch` serializes `PatchResult` to stdout and exits `1` only when
-  `PatchResult.error` is present.
-- `make` serializes `PatchResult` for new workbook creation.
+- `patch` serializes `PatchResult` to stdout once request parsing and execution
+  begin. Invalid JSON, request validation failures, and local runtime errors
+  are printed to stderr and exit `1` before any JSON payload is produced.
+- `make` follows the same stdout/stderr contract for new workbook creation.
 - `ops list` returns compact `{op, description}` summaries.
 - `ops describe` returns the detailed schema for one patch op.
 - `validate` returns input readability checks (`is_readable`, `warnings`,
   `errors`).
+
+## Recommended editing workflow
+
+1. Build or load your patch op JSON.
+2. Run `exstruct patch --dry-run` and inspect `PatchResult`, warnings, and
+   `patch_diff`.
+3. If you want the dry run and the real apply to use the same engine, pin
+   `--backend openpyxl`.
+4. If you keep `--backend auto`, inspect `PatchResult.engine`; on
+   Windows/Excel hosts the non-dry-run apply may switch from openpyxl to COM.
+5. Apply the chosen backend without `--dry-run` only after the result is
+   acceptable.
+6. Re-run extraction or another validation step if the workbook is part of a
+   larger pipeline.
+
+If you need host-managed path restrictions, transport mapping, or artifact
+mirroring, switch to MCP instead of extending the local CLI path.
+
+## Editing backend guidance
+
+- `--backend openpyxl` is the default choice for ordinary cell/style edits and
+  all `--dry-run` / `--return-inverse-ops` / `--preflight-formula-check`
+  workflows.
+- `--backend com` is required for COM-only behavior such as `create_chart` and
+  `.xls` editing.
+- `--backend auto` keeps the existing backend-selection policy and reports the
+  actual backend in `PatchResult.engine`. `--dry-run`,
+  `--return-inverse-ops`, and `--preflight-formula-check` still force the
+  openpyxl path.
 
 ## Editing options
 
@@ -118,6 +152,9 @@ exstruct sample.xlsx --pdf --image --dpi 144 -o out.json
 - Optional dependencies are lazy-imported. Missing packages raise a `MissingDependencyError` with install hints.
 - Editing commands are JSON-first and do not add interactive confirmation,
   backup creation, or path-restriction flags in Phase 2.
+- Use the CLI for local operational flows; use MCP when you need host-owned
+  safety policy. For direct Python workbook editing, `openpyxl` / `xlwings`
+  are usually the better fit.
 - On non-COM environments, prefer `--mode libreoffice` for best-effort rich extraction on `.xlsx/.xlsm`, or `--mode light` for minimal extraction.
 - `--mode libreoffice` is best-effort, not a strict subset of COM output. It does not render PDFs/PNGs and does not compute auto page-break areas in v1.
 - `--mode libreoffice` combined with `--pdf`, `--image`, or `--auto-page-breaks-dir` fails early with a configuration error instead of silently ignoring the option.

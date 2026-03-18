@@ -16,14 +16,29 @@
 
 # ExStruct — Excel 構造化抽出エンジン
 
-ExStruct は Excel ワークブックを読み取り、構造化データ（セル・テーブル候補・図形・チャート・SmartArt・印刷範囲ビュー）をデフォルトで JSON に出力します。CLI と Python API と MCPサーバー を提供し、LLM/RAG 向けの前処理やドキュメント理解に最適化された抽出オプションを備えています。
+ExStruct は Excel ワークブックを構造化データへ抽出し、shared core を通じて
+patch-based な編集フローも扱えます。抽出 API、JSON-first editing CLI、
+host-managed integration 向けの MCP サーバーを提供し、LLM/RAG 向け前処理、
+レビューしやすい編集フロー、ローカル自動化に使える設計になっています。
 
 - COM/Excel 環境 (Windows) ではリッチ抽出
 - 非 COM 環境 (Linux/macOS) では
   - LibreOffice runtime があればセル・テーブル候補・図形・グラフ（best-effort）
   - それ以外の環境ではセル＋テーブル候補＋印刷範囲へのフォールバックで安全に動作します。
 
-LLM/RAG 向けに検出ヒューリスティックや出力モードを調整可能です。
+LLM/RAG 向けに検出ヒューリスティックや出力モードを調整でき、編集ワーク
+フローも同じ責務分離で扱えます。
+
+## インターフェースの選び方
+
+| 用途 | 推奨インターフェース | 理由 |
+| --- | --- | --- |
+| Python で直接 Excel 編集コードを書く | `openpyxl` / `xlwings` | imperative な Python 編集にはこちらの方が普通は適しています。`exstruct.edit` は ExStruct の patch contract を Python から再利用したい場合だけ使います。 |
+| ローカル運用や AI エージェントの編集フローを回す | `exstruct patch` / `make` / `ops` / `validate` | canonical operational interface。JSON-first で `dry_run` に向きます。 |
+| sandboxed / host-managed integration を動かす | `exstruct-mcp` / MCP tools | `PathPolicy`、transport、artifact behavior を持つ integration / compatibility layer です。 |
+
+抽出については、従来どおり top-level Python API（`extract`,
+`process_excel`, `ExStructEngine`）と `exstruct INPUT.xlsx ...` CLI を使います。
 
 ## 主な特徴
 
@@ -32,6 +47,7 @@ LLM/RAG 向けに検出ヒューリスティックや出力モードを調整可
 - **数式取得**: `formulas_map`（数式文字列 → セル座標）を openpyxl/COM で取得。`verbose` 既定、`include_formulas_map` で制御。
 - **フォーマット**: JSON（デフォルトはコンパクト、`--pretty` で整形）、YAML、TOON（任意依存）。
 - **backend metadata は opt-in**: shape/chart の `provenance` / `approximation_level` / `confidence` は、トークン節約のため既定では直列化出力に含めません。必要な場合だけ `--include-backend-metadata` または `include_backend_metadata=True` を使います。
+- **ワークブック編集インターフェース**: ExStruct の主な編集導線は editing CLI、host 側制御が必要な場合は MCP tools、Python から `exstruct.edit` を使うのは同じ patch contract を再利用したい場合に限ります。
 - **テーブル検出のチューニング**: API でヒューリスティックを動的に変更可能。
 - **ハイパーリンク抽出**: `verbose` モード（または `include_cell_links=True` 指定）でセルのリンクを `links` に出力。
 - **CLI レンダリング**（Excel COM 必須）: `standard` / `verbose` では PDF とシート画像を生成可能。
@@ -92,11 +108,32 @@ exstruct validate --input book.xlsx --pretty
 ```
 
 - `patch` / `make` は JSON の `PatchResult` を標準出力に出します。
+- workbook editing の canonical operational / agent interface はこの editing CLI です。
 - `ops list` / `ops describe` で public patch-op schema を確認できます。
 - `validate` はワークブックの読取可否（`is_readable`, `warnings`, `errors`）を返します。
 - Phase 2 では既存の抽出 CLI はそのまま維持し、`exstruct extract` や対話的な safety flag はまだ追加しません。
 
+推奨フロー:
+
+1. patch ops を組み立てる。
+2. `exstruct patch --dry-run` を実行し、`PatchResult`・warnings・diff を確認する。
+3. dry run と実適用で同じ engine を使いたい場合は `--backend openpyxl` を固定する。
+4. `--backend auto` を使う場合は `PatchResult.engine` を確認する。Windows/Excel 環境では実適用時に COM へ切り替わることがある。
+5. 問題がなければ `--dry-run` なしで再実行する。
+
 ## MCPサーバー (標準入出力)
+
+MCP は同じ editing core を包む integration / compatibility layer です。
+path restriction、transport mapping、artifact mirroring、approval-aware な
+agent 実行が必要なときに使ってください。通常の Python workbook editing には
+`openpyxl` / `xlwings` の方が合っています。ローカル shell / agent workflow
+では editing CLI を優先します。
+
+もし editing が MCP-first だった時期の名残で `exstruct_patch` /
+`exstruct_make` を直接使っているだけなら、MCP host control が必要な場合を
+除いて、新規のローカル workflow は `exstruct patch` / `exstruct make`
+へ寄せてください。Python から同じ patch contract を使いたい場合だけ
+`exstruct.edit` を検討してください。
 
 ### uvx を使ったクイックスタート（推奨）
 
@@ -168,7 +205,7 @@ exstruct-mcp --root C:\data --log-file C:\logs\exstruct-mcp.log --on-conflict re
 
 [MCPサーバー](https://harumiweb.github.io/exstruct/mcp/)
 
-## クイックスタート Python
+## クイックスタート Python Extraction
 
 ```python
 from pathlib import Path

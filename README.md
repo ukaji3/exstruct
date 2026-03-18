@@ -26,14 +26,30 @@
 
 # ExStruct — Excel Structured Extraction Engine
 
-ExStruct reads Excel workbooks and outputs structured data such as cells, table candidates, shapes, charts, SmartArt, and print-area views as JSON by default. It provides a CLI, a Python API, and an MCP server, with extraction options tuned for LLM/RAG preprocessing and document understanding.
+ExStruct reads Excel workbooks into structured data and applies patch-based
+editing workflows through a shared core. It provides extraction APIs, a
+JSON-first editing CLI, and an MCP server for host-managed integrations, with
+options tuned for LLM/RAG preprocessing, reviewable edit flows, and local
+automation.
 
 - In COM/Excel environments (Windows), it performs rich extraction.
 - In non-COM environments (Linux/macOS):
   - if the LibreOffice runtime is available, it performs best-effort extraction for cells, table candidates, shapes, connectors, and charts
   - otherwise, it safely falls back to cells + table candidates + print areas
 
-Detection heuristics and output modes are adjustable for LLM/RAG pipelines.
+Detection heuristics, editing workflows, and output modes are adjustable for
+LLM/RAG pipelines and local automation.
+
+## Choose an Interface
+
+| Use case | Recommended interface | Why |
+| --- | --- | --- |
+| Write direct Python Excel-editing code | `openpyxl` / `xlwings` | Usually the better fit for imperative Python editing. Reach for `exstruct.edit` only when you specifically want ExStruct's patch contract in Python. |
+| Run local operator or AI-agent edit workflows | `exstruct patch`, `make`, `ops`, `validate` | Canonical operational interface; JSON-first and dry-run friendly. |
+| Run sandboxed or host-managed integrations | `exstruct-mcp` / MCP tools | Integration / compatibility layer that owns `PathPolicy`, transport, and artifact behavior. |
+
+Extraction keeps the existing top-level Python API (`extract`, `process_excel`,
+`ExStructEngine`) and the legacy `exstruct INPUT.xlsx ...` CLI entrypoint.
 
 ## Main Features
 
@@ -42,6 +58,7 @@ Detection heuristics and output modes are adjustable for LLM/RAG pipelines.
 - **Formula extraction**: emits `formulas_map` (formula string -> cell coordinates) via openpyxl/COM. It is enabled by default in `verbose` and can be controlled with `include_formulas_map`.
 - **Formats**: JSON (compact by default, `--pretty` for formatting), YAML, and TOON (optional dependencies).
 - **Backend metadata is opt-in**: shape/chart `provenance`, `approximation_level`, and `confidence` are omitted from serialized output by default. Enable them with `--include-backend-metadata` or `include_backend_metadata=True`.
+- **Workbook editing interfaces**: use the editing CLI for primary ExStruct edit flows, keep MCP for host-owned safety controls, and use `exstruct.edit` only when you need the same patch contract from Python.
 - **Table detection tuning**: heuristics can be adjusted dynamically through the API.
 - **Hyperlink extraction**: in `verbose` mode, or with `include_cell_links=True`, cell links are emitted in `links`.
 - **CLI rendering**: in `standard` / `verbose`, PDF and sheet images can be generated when Excel COM is available.
@@ -102,12 +119,32 @@ exstruct validate --input book.xlsx --pretty
 ```
 
 - `patch` and `make` print JSON `PatchResult` to stdout.
+- This is the canonical operational / agent interface for workbook editing.
 - `ops list` / `ops describe` expose the public patch-op schema.
 - `validate` reports workbook readability (`is_readable`, `warnings`, `errors`).
 - Phase 2 keeps the legacy extraction CLI unchanged; it does not add
   `exstruct extract` or interactive safety flags yet.
 
+Recommended edit flow:
+
+1. Build patch ops.
+2. Run `exstruct patch --dry-run` and inspect `PatchResult`, warnings, and diff.
+3. Pin `--backend openpyxl` when you want the dry run and the real apply to use the same engine.
+4. If you keep `--backend auto`, inspect `PatchResult.engine`; on Windows/Excel hosts the real apply may switch to COM.
+5. Re-run without `--dry-run` only after the result is acceptable.
+
 ## MCP Server (stdio)
+
+MCP is the integration / compatibility layer around the same editing core. Use
+it when you need host-managed path restrictions, transport mapping, artifact
+mirroring, or approval-aware agent execution. For ordinary Python workbook
+editing, `openpyxl` / `xlwings` are usually a better fit. For local shell or
+agent workflows, prefer the editing CLI.
+
+If you previously used `exstruct_patch` / `exstruct_make` only because editing
+was MCP-first, migrate new local workflows to `exstruct patch` or
+`exstruct make` unless you specifically need MCP host controls or the shared
+patch contract inside Python.
 
 ### Quick Start with `uvx` (recommended)
 
@@ -179,7 +216,7 @@ MCP setup guide for each AI agent:
 
 [MCP Server](https://harumiweb.github.io/exstruct/mcp/)
 
-## Quick Start Python
+## Quick Start Python Extraction
 
 ```python
 from pathlib import Path

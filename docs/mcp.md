@@ -3,6 +3,19 @@
 This guide explains how to run ExStruct as an MCP (Model Context Protocol) server
 so AI agents can call it safely as a tool.
 
+## Positioning
+
+MCP is the host-managed integration / compatibility layer around ExStruct's
+public extraction and editing APIs.
+
+- Use `openpyxl` / `xlwings` for ordinary direct Python workbook editing, and
+  use `exstruct.edit` only when you specifically need ExStruct's patch
+  contract inside Python.
+- Use the editing CLI (`exstruct patch`, `make`, `ops`, `validate`) when you
+  need the canonical local operational / agent interface.
+- Use MCP when you need host-owned `PathPolicy`, transport mapping, artifact
+  mirroring, or approval-aware execution around the same core behavior.
+
 ## What it provides
 
 - Convert Excel into structured JSON (file output)
@@ -139,7 +152,7 @@ Notes:
 - `libreoffice` is best-effort and not a strict subset of COM output.
 - `libreoffice` does not render PDFs/PNGs and does not compute auto page-break areas in v1.
 
-## Quick start for agents (recommended)
+## Quick start for extraction agents (recommended)
 
 1. Validate file readability with `exstruct_validate_input`
 2. Run `exstruct_extract` with `mode="standard"`
@@ -303,19 +316,30 @@ tool payload concerns outside that public API.
 
 For MCP users, the stable surfaces are:
 
-- `exstruct.edit`: first-class Python editing API
+- `exstruct.edit`: shared-contract Python editing API
 - `exstruct.mcp.patch_runner`: compatibility facade for existing import paths
 - MCP server / tool entrypoints: host-owned path policy, transport, and artifact behavior
 
 Internal module layering is documented in
 `dev-docs/architecture/overview.md` and `dev-docs/specs/editing-api.md`.
 
+### Migration note
+
+If you currently use `exstruct_patch` / `exstruct_make` only because editing
+used to be MCP-first, prefer the editing CLI for new local workflows. Keep MCP
+when you specifically need host-level path restrictions, transport, or artifact
+policy, and use `exstruct.edit` only when you need the same patch contract
+inside Python.
+
 ## Edit flow (patch)
 
 1. Inspect workbook structure with `exstruct_extract` (and `exstruct_read_json_chunk` if needed)
 2. Build patch operations (`ops`) for target cells/sheets
-3. Call `exstruct_patch` to apply edits
-4. Re-run `exstruct_extract` to verify results if needed
+3. Call `exstruct_patch` with `dry_run=true` and inspect `PatchResult`, warnings, and diff
+4. If you want dry-run and apply to exercise the same engine, pin `backend="openpyxl"`
+5. If you keep `backend="auto"`, inspect `PatchResult.engine`; on Windows/Excel hosts the real apply may switch from openpyxl to COM
+6. Re-run without `dry_run` only after the reviewed result is acceptable
+7. Re-run `exstruct_extract` to verify results if needed
 
 ### `exstruct_patch` highlights
 
