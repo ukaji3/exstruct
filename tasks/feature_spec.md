@@ -67,6 +67,69 @@
 - `not-needed`
 - rationale: compatibility bug fix と documentation cleanup であり、public contract や safety boundary の意味変更はない。
 
+## 2026-03-18 issue #99 phase 4 canonical usage documentation
+
+### Goal
+
+- issue `#99` の Phase 4 として、Phase 1-3 で確立した編集機能の責務分離を公開文書で canonical usage として明文化する。
+- Python library caller に対しては `exstruct.edit` を前面には出さず、通常の imperative editing は `openpyxl` / `xlwings` が適していることを案内する。CLI には canonical operational / agent interface の役割を持たせ、MCP は host-owned integration / compatibility layer として位置づける。
+- 既存の public API / CLI / MCP contract を変えずに、README / docs landing / API・CLI・MCP guides の導線と語彙を揃える。
+
+### Chosen scope
+
+- 公開 docs の更新対象は README 英日、docs landing、`docs/api.md`、`docs/cli.md`、`docs/mcp.md` とする。
+- internal docs の更新対象は `dev-docs/specs/editing-api.md` と `dev-docs/specs/editing-cli.md` を最低ラインとし、architecture 文書は wording drift があれば補正する。
+- 既存ページの拡張で完了させ、新しい public docs page や nav item は追加しない。
+- docs build verification は今回の完了条件に含めるが、`mkdocs strict`、link checker、docs 専用 CI policy の追加は Phase 4 では扱わない。
+
+### Public contract invariants
+
+- `exstruct.edit` の public import path、`patch_workbook()` / `make_workbook()` / patch-op schema discovery surface は変更しない。
+- CLI の public command surface (`patch`, `make`, `ops`, `validate`) と exit-code / JSON output contract は変更しない。
+- MCP tools (`exstruct_patch`, `exstruct_make` など) の tool 名、payload shape、`PathPolicy` ownership、artifact mirroring behavior は変更しない。
+- backend selection / fallback policy、`PatchResult` shape、warning / error payload shape は変更しない。
+
+### Documentation deliverables
+
+- README 英日:
+  - extraction-only に見える冒頭説明を、extraction + workbook editing の並立が分かる説明へ寄せる
+  - 「どの interface を使うか」を短い案内として追加する
+  - editing CLI に canonical operational / agent interface の説明を添える
+  - `exstruct.edit` は quick start の主導線にはせず、必要時だけ触れる控えめな記述に留める
+  - MCP は host-managed / sandboxed integration に向く位置づけであることを冒頭近くで明示する
+- `docs/index.md`:
+  - docs landing から Python API / CLI / MCP の選び方が分かるように再構成する
+  - extraction API だけでなく editing surface へもトップから誘導する
+- `docs/api.md`:
+  - editing section は advanced/shared-contract surface として控えめに記述し、通常の Python editing には `openpyxl` / `xlwings` が適していることを明記する
+  - backend capability / known limitations / CLI・MCP との責務分離を追記する
+- `docs/cli.md`:
+  - editing CLI を canonical operational / agent interface と明記する
+  - `dry_run -> inspect PatchResult/warnings -> apply` の推奨ワークフローを追加する
+  - local operator tooling と MCP host policy の境界を説明する
+- `docs/mcp.md`:
+  - MCP を public core の代替ではなく integration / compatibility layer として冒頭近くで説明する
+  - editing 向け agent flow を `dry_run` 前提で再整理する
+  - MCP-only editing から CLI / Python API への migration note を追加する
+
+### Internal docs retention
+
+- `dev-docs/specs/editing-api.md` には、`exstruct.edit` を advanced/shared-contract surface として扱い、通常の Python editing では `openpyxl` / `xlwings` を優先案内する obligation を記録する。
+- `dev-docs/specs/editing-cli.md` には、editing CLI を canonical operational / agent interface として案内し、MCP は host-layer compatibility path であることを public docs でも維持する obligation を記録する。
+- ADR verdict は `not-needed`。既存 ADR-0006 / ADR-0007 が既に role split を記録しており、Phase 4 はその documentation sync だからである。
+- ただし docs policy 自体を新しい恒久ルールとして追加する場合は ADR を再判定する。
+
+### Verification requirements
+
+- `uv run task build-docs` を実行し、docs build が通ることを確認する。
+- `uv run task precommit-run` を実行する。
+- 文書差分として次を確認する:
+  - README / docs landing が interface selection を一貫して説明する
+  - API guide が `exstruct.edit` を advanced/shared-contract surface として説明し、通常の Python editing には `openpyxl` / `xlwings` を案内する
+  - CLI guide が dry-run oriented operational flow を説明する
+  - MCP guide が integration layer と migration path を説明する
+  - `README.ja.md` が英語 README の新しい positioning に追従する
+
 ## 2026-03-16 issue #99 phase 3 legacy monkeypatch compatibility follow-up
 
 ### Goal

@@ -39,6 +39,16 @@ documented separately in `dev-docs/specs/editing-cli.md`.
   - `exstruct.mcp.patch.specs`
   - `exstruct.mcp.op_schema`
 
+## Canonical usage documentation obligations
+
+- Public docs may describe `exstruct.edit`, but should frame it as an advanced
+  or shared-contract surface rather than the default recommendation for Python
+  workbook editing.
+- Public docs should state that ordinary imperative Python editing is usually
+  better served by `openpyxl` / `xlwings`.
+- Public docs should direct shell / agent operational flows to the editing CLI
+  and reserve MCP for host-owned policy concerns.
+
 ## Host-only responsibilities
 
 The following behaviors are not part of the Python editing API contract and

@@ -1,6 +1,11 @@
 # API Reference
 
-This page shows the primary APIs, minimal runnable examples, expected outputs, and the dependencies required for optional features. Hyperlinks are included when `include_cell_links=True` (or when using `mode="verbose"`). Auto page-break areas are COM-only and appear when auto page-break extraction/output is enabled (CLI exposes the option only when COM is available).
+This page shows the primary APIs, minimal runnable examples, expected outputs,
+and the dependencies required for optional features. Hyperlinks are included
+when `include_cell_links=True` (or when using `mode="verbose"`). Auto
+page-break areas are COM-only and appear when auto page-break
+extraction/output is enabled (CLI exposes the option only when COM is
+available).
 
 ## TOC
 
@@ -16,7 +21,7 @@ This page shows the primary APIs, minimal runnable examples, expected outputs, a
     - [Editing functions](#editing-functions)
     - [Engine and options](#engine-and-options)
   - [Models](#models)
-    - [Model helpers SheetData / WorkbookData](#model-helpers-sheetdata--workbookdata)
+    - [Model helpers SheetData / WorkbookData](#model-helpers-sheetdata-workbookdata)
   - [Error Handling](#error-handling)
   - [Tuning Examples](#tuning-examples)
 
@@ -78,8 +83,11 @@ process_excel(
 
 ## Editing API
 
-Phase 1 exposes workbook editing as a first-class Python package under
-`exstruct.edit`.
+ExStruct also exposes workbook editing under `exstruct.edit`, but this is a
+secondary surface. If you are writing Python code to edit Excel directly,
+`openpyxl` / `xlwings` are usually simpler choices. Reach for `exstruct.edit`
+when you specifically want the same patch contract used by ExStruct's CLI and
+MCP integration layer.
 
 ```python
 from pathlib import Path
@@ -107,6 +115,26 @@ Key points:
   operation schema programmatically.
 - The matching operational CLI is `exstruct patch`, `exstruct make`,
   `exstruct ops`, and `exstruct validate`.
+
+Backend capability guide:
+
+| Backend | Use it for | Notes |
+| --- | --- | --- |
+| `openpyxl` | Basic cell/style/layout edits, plus `dry_run`, `return_inverse_ops`, and `preflight_formula_check` flows | Pure Python path. Not valid for `.xls`, and not for COM-only ops such as `create_chart`. |
+| `com` | Highest-fidelity workbook editing, `.xls`, and COM-only ops such as `create_chart` | Requires Excel COM. Rejects `dry_run`, `return_inverse_ops`, and `preflight_formula_check`. |
+| `auto` | Default mixed workflow | Resolves to the best supported backend for the request; inspect `PatchResult.engine` to see what actually ran. |
+
+Known editing limits:
+
+- `create_chart` requires the COM-backed path.
+- `.xls` editing requires COM.
+- `exstruct.edit` does not own `PathPolicy`, artifact mirroring, or host
+  approval flows.
+- Existing MCP compatibility imports remain valid.
+
+For local shell or AI-agent edit workflows, prefer the CLI so you can do
+`dry_run -> inspect PatchResult -> apply`. For restricted hosts, use the MCP
+server, which wraps the same core and adds host policy.
 
 ## Dependencies
 

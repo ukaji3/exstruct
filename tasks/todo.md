@@ -124,6 +124,29 @@
   - `uv run pytest tests/edit tests/mcp/patch -q`
   - `uv run task precommit-run`
 
+## 2026-03-18 issue #99 phase 4 canonical usage documentation
+
+### Planning
+
+- [x] `tasks/feature_spec.md` に Phase 4 の scope / invariants / docs deliverables / verification を記録する
+- [x] README 英日と docs landing を更新し、Python API / CLI / MCP の役割分担を入口で説明する
+- [x] `docs/api.md`、`docs/cli.md`、`docs/mcp.md` を更新し、canonical usage / workflow / migration note を揃える
+- [x] `dev-docs/specs/editing-api.md` と `dev-docs/specs/editing-cli.md` の wording を同期する
+- [x] `uv run task build-docs` を実行する
+- [x] `uv run task precommit-run` を実行する
+
+### Review
+
+- README 英日と `docs/index.md` を更新し、editing CLI / MCP を主導線にしつつ、Python editing では `openpyxl` / `xlwings` が適していることを入口で分かるようにした。
+- `docs/api.md` は editing API を advanced/shared-contract surface として控えめに扱い、backend capability と known limits を追加した。
+- `docs/cli.md` は editing CLI を canonical operational / agent interface として明示し、`dry_run -> inspect -> apply` フローを追加した。
+- `docs/mcp.md` は MCP を host-managed integration / compatibility layer として冒頭で説明し、editing 向け migration note と dry-run 前提フローへ寄せた。
+- `dev-docs/specs/editing-api.md` と `dev-docs/specs/editing-cli.md` には public docs wording を維持するための documentation obligations を追記した。
+- ADR verdict は `not-needed` を維持した。既存 ADR-0006 / ADR-0007 の方針を文書化した変更であり、新しい policy decision は追加していない。
+- Verification:
+  - `uv run task build-docs`
+  - `uv run task precommit-run`
+
 ## 2026-03-16 issue #99 phase 3 MCP rewiring to public edit core
 
 ### Planning

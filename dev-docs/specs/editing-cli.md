@@ -14,6 +14,16 @@ This document defines the Phase 2 public editing CLI contract.
 - The legacy extraction entrypoint `exstruct INPUT.xlsx ...` remains valid and
   is not rewritten to `exstruct extract` in Phase 2.
 
+## Canonical usage documentation obligations
+
+- Public docs must describe the editing CLI as the canonical operational /
+  agent interface for workbook editing.
+- Public docs should recommend the `dry_run -> inspect PatchResult -> apply`
+  workflow for edit operations.
+- Public docs must distinguish the local CLI from:
+  - `exstruct.edit` for embedded Python usage
+  - MCP for host-owned path policy, transport, and artifact behavior
+
 ## Dispatch and compatibility rules
 
 - `exstruct.cli.main` dispatches to the editing parser only when the first

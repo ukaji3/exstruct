@@ -88,3 +88,8 @@
 
 - When preserving legacy monkeypatch surfaces, do not forward compatibility wrappers through copied function aliases; use live module lookup so monkeypatches on legacy modules remain observable at call time.
 - If one compatibility entrypoint re-synchronizes another layer before execution, add a regression test for override precedence at the highest public entrypoint; function identity checks alone are insufficient.
+
+## 2026-03-18 docs positioning lessons
+
+- When ExStruct exposes a Python wrapper over behavior that existing ecosystem libraries already handle well, do not automatically promote that wrapper as the default Python recommendation; confirm the intended positioning first.
+- For workbook editing docs, bias the primary recommendation toward the editing CLI for ExStruct-specific workflows and keep `exstruct.edit` described as an advanced/shared-contract surface unless the user explicitly wants stronger promotion.
