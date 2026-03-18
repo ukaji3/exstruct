@@ -1,5 +1,29 @@
 # Todo
 
+## 2026-03-18 pr #105 unresolved review follow-up
+
+### Planning
+
+- [x] GitHub から PR `#105` の未解決 review thread を再取得する
+- [x] 各指摘を現行コードと既存回帰テストで妥当性確認する
+- [x] `src/exstruct/edit/service.py` の openpyxl failure path cleanup を修正する
+- [x] `tests/edit/test_edit_service.py` に cleanup 回帰を追加する
+- [x] targeted pytest と `uv run task precommit-run` を実行する
+- [x] Review section に妥当性判定と残課題を記録する
+
+### Review
+
+- 2026-03-18 時点で PR `#105` の未解決 thread は 2 件だった。
+- 採用: `src/exstruct/edit/service.py` の `_apply_with_openpyxl()` で `ValueError` / `FileNotFoundError` / `OSError` 再送出時に zero-byte reservation file cleanup が漏れる指摘。現行コードを確認すると、`PatchOpError` / generic `Exception` / dry-run / preflight error は cleanup 済みだが、この 3 分岐だけ未処理だった。
+- 非採用: `src/exstruct/mcp/patch/service.py` の `_sync_compat_overrides()` が `edit.service` 内の imported engine reference に効かないという指摘。`edit.service` は module global 名を実行時 lookup しており、`service_module.apply_openpyxl_engine = ...` / `apply_xlwings_engine = ...` の再束縛で呼び先は差し替わる。既存 `tests/mcp/patch/test_service.py` の legacy monkeypatch regression もこの解釈と一致して通過した。
+- `src/exstruct/edit/service.py` は `ValueError` / `FileNotFoundError` / `OSError` の各 re-raise 直前にも `_cleanup_empty_reserved_output()` を呼ぶようにした。
+- `tests/edit/test_edit_service.py` には、rename reservation 済み output path で openpyxl path が上記 3 例外を送出したとき placeholder file が残らない回帰を追加した。
+- 恒久仕様や ADR に移すべき新規 policy はなく、この section は session 記録として保持する。
+- Verification:
+  - `uv run pytest tests/edit/test_edit_service.py -q`
+  - `uv run pytest tests/mcp/patch/test_service.py -q`
+  - `uv run task precommit-run`
+
 ## 2026-03-17 pr #105 review follow-up
 
 ### Planning

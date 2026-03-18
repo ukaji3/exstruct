@@ -228,10 +228,13 @@ def _apply_with_openpyxl(
             engine="openpyxl",
         )
     except ValueError:
+        _cleanup_empty_reserved_output(reserved_output_path)
         raise
     except FileNotFoundError:
+        _cleanup_empty_reserved_output(reserved_output_path)
         raise
     except OSError:
+        _cleanup_empty_reserved_output(reserved_output_path)
         raise
     except Exception as exc:
         _cleanup_empty_reserved_output(reserved_output_path)

@@ -294,3 +294,46 @@ def test_edit_service_preflight_rename_cleans_reserved_output(
     assert result.error is not None
     assert result.out_path.endswith("book_patched_1.xlsx")
     assert not Path(result.out_path).exists()
+
+
+def test_edit_service_openpyxl_reraise_cleans_reserved_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        edit_runtime,
+        "get_com_availability",
+        lambda: ComAvailability(available=False, reason="test"),
+    )
+
+    for expected_exc in (ValueError, FileNotFoundError, OSError):
+        input_path = tmp_path / f"{expected_exc.__name__}.xlsx"
+        _create_workbook(input_path)
+        default_out = tmp_path / f"{expected_exc.__name__}_patched.xlsx"
+        default_out.write_text("existing", encoding="utf-8")
+
+        def _raise_openpyxl_error(
+            request: PatchRequest,
+            input_path: Path,
+            output_path: Path,
+            exc_type: type[Exception] = expected_exc,
+        ) -> OpenpyxlEngineResult:
+            assert output_path.name == f"{exc_type.__name__}_patched_1.xlsx"
+            raise exc_type("boom")
+
+        monkeypatch.setattr(
+            edit_service, "apply_openpyxl_engine", _raise_openpyxl_error
+        )
+
+        with pytest.raises(expected_exc):
+            edit_service.patch_workbook(
+                PatchRequest(
+                    xlsx_path=input_path,
+                    ops=[
+                        PatchOp(op="set_value", sheet="Sheet1", cell="A1", value="new")
+                    ],
+                    on_conflict="rename",
+                    backend="openpyxl",
+                )
+            )
+        assert not (tmp_path / f"{expected_exc.__name__}_patched_1.xlsx").exists()

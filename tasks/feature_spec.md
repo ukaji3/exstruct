@@ -1,5 +1,34 @@
 # Feature Spec
 
+## 2026-03-18 pr #105 unresolved review follow-up
+
+### Goal
+
+- PR `#105` の現時点の未解決レビュー thread を再取得し、妥当なものだけを取り込む。
+- `on_conflict="rename"` の atomic reservation で生じる zero-byte placeholder file が、openpyxl failure path で残らないようにする。
+- legacy monkeypatch compatibility は既存 contract を維持し、妥当でない review は非採用理由を残す。
+
+### Accepted findings
+
+- `src/exstruct/edit/service.py` の `_apply_with_openpyxl()` は `ValueError` / `FileNotFoundError` / `OSError` を素通しで再送出しており、rename reservation 済み output path の zero-byte placeholder cleanup を行わない。
+- `src/exstruct/mcp/patch/service.py` の `_sync_compat_overrides()` から `edit_service.apply_openpyxl_engine` / `apply_xlwings_engine` を差し替える経路は、Python の module global lookup により `edit.service` 内関数実行時にも有効であるため、「captured reference で monkeypatch が効かない」という指摘は現行コードでは不成立。
+
+### Chosen constraints
+
+- public API / CLI / MCP payload shape / backend selection policy は変更しない。
+- cleanup 対象は rename reservation で作った zero-byte placeholder file のみとし、既存の user-managed file は削除しない。
+- invalid 判定の review thread に合わせた実装修正は入れず、既存 monkeypatch regression test を再確認する。
+
+### Test plan
+
+- `tests/edit/test_edit_service.py` に、rename reservation 済み output path で `apply_openpyxl_engine()` が `ValueError` / `FileNotFoundError` / `OSError` を送出したとき placeholder file が cleanup される回帰を追加する。
+- `tests/mcp/patch/test_service.py` の既存 legacy monkeypatch regression を再実行し、`mcp.patch.service` 指摘が再現しないことを確認する。
+
+### ADR verdict
+
+- `not-needed`
+- rationale: cleanup bug fix と review validation であり、public contract や architecture policy の意味変更はない。
+
 ## 2026-03-17 pr #105 review follow-up
 
 ### Goal
