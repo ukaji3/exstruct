@@ -25,7 +25,7 @@ should be exposed and validated without reintroducing startup probes.
 
 ## Decision
 
-- Extraction CLI parser construction must remain side-effect free and must not
+- Extraction CLI parser construction must remain side-effect-free and must not
   probe COM or launch Excel.
 - Capability-gated extraction flags may remain visible in help output when
   their syntax is stable across hosts and their requirements can be validated at

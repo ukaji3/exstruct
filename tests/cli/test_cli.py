@@ -436,10 +436,13 @@ def test_cli_libreoffice_rejects_rendering_and_auto_page_breaks(
 
 
 def test_cli_parser_always_includes_auto_page_breaks_option() -> None:
-    """Ensure the auto page-breaks option is always registered."""
+    """Ensure the auto page-breaks option is always registered with clear help."""
     parser = build_parser()
     help_text = parser.format_help()
     assert "--auto-page-breaks-dir" in help_text
+    assert "format follows --format" in help_text
+    assert "requires --mode" in help_text
+    assert "standard or --mode verbose with Excel COM" in help_text
 
 
 def test_cli_parser_help_does_not_probe_com_availability(

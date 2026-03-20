@@ -37,7 +37,8 @@ def _add_auto_page_breaks_argument(parser: argparse.ArgumentParser) -> None:
         type=Path,
         help=(
             "Optional directory to write one file per auto page-break area "
-            "(Excel COM only; not supported in libreoffice mode)."
+            "(format follows --format; requires --mode standard or "
+            "--mode verbose with Excel COM)."
         ),
     )
 

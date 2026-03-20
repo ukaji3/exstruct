@@ -58,7 +58,7 @@
 - ADR checks:
   - `adr-linter`: no high/medium/low findings for `ADR-0008`.
   - `adr-reviewer`: `ready`, no findings.
-  - `adr-reconciler`: no policy drift, no stale references, two low evidence findings addressed by adding `verbose` and `main(["--help"])` regression tests.
+  - `adr-reconciler`: no policy drift, no stale references, two low-evidence findings addressed by adding `verbose` and `main(["--help"])` regression tests.
   - `adr-indexer`: index artifacts were synchronized manually from the ADR source text (`README.md`, `index.yaml`, `decision-map.md`).
 - Verification:
   - `gh issue view 107 --json number,title,body,labels,assignees,state,url`
@@ -88,6 +88,33 @@
   - No new permanent document was needed. This follow-up only brought the implementation back into alignment with the policy already recorded in `ADR-0008`, `docs/cli.md`, `README.md`, `README.ja.md`, and `dev-docs/specs/excel-extraction.md`.
   - The temporary working notes for this follow-up can stay limited to this section in `tasks/feature_spec.md` and `tasks/todo.md`.
 - Verification:
+  - `uv run pytest tests/cli/test_cli.py -q`
+  - `uv run task precommit-run`
+  - `git diff --check`
+
+## 2026-03-20 issue #107 review follow-up: wording and help-text clarity
+
+### Planning
+
+- [x] Retrieve the PR review comments with `gh` and classify which findings are substantive.
+- [x] Confirm the wording nits in `tasks/todo.md` and `dev-docs/adr/ADR-0008-extraction-cli-runtime-capability-validation.md`.
+- [x] Clarify the `--auto-page-breaks-dir` help text in `src/exstruct/cli/main.py` so it matches the runtime contract.
+- [x] Update CLI help tests for the clarified wording.
+- [x] Run targeted pytest for `tests/cli/test_cli.py`.
+- [x] Run `uv run task precommit-run`.
+- [x] Record the review outcome and retention decision here.
+
+### Review
+
+- The explicit PR review findings were valid but minor: `tasks/todo.md` and `dev-docs/adr/ADR-0008-extraction-cli-runtime-capability-validation.md` each had a hyphenation nit (`low-evidence`, `side-effect-free`).
+- A separate suppressed Copilot note about `--auto-page-breaks-dir` help text was also substantively valid: the old string mentioned only LibreOffice rejection and omitted that output files follow `--format`, while the actual runtime contract also rejects `light` and requires `standard`/`verbose` with Excel COM.
+- `src/exstruct/cli/main.py` now states the fuller contract in the argument help text, and `tests/cli/test_cli.py` now checks for the clarified help wording without depending on exact `argparse` line wrapping.
+- Retention decision:
+  - No new ADR or spec migration was needed. The durable contract remains in `ADR-0008`, `docs/cli.md`, and the README files; this follow-up only aligns wording and help text with that existing policy.
+  - The temporary working record can stay limited to this section in `tasks/feature_spec.md` and `tasks/todo.md`.
+- Verification:
+  - `gh pr view 111 --json number,title,reviewDecision,reviews,comments,files,url`
+  - `gh api repos/harumiWeb/exstruct/pulls/111/comments`
   - `uv run pytest tests/cli/test_cli.py -q`
   - `uv run task precommit-run`
   - `git diff --check`

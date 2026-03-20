@@ -134,3 +134,36 @@
 
 - `not-needed`
 - rationale: this is a corrective follow-up that aligns implementation with the already-recorded `ADR-0008` policy rather than creating a new architectural decision.
+
+## 2026-03-20 issue #107 review follow-up: wording and help-text clarity
+
+### Goal
+
+- Resolve the PR review wording nits in tracked documentation.
+- Make the extraction CLI help text for `--auto-page-breaks-dir` match the runtime contract already documented elsewhere.
+
+### Public contract
+
+- The help text for `--auto-page-breaks-dir` states that it writes one file per auto page-break area, follows `--format`, and requires `--mode standard` or `--mode verbose` with Excel COM.
+- This follow-up does not change runtime behavior; it only tightens wording and help-text clarity.
+
+### Permanent destinations
+
+- No new permanent destination is required.
+- The durable wording lives in `src/exstruct/cli/main.py`, `dev-docs/adr/ADR-0008-extraction-cli-runtime-capability-validation.md`, and the existing issue `#107` task notes.
+
+### Constraints
+
+- Keep the change limited to wording/help-text clarity; do not change runtime validation or expand scope beyond the reviewed lines.
+
+### Verification plan
+
+- `tests/cli/test_cli.py`
+  - Help output still includes `--auto-page-breaks-dir`.
+  - Help output includes the clarified runtime-contract wording.
+- `uv run pytest tests/cli/test_cli.py -q`
+
+### ADR verdict
+
+- `not-needed`
+- rationale: this is a wording-only follow-up under the existing `ADR-0008` decision.
