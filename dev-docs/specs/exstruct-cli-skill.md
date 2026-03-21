@@ -13,9 +13,9 @@ Skill that teaches AI agents how to use the existing ExStruct editing CLI.
 
 ## Non-goals
 
-- No change to CLI, Python API, or MCP runtime behavior.
-- No `.claude/skills/` mirror or sync automation in the repository.
-- No requirement to add Skill-local `scripts/` or `assets/` in the initial
+- Keep CLI, Python API, and MCP runtime behavior unchanged.
+- Do not add `.claude/skills/` mirror or sync automation in the repository.
+- Leave Skill-local `scripts/` and `assets/` optional in the initial
   implementation.
 
 ## Canonical repo layout
@@ -82,9 +82,9 @@ Skill that teaches AI agents how to use the existing ExStruct editing CLI.
 
 ### `references/verify-workflows.md`
 
-- Define what to inspect in `PatchResult`.
-- Define when re-validation or re-extraction is required.
-- Define when lightweight verification is acceptable.
+- Specify what to inspect in `PatchResult`.
+- Establish when re-validation or re-extraction is required.
+- Clarify when lightweight verification is acceptable.
 
 ### `references/backend-constraints.md`
 
@@ -115,9 +115,10 @@ Skill that teaches AI agents how to use the existing ExStruct editing CLI.
 
 ## Verification obligations
 
-- Validate the Skill folder with:
-  - `generate_openai_yaml.py`
-  - `quick_validate.py`
+- Run verification from the repository root with explicit commands against
+  `.agents/skills/exstruct-cli`:
+  - `python <skill-creator>/scripts/generate_openai_yaml.py .agents/skills/exstruct-cli --interface ...`
+  - `python <skill-creator>/scripts/quick_validate.py .agents/skills/exstruct-cli`
 - Run `uv run task precommit-run`.
 - Manually review representative scenarios for:
   - create versus edit routing

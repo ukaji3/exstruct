@@ -5,12 +5,17 @@ wrong apply would be expensive.
 
 ## Standard flow
 
-1. Validate the input workbook when readability is uncertain.
-2. Build or inspect the patch-op JSON.
-3. Run `exstruct patch --dry-run` for risky edits.
-4. Inspect `PatchResult`, warnings, `patch_diff`, and `engine`.
-5. Re-run without `--dry-run` only after the plan is acceptable.
-6. Perform lightweight verification or deeper verification based on risk.
+1. Determine whether the request creates a new workbook or edits an existing
+   one.
+2. Validate the input workbook when readability is uncertain for an existing
+   workbook edit.
+3. Build or inspect the patch-op JSON.
+4. Run `exstruct patch --dry-run` for risky edits to an existing workbook.
+5. Run `exstruct make --dry-run` for risky new-workbook requests when the
+   chosen ops and output format support dry-run.
+6. Inspect `PatchResult`, warnings, `patch_diff`, and `engine`.
+7. Re-run without `--dry-run` only after the plan is acceptable.
+8. Perform lightweight verification or deeper verification based on risk.
 
 ## Ambiguity rules
 
@@ -27,10 +32,13 @@ wrong apply would be expensive.
   - range-wide formula fills
   - style changes across large regions
   - chart creation or COM-only workflows
-- Prefer `--backend openpyxl` when you want the dry run and real apply to use
-  the same engine.
-- Explain that `--backend auto` may use openpyxl for the dry run but COM for
-  the real apply on COM-capable hosts.
+- `create_chart` requests and `.xls` create/edit workflows reject `--dry-run`;
+  inspect ops, validate what you can, and explain the backend constraint before
+  any non-dry-run apply.
+- Prefer `--backend openpyxl` when you want the dry run and the later apply run
+  to use the same engine.
+- Explain that `--backend auto` can resolve to openpyxl for a dry-run request
+  and COM for a later non-dry-run request on COM-capable hosts.
 
 ## Failure behavior
 

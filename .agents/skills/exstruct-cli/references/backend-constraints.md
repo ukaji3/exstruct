@@ -6,7 +6,8 @@ capabilities.
 ## Backend summary
 
 - `openpyxl`
-  - default choice for ordinary workbook edits
+  - recommended backend to pin for ordinary workbook edits, especially when
+    you want the same engine for dry-run and apply
   - supports `--dry-run`, `--return-inverse-ops`, and
     `--preflight-formula-check`
 - `com`
@@ -14,19 +15,21 @@ capabilities.
   - required for `.xls` creation/editing
 - `auto`
   - follows ExStruct's existing backend-selection policy
-  - can use openpyxl for a dry run and COM for the real apply
+  - can resolve to openpyxl for a dry-run request and COM for a later apply
+    request
 
 ## Constraints to call out
 
 - `create_chart` is COM-only.
-- `.xls` workflows require COM and are not valid with `backend=openpyxl`.
+- `.xls` workflows require COM, are not valid with `backend=openpyxl`, and do
+  not support `--dry-run`.
 - Requests that need host-owned path restrictions, transport mapping, or
   artifact mirroring belong to MCP, not the local CLI Skill.
 
 ## Failure behavior
 
 - State clearly when the requested backend or capability is unsupported.
-- Do not pretend that `auto` guarantees the same engine across dry run and
-  apply.
+- Do not pretend that `auto` guarantees the same engine across separate dry-run
+  and apply requests.
 - Redirect to MCP only for host-policy concerns, not as a generic substitute
   for unsupported CLI behavior.

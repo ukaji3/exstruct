@@ -71,14 +71,14 @@
 
 ### Review
 
-- Added the canonical repo-owned Skill at `.agents/skills/exstruct-cli/` with a lean `SKILL.md`, five focused reference documents, and generated `agents/openai.yaml`.
-- Added `dev-docs/specs/exstruct-cli-skill.md` as the durable contract for the Skill layout, trigger/positioning rules, and verification obligations.
-- Added `dev-docs/adr/ADR-0009-single-cli-skill-for-agent-workflows.md` and synchronized `dev-docs/adr/README.md`, `dev-docs/adr/index.yaml`, and `dev-docs/adr/decision-map.md`.
-- Updated `README.md` and `README.ja.md` with installation guidance, CLI-vs-MCP usage boundaries, and example prompts.
+- Introduced the canonical repo-owned Skill at `.agents/skills/exstruct-cli/` with a lean `SKILL.md`, five focused reference documents, and generated `agents/openai.yaml`.
+- Published `dev-docs/specs/exstruct-cli-skill.md` as the durable contract for the Skill layout, trigger/positioning rules, and verification obligations.
+- Documented the policy decision in `dev-docs/adr/ADR-0009-single-cli-skill-for-agent-workflows.md` and synchronized `dev-docs/adr/README.md`, `dev-docs/adr/index.yaml`, and `dev-docs/adr/decision-map.md`.
+- Expanded `README.md` and `README.ja.md` with installation guidance, CLI-vs-MCP usage boundaries, and example prompts.
 - The durable content for #115 now lives in `.agents/skills/exstruct-cli/`, `dev-docs/specs/exstruct-cli-skill.md`, `dev-docs/adr/ADR-0009-single-cli-skill-for-agent-workflows.md`, `README.md`, and `README.ja.md`; this `tasks/` section remains only as a compact implementation record.
 - Verification:
-  - `python C:\Users\HARUMI\.codex\skills\.system\skill-creator\scripts\generate_openai_yaml.py .agents/skills/exstruct-cli --interface 'display_name=ExStruct CLI' --interface 'short_description=Guide safe ExStruct CLI edit workflows' --interface 'default_prompt=Use $exstruct-cli to choose the right ExStruct editing CLI command, follow a safe validate/dry-run workflow, and explain any backend constraints for this workbook task.'`
-  - `python C:\Users\HARUMI\.codex\skills\.system\skill-creator\scripts\quick_validate.py .agents/skills/exstruct-cli`
+  - `python <skill-creator>/scripts/generate_openai_yaml.py .agents/skills/exstruct-cli --interface 'display_name=ExStruct CLI' --interface 'short_description=Guide safe ExStruct CLI edit workflows' --interface 'default_prompt=Use $exstruct-cli to choose the right ExStruct editing CLI command, follow a safe validate/dry-run workflow, and explain any backend constraints for this workbook task.'`
+  - `python <skill-creator>/scripts/quick_validate.py .agents/skills/exstruct-cli`
   - `rg -n "ExStruct CLI Skill|exstruct-cli|validate -> dry-run -> apply -> verify|\.agents/skills/exstruct-cli" README.md README.ja.md dev-docs/specs/exstruct-cli-skill.md dev-docs/adr/ADR-0009-single-cli-skill-for-agent-workflows.md .agents/skills/exstruct-cli/ -g "*"`
   - `rg -n "^## |Tests:|Code:|Related specs:" dev-docs/adr/ADR-0009-single-cli-skill-for-agent-workflows.md`
   - `uv run task precommit-run`

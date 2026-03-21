@@ -151,12 +151,16 @@ npx skills add harumiWeb/exstruct/.agents/skills --skill exstruct-cli
 That command should install `exstruct-cli` directly from this repository's
 published Skill directory. If you are working from an unpublished branch or a
 runtime that does not support `npx skills add`, fall back to copying the same
-folder into the equivalent local skill directory that discovers `SKILL.md`
-based skills.
+folder into the equivalent local skill directory that discovers
+`SKILL.md`-based skills.
 
 Use this Skill when the agent needs help choosing between `patch`, `make`,
 `validate`, `ops list`, and `ops describe`, or when it should follow the safe
 `validate -> dry-run -> apply -> verify` workflow.
+
+Example prompt for agents:
+
+> Use `$exstruct-cli` to choose the right ExStruct editing CLI command, follow a safe validate/dry-run workflow, and explain any backend constraints for this workbook task.
 
 ## MCP Server (stdio)
 

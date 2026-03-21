@@ -154,8 +154,8 @@
 
 ### Verification
 
-- `python C:\Users\HARUMI\.codex\skills\.system\skill-creator\scripts\generate_openai_yaml.py .agents/skills/exstruct-cli --interface ...`
-- `python C:\Users\HARUMI\.codex\skills\.system\skill-creator\scripts\quick_validate.py .agents/skills/exstruct-cli`
+- `python <skill-creator>/scripts/generate_openai_yaml.py .agents/skills/exstruct-cli --interface ...`
+- `python <skill-creator>/scripts/quick_validate.py .agents/skills/exstruct-cli`
 - `uv run task precommit-run`
 - Manual scenario review of:
   - create-vs-edit command selection
