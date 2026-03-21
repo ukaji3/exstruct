@@ -186,3 +186,32 @@
   - `uv run pytest tests/cli/test_cli_lazy_imports.py tests/cli/test_edit_cli.py tests/cli/test_cli.py -q`
   - `uv run task precommit-run`
   - manual `uv run python` probes for `typing.get_type_hints(exstruct.extract)` and `main(["--help"])` import boundaries
+
+## 2026-03-21 issue #108 review follow-up: validate runtime error scope
+
+### Planning
+
+- [x] Retrieve the new PR `#112` review comments and classify which ones are substantively valid.
+- [x] Confirm locally whether `isinstance(exc, OSError | RuntimeError | ValueError)` is actually invalid on the supported Python runtime.
+- [x] Add the working spec and task record for this follow-up.
+- [x] Narrow `validate` exception handling in `src/exstruct/cli/edit.py` back to the original `(OSError, ValidationError, ValueError)` scope.
+- [x] Add a regression test that proves `validate` still propagates `RuntimeError`.
+- [x] Run targeted pytest for `tests/cli/test_edit_cli.py`.
+- [x] Run `uv run task precommit-run`.
+- [x] Update this Review section with the final verification result and retention decision.
+
+### Review
+
+- The new Devin review finding was valid: the shared `_is_cli_runtime_error(...)` helper widened `_run_validate_command(...)` to catch `RuntimeError`, which changed the historical validate-subcommand contract.
+- The new Copilot review finding was not valid on the supported runtime. A direct `uv run python` probe confirmed that `isinstance(OSError(), OSError | RuntimeError | ValueError)` evaluates successfully on Python `3.11`, so no change was made for that comment.
+- `src/exstruct/cli/edit.py` now uses a separate `_is_validate_cli_error(...)` helper so `patch` / `make` still catch `RuntimeError` while `validate` only catches `(OSError, ValidationError, ValueError)` as before.
+- `tests/cli/test_edit_cli.py` now includes a regression test proving that `validate` propagates `RuntimeError` instead of converting it to handled CLI stderr output.
+- Retention decision:
+  - No new ADR or permanent spec migration was needed. This follow-up only restores the pre-existing validate CLI error boundary inside the current edit CLI design.
+  - The temporary working notes for this review follow-up can remain limited to this section in `tasks/feature_spec.md` and `tasks/todo.md`.
+- Verification:
+  - `gh api repos/harumiWeb/exstruct/pulls/112/comments`
+  - `gh api graphql -f query='query { repository(owner:"harumiWeb", name:"exstruct") { pullRequest(number: 112) { reviewThreads(first: 30) { nodes { id isResolved isOutdated comments(first: 20) { nodes { id author { login } body path url createdAt } } } } } } }'`
+  - `uv run python` probe for `isinstance(OSError(), OSError | RuntimeError | ValueError)`
+  - `uv run pytest tests/cli/test_edit_cli.py -q`
+  - `uv run task precommit-run`

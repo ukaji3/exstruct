@@ -132,6 +132,10 @@ def _is_cli_runtime_error(exc: Exception) -> bool:
     )
 
 
+def _is_validate_cli_error(exc: Exception) -> bool:
+    return isinstance(exc, OSError | ValueError) or _is_validation_error(exc)
+
+
 def patch_workbook(request: object) -> object:
     """Compatibility wrapper that resolves patch execution lazily."""
 
@@ -454,7 +458,7 @@ def _run_validate_command(args: argparse.Namespace) -> int:
             validate_input(_load_validate_input_request_model()(xlsx_path=args.input)),
         )
     except Exception as exc:
-        if not _is_cli_runtime_error(exc):
+        if not _is_validate_cli_error(exc):
             raise
         _print_error(exc)
         return 1

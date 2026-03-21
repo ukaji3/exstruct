@@ -270,3 +270,35 @@
 
 - `not-needed`
 - rationale: this is a follow-up implementation hardening and static-analysis cleanup under the existing issue `#108` design, not a new policy decision.
+
+## 2026-03-21 issue #108 review follow-up: validate runtime error scope
+
+### Goal
+
+- Restore the original `validate` subcommand exception boundary after the lazy-loader refactor in `src/exstruct/cli/edit.py`.
+- Keep the patch/make commands catching `RuntimeError` while ensuring `validate` does not silently absorb it.
+
+### Public contract
+
+- `patch` and `make` continue to convert backend/runtime failures in `(OSError, RuntimeError, ValidationError, ValueError)` into `Error: ...` stderr output with exit code `1`.
+- `validate` keeps its narrower historical contract and only converts `(OSError, ValidationError, ValueError)` into CLI error output.
+- If `validate_input(...)` raises `RuntimeError`, the exception must still propagate rather than being turned into a handled CLI error.
+
+### Constraints
+
+- Do not broaden this follow-up into another startup optimization pass.
+- Keep the current lazy import boundary for `pydantic` and validation helpers intact.
+- Do not change the behavior of `patch` and `make` while narrowing `validate`.
+
+### Verification plan
+
+- `tests/cli/test_edit_cli.py`
+  - `validate` still returns handled CLI errors for `OSError`
+  - `validate` propagates `RuntimeError`
+- `uv run pytest tests/cli/test_edit_cli.py -q`
+- `uv run task precommit-run`
+
+### ADR verdict
+
+- `not-needed`
+- rationale: this is a narrow behavior-restoration follow-up inside the existing edit CLI contract, not a new design decision.
