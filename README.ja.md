@@ -137,8 +137,8 @@ npx skills add harumiWeb/exstruct/.agents/skills --skill exstruct-cli
 
 このコマンドは、このリポジトリで公開される Skill ディレクトリから
 `exstruct-cli` を直接追加する想定です。まだ未公開ブランチで作業している場合や、
-`npx skills add` を使えない実行環境では、従来どおり `SKILL.md` ベースの Skill を
-検出するローカルディレクトリへ同じフォルダを手動配置してください。
+`npx skills add` を使えない実行環境では、従来どおり `SKILL.md` ベースの Skill が
+検出されるローカルディレクトリへ同じフォルダを手動配置してください。
 
 この Skill は、`patch` / `make` / `validate` / `ops list` /
 `ops describe` の使い分けや、安全な
