@@ -121,6 +121,29 @@ exstruct validate --input book.xlsx --pretty
 4. `--backend auto` を使う場合は `PatchResult.engine` を確認する。Windows/Excel 環境では実適用時に COM へ切り替わることがある。
 5. 問題がなければ `--dry-run` なしで再実行する。
 
+## ExStruct CLI Skill
+
+ExStruct には、editing CLI を安全に使うための repo 管理 Skill も 1 つ含めています。
+
+repo 上の正本:
+
+- `.agents/skills/exstruct-cli/`
+
+次の 1 コマンドでインストールできます。
+
+```bash
+npx skills add harumiWeb/exstruct/.agents/skills --skill exstruct-cli
+```
+
+このコマンドは、このリポジトリで公開される Skill ディレクトリから
+`exstruct-cli` を直接追加する想定です。まだ未公開ブランチで作業している場合や、
+`npx skills add` を使えない実行環境では、従来どおり `SKILL.md` ベースの Skill を
+検出するローカルディレクトリへ同じフォルダを手動配置してください。
+
+この Skill は、`patch` / `make` / `validate` / `ops list` /
+`ops describe` の使い分けや、安全な
+`validate -> dry-run -> apply -> verify` フローが必要なときに使います。
+
 ## MCPサーバー (標準入出力)
 
 MCP は同じ editing core を包む integration / compatibility layer です。
