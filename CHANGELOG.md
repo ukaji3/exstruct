@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file. This changelog 
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-03-21
+
+### Added
+
+- Added regression coverage for extraction CLI runtime validation and lightweight import boundaries across `exstruct`, `exstruct.engine`, `exstruct.cli.main`, and `exstruct.cli.edit`.
+
+### Changed
+
+- Changed the extraction CLI so `--auto-page-breaks-dir` is always listed in help output and validated only when the flag is requested at runtime.
+- Changed CLI and package import behavior so `exstruct --help`, `exstruct ops list`, `import exstruct`, and `import exstruct.engine` defer heavy extraction, edit, and rendering imports until needed.
+
+### Fixed
+
+- Fixed parser and help startup side effects by removing COM availability probing during extraction CLI parser construction.
+- Fixed lazy-export follow-ups so public runtime type hints resolve correctly while keeping exported symbol names stable.
+- Fixed edit CLI routing so non-edit argv and lightweight edit paths avoid unnecessary imports such as `exstruct.cli.edit` and `pydantic`.
+- Fixed the `validate` subcommand error boundary so `RuntimeError` is no longer converted into handled CLI stderr output.
+
 ## [0.7.0] - 2026-03-19
 
 ### Added
