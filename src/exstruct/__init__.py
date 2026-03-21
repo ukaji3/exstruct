@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from importlib import import_module
+from collections.abc import Callable
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, TextIO
@@ -91,45 +91,99 @@ __all__ = [
 
 ExtractionMode = Literal["light", "libreoffice", "standard", "verbose"]
 
-_LAZY_EXPORTS: dict[str, tuple[str, str]] = {
-    "ColorsOptions": (".engine", "ColorsOptions"),
-    "ConfigError": (".errors", "ConfigError"),
-    "DestinationOptions": (".engine", "DestinationOptions"),
-    "ExStructEngine": (".engine", "ExStructEngine"),
-    "ExstructError": (".errors", "ExstructError"),
-    "FilterOptions": (".engine", "FilterOptions"),
-    "FormatOptions": (".engine", "FormatOptions"),
-    "MissingDependencyError": (".errors", "MissingDependencyError"),
-    "OutputOptions": (".engine", "OutputOptions"),
-    "PrintArea": (".models", "PrintArea"),
-    "PrintAreaError": (".errors", "PrintAreaError"),
-    "PrintAreaView": (".models", "PrintAreaView"),
-    "RenderError": (".errors", "RenderError"),
-    "SerializationError": (".errors", "SerializationError"),
-    "StructOptions": (".engine", "StructOptions"),
-    "WorkbookData": (".models", "WorkbookData"),
-    "CellRow": (".models", "CellRow"),
-    "Chart": (".models", "Chart"),
-    "ChartSeries": (".models", "ChartSeries"),
-    "Shape": (".models", "Shape"),
-    "SheetData": (".models", "SheetData"),
-    "col_index_to_alpha": (".models", "col_index_to_alpha"),
-    "convert_row_keys_to_alpha": (".models", "convert_row_keys_to_alpha"),
-    "convert_sheet_keys_to_alpha": (".models", "convert_sheet_keys_to_alpha"),
-    "convert_workbook_keys_to_alpha": (".models", "convert_workbook_keys_to_alpha"),
-    "export_pdf": (".render", "export_pdf"),
-    "export_sheet_images": (".render", "export_sheet_images"),
-    "extract_workbook": (".core.integrate", "extract_workbook"),
-    "serialize_workbook": (".io", "serialize_workbook"),
-    "set_table_detection_params": (".core.cells", "set_table_detection_params"),
+LazyExportLoader = Callable[[], object]
+
+
+def _load_engine_attr(name: str) -> object:
+    from . import engine as engine_module
+
+    return getattr(engine_module, name)
+
+
+def _load_error_attr(name: str) -> object:
+    from . import errors as errors_module
+
+    return getattr(errors_module, name)
+
+
+def _load_model_attr(name: str) -> object:
+    from . import models as models_module
+
+    return getattr(models_module, name)
+
+
+def _load_render_attr(name: str) -> object:
+    from . import render as render_module
+
+    return getattr(render_module, name)
+
+
+def _load_io_attr(name: str) -> object:
+    from . import io as io_module
+
+    return getattr(io_module, name)
+
+
+def _load_core_cells_attr(name: str) -> object:
+    from .core import cells as cells_module
+
+    return getattr(cells_module, name)
+
+
+def _load_core_integrate_attr(name: str) -> object:
+    from .core import integrate as integrate_module
+
+    return getattr(integrate_module, name)
+
+
+_LAZY_EXPORTS: dict[str, LazyExportLoader] = {
+    "ColorsOptions": lambda: _load_engine_attr("ColorsOptions"),
+    "ConfigError": lambda: _load_error_attr("ConfigError"),
+    "DestinationOptions": lambda: _load_engine_attr("DestinationOptions"),
+    "ExStructEngine": lambda: _load_engine_attr("ExStructEngine"),
+    "ExstructError": lambda: _load_error_attr("ExstructError"),
+    "FilterOptions": lambda: _load_engine_attr("FilterOptions"),
+    "FormatOptions": lambda: _load_engine_attr("FormatOptions"),
+    "MissingDependencyError": lambda: _load_error_attr("MissingDependencyError"),
+    "OutputOptions": lambda: _load_engine_attr("OutputOptions"),
+    "PrintArea": lambda: _load_model_attr("PrintArea"),
+    "PrintAreaError": lambda: _load_error_attr("PrintAreaError"),
+    "PrintAreaView": lambda: _load_model_attr("PrintAreaView"),
+    "RenderError": lambda: _load_error_attr("RenderError"),
+    "SerializationError": lambda: _load_error_attr("SerializationError"),
+    "StructOptions": lambda: _load_engine_attr("StructOptions"),
+    "WorkbookData": lambda: _load_model_attr("WorkbookData"),
+    "CellRow": lambda: _load_model_attr("CellRow"),
+    "Chart": lambda: _load_model_attr("Chart"),
+    "ChartSeries": lambda: _load_model_attr("ChartSeries"),
+    "Shape": lambda: _load_model_attr("Shape"),
+    "SheetData": lambda: _load_model_attr("SheetData"),
+    "col_index_to_alpha": lambda: _load_model_attr("col_index_to_alpha"),
+    "convert_row_keys_to_alpha": lambda: _load_model_attr("convert_row_keys_to_alpha"),
+    "convert_sheet_keys_to_alpha": lambda: _load_model_attr(
+        "convert_sheet_keys_to_alpha"
+    ),
+    "convert_workbook_keys_to_alpha": lambda: _load_model_attr(
+        "convert_workbook_keys_to_alpha"
+    ),
+    "export_pdf": lambda: _load_render_attr("export_pdf"),
+    "export_sheet_images": lambda: _load_render_attr("export_sheet_images"),
+    "extract_workbook": lambda: _load_core_integrate_attr("extract_workbook"),
+    "serialize_workbook": lambda: _load_io_attr("serialize_workbook"),
+    "set_table_detection_params": lambda: _load_core_cells_attr(
+        "set_table_detection_params"
+    ),
 }
 
 
 def _resolve_lazy_export(name: str) -> object:
-    module_name, attr_name = _LAZY_EXPORTS[name]
-    value = getattr(import_module(module_name, __name__), attr_name)
+    value = _LAZY_EXPORTS[name]()
     globals()[name] = value
     return value
+
+
+def _lazy_type(name: str) -> object:
+    return _resolve_lazy_export(name)
 
 
 def __getattr__(name: str) -> object:
@@ -506,3 +560,19 @@ def process_excel(
         auto_page_breaks_dir=auto_page_breaks_dir,
         stream=stream,
     )
+
+
+def _patch_runtime_annotations() -> None:
+    annotations_map: dict[Callable[..., object], dict[str, str]] = {
+        extract: {"return": "_lazy_type('WorkbookData')"},
+        export: {"data": "_lazy_type('WorkbookData')"},
+        export_sheets: {"data": "_lazy_type('WorkbookData')"},
+        export_sheets_as: {"data": "_lazy_type('WorkbookData')"},
+        export_print_areas_as: {"data": "_lazy_type('WorkbookData')"},
+        export_auto_page_breaks: {"data": "_lazy_type('WorkbookData')"},
+    }
+    for function, function_annotations in annotations_map.items():
+        function.__annotations__.update(function_annotations)
+
+
+_patch_runtime_annotations()

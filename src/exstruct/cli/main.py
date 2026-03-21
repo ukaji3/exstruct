@@ -17,6 +17,7 @@ EditPredicateFn = Callable[[list[str]], bool]
 RunEditCliFn = Callable[[list[str]], int]
 ComAvailabilityFn = Callable[[], "ComAvailability"]
 LibreOfficeValidatorFn = Callable[..., Path]
+_EDIT_SUBCOMMAND_NAMES = frozenset({"patch", "make", "ops", "validate"})
 
 
 def _load_process_excel() -> ProcessExcelFn:
@@ -56,6 +57,10 @@ def process_excel(*args: object, **kwargs: object) -> None:
 def is_edit_subcommand(argv: list[str]) -> bool:
     """Compatibility wrapper that resolves the edit router lazily."""
 
+    if not argv:
+        return False
+    if argv[0] not in _EDIT_SUBCOMMAND_NAMES:
+        return False
     return _load_is_edit_subcommand()(argv)
 
 

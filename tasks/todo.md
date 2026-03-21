@@ -152,3 +152,37 @@
   - `uv run pytest tests/cli/test_cli.py tests/cli/test_edit_cli.py tests/cli/test_cli_lazy_imports.py tests/edit/test_architecture.py -q`
   - `uv run task precommit-run`
   - manual `-X importtime` sanity probe for `-m exstruct.cli.main --help` and `-m exstruct.cli.main ops list`
+
+## 2026-03-20 issue #108 review and Codacy follow-up
+
+### Planning
+
+- [x] Retrieve PR `#112` Codacy findings and review comments with `scripts/codacy_issues.py` and `gh`.
+- [x] Classify which findings are substantive and confirm the current implementation gaps locally.
+- [x] Add the follow-up spec and task record to `tasks/feature_spec.md` and `tasks/todo.md`.
+- [x] Replace the generic lazy-import helpers in `src/exstruct/__init__.py`, `src/exstruct/edit/__init__.py`, and `src/exstruct/cli/edit.py` with explicit literal loaders.
+- [x] Restore runtime-resolvable type hints for public helpers in `src/exstruct/__init__.py` without eagerly importing `exstruct.models`.
+- [x] Add a fast path in `src/exstruct/cli/main.py` so non-edit argv does not import `exstruct.cli.edit`.
+- [x] Remove the top-level `pydantic` import from `src/exstruct/cli/edit.py`.
+- [x] Add or update regression tests for startup import boundaries and runtime type hints.
+- [x] Run targeted pytest for CLI follow-up coverage.
+- [x] Run `uv run task precommit-run`.
+- [x] Update this Review section with the final verification result and retention decision.
+
+### Review
+
+- Codacy's three `non-literal-import` findings were not exploitable security bugs in practice, because the module targets were fixed by code rather than user input. Even so, the finding was operationally valid for CI, so the generic loaders were replaced with explicit literal loader functions in `src/exstruct/__init__.py`, `src/exstruct/edit/__init__.py`, and `src/exstruct/cli/edit.py`.
+- The PR review about runtime type hints was valid. `typing.get_type_hints(exstruct.extract)` regressed with `NameError` after the lazy-import refactor, so `src/exstruct/__init__.py` now patches the affected public helper annotations to resolve exported model types through `_lazy_type(...)` only when runtime introspection asks for them.
+- The PR review about `cli.main` routing was valid. `src/exstruct/cli/main.py` now fast-fails obvious non-edit argv before importing `exstruct.cli.edit`, so `exstruct --help` and extraction-style argv no longer pay the edit-module import cost.
+- The PR review about `pydantic` eager import in `src/exstruct/cli/edit.py` was valid for routing/help-only paths. The module now defers `pydantic` loading until an actual validation-error check happens and serializes JSON payloads via `model_dump` duck typing.
+- `tests/cli/test_cli_lazy_imports.py` now locks the new boundaries: `import exstruct.cli.edit` keeps `pydantic` unloaded, `main(["--help"])` keeps `exstruct.cli.edit` unloaded, and `typing.get_type_hints(exstruct.extract)` resolves `WorkbookData` successfully.
+- Retention decision:
+  - No new ADR or permanent spec migration was needed. This follow-up only hardens the existing issue `#108` implementation and review expectations under the already-recorded lightweight-startup rule in `dev-docs/architecture/overview.md`.
+  - The temporary working notes for this follow-up can remain limited to this section in `tasks/feature_spec.md` and `tasks/todo.md`.
+- Verification:
+  - `python scripts/codacy_issues.py --pr 112 --min-level Error`
+  - `gh pr view 112 --json number,title,reviewDecision,reviews,comments,files,url,headRefName,baseRefName`
+  - `gh api repos/harumiWeb/exstruct/pulls/112/comments`
+  - `uv run pytest tests/cli/test_cli_lazy_imports.py tests/cli/test_edit_cli.py tests/cli/test_cli.py -q`
+  - `uv run task precommit-run`
+  - manual `uv run python` probes for `typing.get_type_hints(exstruct.extract)` and `main(["--help"])` import boundaries

@@ -233,3 +233,40 @@
 
 - `not-needed`
 - rationale: this is a startup-focused internal refactor that preserves existing CLI/API contracts and backend policy. The durable guidance belongs in architecture notes rather than a new policy ADR.
+
+## 2026-03-20 issue #108 review and Codacy follow-up
+
+### Goal
+
+- Resolve the 3 Codacy `non-literal-import` findings on PR `#112` without regressing the lazy-import startup work.
+- Address the substantive PR review comments about runtime annotation introspection and unnecessary eager imports on lightweight CLI paths.
+- Keep the public CLI and Python export surface unchanged while tightening the internal implementation.
+
+### Public contract
+
+- `typing.get_type_hints(exstruct.extract)` and the other public convenience helpers in `src/exstruct/__init__.py` must keep resolving runtime-visible exported model types after the lazy-import refactor.
+- `exstruct --help` and extraction-style argv that are clearly not edit subcommands must not import `exstruct.cli.edit`.
+- Importing `exstruct.cli.edit` for routing/help-only purposes must not eagerly import `pydantic`.
+- Public exports from `exstruct` and `exstruct.edit` remain unchanged; only the internal lazy-loader structure changes to satisfy static analysis.
+
+### Constraints
+
+- Do not undo the startup optimization by eagerly importing `exstruct.models`, `exstruct.edit.models`, or `pydantic` at module import time.
+- Replace generic non-literal `import_module()` helpers with explicit literal import paths or literal loader functions so Codacy/Semgrep no longer flags them.
+- Keep the existing monkeypatch-compatible wrappers in `src/exstruct/cli/main.py` and `src/exstruct/cli/edit.py`.
+
+### Verification plan
+
+- `tests/cli/test_cli_lazy_imports.py`
+  - `import exstruct.cli.edit` does not eagerly load `pydantic`
+  - `main(["--help"])` does not import `exstruct.cli.edit`
+  - `typing.get_type_hints(exstruct.extract)` resolves `WorkbookData` successfully
+- `tests/cli/test_edit_cli.py`
+  - existing edit CLI behavior still passes with the new explicit loaders
+- `uv run pytest tests/cli/test_cli_lazy_imports.py tests/cli/test_edit_cli.py tests/cli/test_cli.py -q`
+- `uv run task precommit-run`
+
+### ADR verdict
+
+- `not-needed`
+- rationale: this is a follow-up implementation hardening and static-analysis cleanup under the existing issue `#108` design, not a new policy decision.
