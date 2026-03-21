@@ -20,9 +20,11 @@ capabilities.
 
 ## Constraints to call out
 
-- `create_chart` is COM-only.
+- `create_chart` is COM-only and does not support `--dry-run`,
+  `--return-inverse-ops`, or `--preflight-formula-check`.
 - `.xls` workflows require COM, are not valid with `backend=openpyxl`, and do
-  not support `--dry-run`.
+  not support `--dry-run`, `--return-inverse-ops`, or
+  `--preflight-formula-check`.
 - Requests that need host-owned path restrictions, transport mapping, or
   artifact mirroring belong to MCP, not the local CLI Skill.
 

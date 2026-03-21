@@ -32,9 +32,10 @@ wrong apply would be expensive.
   - range-wide formula fills
   - style changes across large regions
   - chart creation or COM-only workflows
-- `create_chart` requests and `.xls` create/edit workflows reject `--dry-run`;
-  inspect ops, validate what you can, and explain the backend constraint before
-  any non-dry-run apply.
+- `create_chart` requests and `.xls` create/edit workflows do not support
+  `--dry-run`, `--return-inverse-ops`, or `--preflight-formula-check`;
+  inspect ops, run only supported validation, and explain the backend
+  constraint before any non-dry-run apply.
 - Prefer `--backend openpyxl` when you want the dry run and the later apply run
   to use the same engine.
 - Explain that `--backend auto` can resolve to openpyxl for a dry-run request
