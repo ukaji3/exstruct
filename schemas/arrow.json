@@ -2,6 +2,24 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Connector shape metadata.",
   "properties": {
+    "approximation_level": {
+      "anyOf": [
+        {
+          "enum": [
+            "direct",
+            "heuristic",
+            "partial"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "How directly the backend could determine this shape metadata.",
+      "title": "Approximation Level"
+    },
     "begin_arrow_style": {
       "anyOf": [
         {
@@ -27,6 +45,21 @@
       "default": null,
       "description": "Shape id at the start of a connector (ConnectorFormat.BeginConnectedShape).",
       "title": "Begin Id"
+    },
+    "confidence": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Best-effort confidence score between 0.0 and 1.0.",
+      "title": "Confidence"
     },
     "direction": {
       "anyOf": [
@@ -114,6 +147,23 @@
       "description": "Left offset (Excel units).",
       "title": "L",
       "type": "integer"
+    },
+    "provenance": {
+      "anyOf": [
+        {
+          "enum": [
+            "excel_com",
+            "libreoffice_uno"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Backend provenance for this shape.",
+      "title": "Provenance"
     },
     "rotation": {
       "anyOf": [

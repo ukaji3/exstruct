@@ -4,13 +4,98 @@ All notable changes to this project are documented in this file. This changelog 
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-03-21
+
 ### Added
 
-- None.
+- Added regression coverage for extraction CLI runtime validation and lightweight import boundaries across `exstruct`, `exstruct.engine`, `exstruct.cli.main`, and `exstruct.cli.edit`.
 
 ### Changed
 
-- None.
+- Changed the extraction CLI so `--auto-page-breaks-dir` is always listed in help output and validated only when the flag is requested at runtime.
+- Changed CLI and package import behavior so `exstruct --help`, `exstruct ops list`, `import exstruct`, and `import exstruct.engine` defer heavy extraction, edit, and rendering imports until needed.
+
+### Fixed
+
+- Fixed parser and help startup side effects by removing COM availability probing during extraction CLI parser construction.
+- Fixed lazy-export follow-ups so public runtime type hints resolve correctly while keeping exported symbol names stable.
+- Fixed edit CLI routing so non-edit argv and lightweight edit paths avoid unnecessary imports such as `exstruct.cli.edit` and `pydantic`.
+- Fixed the `validate` subcommand error boundary so `RuntimeError` is no longer converted into handled CLI stderr output.
+
+## [0.7.0] - 2026-03-19
+
+### Added
+
+- Added a first-class public workbook editing API under `exstruct.edit`, including public patch/make entrypoints, shared patch-op schema helpers, and edit-owned request/result models.
+- Added public editing CLI commands under the existing `exstruct` console script: `patch`, `make`, `ops`, and `validate`.
+- Added maintainer-facing editing documentation coverage, including architecture/spec updates, ADR alignment, and agent workflow guidance that closes out issue `#99`.
+
+### Changed
+
+- Changed workbook editing layering so `exstruct.edit` is the canonical editing core while MCP remains a host-managed integration and compatibility layer.
+- Updated README and docs positioning to clarify canonical usage across Python, CLI, and MCP workflows, including dry-run guidance for editing operations.
+
+### Fixed
+
+- Fixed top-level `sheet` fallback handling for workbook editing requests while preserving `op.sheet` precedence.
+- Fixed legacy monkeypatch compatibility across `exstruct.mcp.patch_runner` and related compatibility shims by restoring live override visibility and entrypoint precedence coverage.
+- Fixed rename-reservation cleanup on openpyxl failure paths so placeholder output files are removed when apply fails.
+- Fixed dry-run, backend-selection, and CLI failure wording drift in the docs so it matches current runtime behavior.
+
+## [0.6.1] - 2026-03-12
+
+### Added
+
+- Added a dedicated GitHub Actions Windows LibreOffice smoke job on `windows-2025` that installs `libreoffice-fresh`, discovers runtime paths, and runs `tests/core/test_libreoffice_smoke.py` with `RUN_LIBREOFFICE_SMOKE=1`.
+- Added Windows-focused regression coverage for LibreOffice runtime normalization, bundled Python discovery, bridge subprocess environment setup, and smoke-gate timeout fallback behavior.
+
+### Changed
+
+- Updated README, README.ja, and test requirements to document LibreOffice smoke coverage on both Linux and Windows CI.
+- Changed LibreOffice bridge subprocess execution on Windows so probe, handshake, and extraction runs use the runtime directory as `cwd` and prepend runtime paths to `PATH`.
+
+### Fixed
+
+- Fixed Windows LibreOffice runtime discovery to prefer `soffice.com` when it is available and to detect bundled LibreOffice Python under `python-core-*` layouts.
+- Fixed false-negative Windows LibreOffice smoke gating by retrying slow `soffice --version` probes and falling back to a short-lived session probe before treating the runtime as unavailable.
+
+## [0.6.0] - 2026-03-06
+
+### Added
+
+- Added a new `libreoffice` extraction mode across the Python API, CLI, and MCP. This mode provides best-effort rich extraction for `.xlsx`/`.xlsm` without Excel COM and can add merged cells, shapes, connectors, and charts when the LibreOffice runtime is available.
+- Added a LibreOffice-backed rich extraction pipeline, including headless session management, timeout/profile cleanup handling, explicit fallback reasons, and non-COM fallback workbook generation when the runtime is unavailable.
+- Added best-effort shape, connector, and chart reconstruction for `libreoffice` mode by combining LibreOffice UNO geometry with OOXML metadata.
+- Added provenance/fidelity metadata for rich objects: shapes and charts now report `provenance`, `approximation_level`, and `confidence`.
+- Added LibreOffice-focused regression coverage, including mode validation, `.xls` rejection, connector/chart extraction, unavailable-runtime fallback, and optional smoke tests.
+
+### Changed
+
+- Updated docs across README, CLI, API, architecture, and release notes to describe `libreoffice` as a best-effort rich mode rather than a strict subset of COM output.
+- Updated pipeline/backend reporting so `light`, `libreoffice`, and COM-backed rich extraction paths are distinguished more clearly.
+- Clarified public contracts and help text for mode support, fallback behavior, and LibreOffice limitations in v1.
+
+### Fixed
+
+- Fixed early validation for `mode="libreoffice"` so unsupported combinations with PDF/PNG rendering and auto page-break export now fail consistently in CLI and API before processing starts.
+- Fixed unsupported `.xls` handling in `libreoffice` mode by returning a clear early error instead of attempting runtime processing.
+
+## [0.5.3] - 2026-03-03
+
+### Added
+
+- Added a dedicated render worker entrypoint (`python -m exstruct.render.subprocess_worker`) for `capture_sheet_images` subprocess mode, decoupled from parent `__main__` restoration.
+
+### Changed
+
+- MCP runtime now defaults `EXSTRUCT_RENDER_SUBPROCESS=1` after profile comparison runs showed stable behavior in both modes (`63/63` success for `0` and `1` under MCP-equivalent timeout handling); set `EXSTRUCT_RENDER_SUBPROCESS=0` to force in-process rendering.
+- Marked MCP `exstruct_capture_sheet_images` as Experimental in docs, including recommended timeout/runtime settings.
+- Updated MCP/README docs with subprocess timeout tuning and stage-aware error guidance (`startup`/`join`/`result`/`worker`), including `EXSTRUCT_RENDER_SUBPROCESS_STARTUP_TIMEOUT_SEC`.
+
+### Fixed
+
+- Fixed subprocess render wait ordering to prioritize result receipt before join wait, preventing false timeout failures after successful worker output.
+- Fixed opaque subprocess failures by returning actionable stage-aware render errors with stderr snippets where available.
 
 ## [0.5.2] - 2026-02-28
 

@@ -100,3 +100,22 @@ def test_arrow_only_fields_are_not_on_shape() -> None:
     assert arrow.end_id == 2
     assert not hasattr(shape, "begin_id")
     assert not hasattr(shape, "end_id")
+
+
+def test_confidence_is_clamped_to_unit_interval() -> None:
+    """Verify that backend confidence must stay within [0.0, 1.0]."""
+
+    with pytest.raises(ValidationError):
+        Shape(id=1, text="bad", l=0, t=0, w=None, h=None, confidence=-0.1)
+    with pytest.raises(ValidationError):
+        Chart(
+            name="c",
+            chart_type="Line",
+            title=None,
+            y_axis_title="",
+            y_axis_range=[],
+            series=[],
+            l=0,
+            t=0,
+            confidence=1.1,
+        )

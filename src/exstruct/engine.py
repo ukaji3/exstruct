@@ -1,3 +1,5 @@
+"""Engine option models and orchestration helpers for ExStruct."""
+
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -8,19 +10,210 @@ from typing import Literal, TextIO, TypedDict, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .core import cells as _cells
-from .core.cells import set_table_detection_params
-from .core.integrate import extract_workbook
-from .io import (
-    save_auto_page_break_views,
-    save_print_area_views,
-    save_sheets,
-    serialize_workbook,
+from .constraints import (
+    normalize_path,
+    validate_libreoffice_extraction_request,
+    validate_libreoffice_process_request,
 )
-from .models import SheetData, WorkbookData, convert_workbook_keys_to_alpha
-from .render import export_pdf, export_sheet_images
+from .models import SheetData, WorkbookData
 
-ExtractionMode = Literal["light", "standard", "verbose"]
+ExtractionMode = Literal["light", "libreoffice", "standard", "verbose"]
+
+
+def set_table_detection_params(
+    *,
+    table_score_threshold: float | None = None,
+    density_min: float | None = None,
+    coverage_min: float | None = None,
+    min_nonempty_cells: int | None = None,
+) -> None:
+    """Lazily proxy table-detection configuration updates."""
+    from .core.cells import (
+        set_table_detection_params as set_table_detection_params_impl,
+    )
+
+    set_table_detection_params_impl(
+        table_score_threshold=table_score_threshold,
+        density_min=density_min,
+        coverage_min=coverage_min,
+        min_nonempty_cells=min_nonempty_cells,
+    )
+
+
+def extract_workbook(
+    file_path: str | Path,
+    mode: ExtractionMode = "standard",
+    *,
+    include_cell_links: bool | None = None,
+    include_print_areas: bool | None = None,
+    include_auto_page_breaks: bool = False,
+    include_colors_map: bool | None = None,
+    include_default_background: bool = False,
+    ignore_colors: set[str] | None = None,
+    include_formulas_map: bool | None = None,
+    include_merged_cells: bool | None = None,
+    include_merged_values_in_rows: bool = True,
+) -> WorkbookData:
+    """Lazily proxy workbook extraction."""
+    from .core.integrate import extract_workbook as extract_workbook_impl
+
+    return extract_workbook_impl(
+        file_path,
+        mode=mode,
+        include_cell_links=include_cell_links,
+        include_print_areas=include_print_areas,
+        include_auto_page_breaks=include_auto_page_breaks,
+        include_colors_map=include_colors_map,
+        include_default_background=include_default_background,
+        ignore_colors=ignore_colors,
+        include_formulas_map=include_formulas_map,
+        include_merged_cells=include_merged_cells,
+        include_merged_values_in_rows=include_merged_values_in_rows,
+    )
+
+
+def convert_workbook_keys_to_alpha(workbook: WorkbookData) -> WorkbookData:
+    """Lazily proxy workbook key conversion."""
+    from .models import (
+        convert_workbook_keys_to_alpha as convert_workbook_keys_to_alpha_impl,
+    )
+
+    return convert_workbook_keys_to_alpha_impl(workbook)
+
+
+def serialize_workbook(
+    model: WorkbookData,
+    fmt: Literal["json", "yaml", "yml", "toon"] = "json",
+    *,
+    pretty: bool = False,
+    indent: int | None = None,
+    include_backend_metadata: bool = False,
+) -> str:
+    """Lazily proxy workbook serialization."""
+    from .io import serialize_workbook as serialize_workbook_impl
+
+    return serialize_workbook_impl(
+        model,
+        fmt=fmt,
+        pretty=pretty,
+        indent=indent,
+        include_backend_metadata=include_backend_metadata,
+    )
+
+
+def save_sheets(
+    workbook: WorkbookData,
+    output_dir: Path,
+    fmt: Literal["json", "yaml", "yml", "toon"] = "json",
+    *,
+    pretty: bool = False,
+    indent: int | None = None,
+    include_backend_metadata: bool = False,
+) -> dict[str, Path]:
+    """Lazily proxy per-sheet export."""
+    from .io import save_sheets as save_sheets_impl
+
+    return save_sheets_impl(
+        workbook,
+        output_dir,
+        fmt=fmt,
+        pretty=pretty,
+        indent=indent,
+        include_backend_metadata=include_backend_metadata,
+    )
+
+
+def save_print_area_views(
+    workbook: WorkbookData,
+    output_dir: Path,
+    fmt: Literal["json", "yaml", "yml", "toon"] = "json",
+    *,
+    pretty: bool = False,
+    indent: int | None = None,
+    normalize: bool = False,
+    include_shapes: bool = True,
+    include_charts: bool = True,
+    include_shape_size: bool = True,
+    include_chart_size: bool = True,
+    include_backend_metadata: bool = False,
+) -> dict[str, Path]:
+    """Lazily proxy print-area export."""
+    from .io import save_print_area_views as save_print_area_views_impl
+
+    return save_print_area_views_impl(
+        workbook,
+        output_dir,
+        fmt=fmt,
+        pretty=pretty,
+        indent=indent,
+        normalize=normalize,
+        include_shapes=include_shapes,
+        include_charts=include_charts,
+        include_shape_size=include_shape_size,
+        include_chart_size=include_chart_size,
+        include_backend_metadata=include_backend_metadata,
+    )
+
+
+def save_auto_page_break_views(
+    workbook: WorkbookData,
+    output_dir: Path,
+    fmt: Literal["json", "yaml", "yml", "toon"] = "json",
+    *,
+    pretty: bool = False,
+    indent: int | None = None,
+    normalize: bool = False,
+    include_shapes: bool = True,
+    include_charts: bool = True,
+    include_shape_size: bool = True,
+    include_chart_size: bool = True,
+    include_backend_metadata: bool = False,
+) -> dict[str, Path]:
+    """Lazily proxy auto page-break export."""
+    from .io import (
+        save_auto_page_break_views as save_auto_page_break_views_impl,
+    )
+
+    return save_auto_page_break_views_impl(
+        workbook,
+        output_dir,
+        fmt=fmt,
+        pretty=pretty,
+        indent=indent,
+        normalize=normalize,
+        include_shapes=include_shapes,
+        include_charts=include_charts,
+        include_shape_size=include_shape_size,
+        include_chart_size=include_chart_size,
+        include_backend_metadata=include_backend_metadata,
+    )
+
+
+def export_pdf(excel_path: str | Path, output_pdf: str | Path) -> list[str]:
+    """Lazily proxy PDF rendering."""
+    from .render import export_pdf as export_pdf_impl
+
+    return export_pdf_impl(excel_path, output_pdf)
+
+
+def export_sheet_images(
+    excel_path: str | Path,
+    output_dir: str | Path,
+    dpi: int = 144,
+    *,
+    sheet: str | None = None,
+    a1_range: str | None = None,
+) -> list[Path]:
+    """Lazily proxy sheet image rendering."""
+    from .render import export_sheet_images as export_sheet_images_impl
+
+    return export_sheet_images_impl(
+        excel_path,
+        output_dir,
+        dpi=dpi,
+        sheet=sheet,
+        a1_range=a1_range,
+    )
 
 
 class TableParams(TypedDict, total=False):
@@ -64,8 +257,9 @@ class StructOptions:
     Extraction-time options for ExStructEngine.
 
     Attributes:
-        mode: Extraction mode. One of "light", "standard", "verbose".
+        mode: Extraction mode. One of "light", "libreoffice", "standard", "verbose".
               - light: cells + table candidates only (no COM, shapes/charts empty)
+              - libreoffice: best-effort non-COM mode using the LibreOffice backend
               - standard: texted shapes + arrows + charts (if COM available)
               - verbose: all shapes (width/height), charts, table candidates
         table_params: Optional dict passed to `set_table_detection_params(**table_params)`
@@ -121,6 +315,13 @@ class FilterOptions(BaseModel):
     include_chart_size: bool | None = Field(
         default=None,
         description="Include chart size; None -> auto (verbose=True, others=False).",
+    )
+    include_backend_metadata: bool = Field(
+        default=False,
+        description=(
+            "Include shape/chart backend metadata fields "
+            "(provenance, approximation_level, confidence)."
+        ),
     )
     include_tables: bool = Field(
         default=True, description="Include table candidate ranges."
@@ -188,7 +389,7 @@ class ExStructEngine:
         - OutputOptions: serialization format/pretty-print, include/exclude filters, per-sheet/per-print-area output dirs, etc.
         - Main methods:
             extract(path, mode=None) -> WorkbookData
-                - Modes: light/standard/verbose
+                - Modes: light/libreoffice/standard/verbose
                 - light: COM-free; cells + tables + print areas only (shapes/charts empty)
             serialize(workbook, ...) -> str
                 - Applies include_* filters, then serializes
@@ -225,12 +426,29 @@ class ExStructEngine:
         if not self.options.table_params:
             yield
             return
-        prev = cast(TableParams, dict(_cells._DETECTION_CONFIG))
+        from .core import cells as cells_module
+
+        prev = cast(TableParams, dict(cells_module._DETECTION_CONFIG))
         set_table_detection_params(**self.options.table_params)
         try:
             yield
         finally:
             set_table_detection_params(**prev)
+
+    _AUTO_PAGE_BREAKS_DIR_UNSET = object()
+
+    def _resolve_auto_page_breaks_dir(
+        self,
+        *,
+        auto_page_breaks_dir: Path | None | object = _AUTO_PAGE_BREAKS_DIR_UNSET,
+    ) -> Path | None:
+        """Return the effective auto page-break destination for one extraction."""
+
+        if auto_page_breaks_dir is self._AUTO_PAGE_BREAKS_DIR_UNSET:
+            return self._ensure_optional_path(
+                self.output.destinations.auto_page_breaks_dir
+            )
+        return cast(Path | None, auto_page_breaks_dir)
 
     def _resolve_size_flags(self) -> tuple[bool, bool]:
         """
@@ -351,7 +569,7 @@ class ExStructEngine:
             Path constructed from the given value.
         """
 
-        return path if isinstance(path, Path) else Path(path)
+        return normalize_path(path)
 
     @classmethod
     def _ensure_optional_path(cls, path: str | Path | None) -> Path | None:
@@ -369,7 +587,13 @@ class ExStructEngine:
         return cls._ensure_path(path)
 
     def extract(
-        self, file_path: str | Path, *, mode: ExtractionMode | None = None
+        self,
+        file_path: str | Path,
+        *,
+        mode: ExtractionMode | None = None,
+        _auto_page_breaks_dir_override: Path | None | object = (
+            _AUTO_PAGE_BREAKS_DIR_UNSET
+        ),
     ) -> WorkbookData:
         """
         Produce a normalized WorkbookData extracted from the given workbook file.
@@ -377,21 +601,54 @@ class ExStructEngine:
         Parameters:
             file_path (str | Path): Path to the .xlsx/.xlsm/.xls file to extract.
             mode (ExtractionMode | None): Extraction mode to use; if None the engine's configured mode is used.
-                Modes: "light", "standard", "verbose".
+                Modes: "light", "libreoffice", "standard", "verbose".
 
         Returns:
             WorkbookData: Normalized workbook data extracted from the file.
         """
         chosen_mode = mode or self.options.mode
-        include_auto_page_breaks = (
-            self.output.filters.include_auto_print_areas
-            or self.output.destinations.auto_page_breaks_dir is not None
+        include_auto_page_breaks = self._resolve_include_auto_page_breaks(
+            auto_page_breaks_dir=_auto_page_breaks_dir_override
         )
-        normalized_file_path = self._ensure_path(file_path)
+        return self._extract_workbook_with_options(
+            file_path,
+            mode=chosen_mode,
+            include_auto_page_breaks=include_auto_page_breaks,
+        )
+
+    def _resolve_include_auto_page_breaks(
+        self,
+        *,
+        auto_page_breaks_dir: Path | None | object = _AUTO_PAGE_BREAKS_DIR_UNSET,
+    ) -> bool:
+        """Return whether extraction must compute auto page-break areas."""
+
+        effective_auto_page_breaks_dir = self._resolve_auto_page_breaks_dir(
+            auto_page_breaks_dir=auto_page_breaks_dir
+        )
+        return (
+            self.output.filters.include_auto_print_areas
+            or effective_auto_page_breaks_dir is not None
+        )
+
+    def _extract_workbook_with_options(
+        self,
+        file_path: str | Path,
+        *,
+        mode: ExtractionMode,
+        include_auto_page_breaks: bool,
+    ) -> WorkbookData:
+        """Extract a workbook with already-resolved validation-sensitive options."""
+
+        normalized_file_path = validate_libreoffice_extraction_request(
+            file_path,
+            mode=mode,
+            include_auto_page_breaks=include_auto_page_breaks,
+        )
         with self._table_params_scope():
             workbook = extract_workbook(
                 normalized_file_path,
-                mode=chosen_mode,
+                mode=mode,
                 include_cell_links=self.options.include_cell_links,
                 include_print_areas=None,
                 include_auto_page_breaks=include_auto_page_breaks,
@@ -427,8 +684,13 @@ class ExStructEngine:
         use_fmt = fmt or self.output.format.fmt
         use_pretty = self.output.format.pretty if pretty is None else pretty
         use_indent = self.output.format.indent if indent is None else indent
+
         return serialize_workbook(
-            filtered, fmt=use_fmt, pretty=use_pretty, indent=use_indent
+            filtered,
+            fmt=use_fmt,
+            pretty=use_pretty,
+            indent=use_indent,
+            include_backend_metadata=self.output.filters.include_backend_metadata,
         )
 
     def export(
@@ -511,6 +773,7 @@ class ExStructEngine:
                 fmt=chosen_fmt,
                 pretty=self.output.format.pretty if pretty is None else pretty,
                 indent=self.output.format.indent if indent is None else indent,
+                include_backend_metadata=self.output.filters.include_backend_metadata,
             )
 
         if normalized_print_areas_dir is not None:
@@ -527,6 +790,7 @@ class ExStructEngine:
                     include_charts=self.output.filters.include_charts,
                     include_shape_size=include_shape_size,
                     include_chart_size=include_chart_size,
+                    include_backend_metadata=self.output.filters.include_backend_metadata,
                 )
 
         if normalized_auto_page_breaks_dir is not None:
@@ -542,6 +806,7 @@ class ExStructEngine:
                 include_charts=self.output.filters.include_charts,
                 include_shape_size=include_shape_size,
                 include_chart_size=include_chart_size,
+                include_backend_metadata=self.output.filters.include_backend_metadata,
             )
 
         return None
@@ -570,8 +835,10 @@ class ExStructEngine:
             file_path: Input Excel workbook path (str or Path).
             output_path: Target file path (str or Path); writes to stdout when None.
             out_fmt: Serialization format for structured output.
-            image: Whether to export PNGs alongside structured output.
+            image: Whether to export PNGs alongside structured output. Requires Excel
+                COM and is not supported in `mode="libreoffice"`.
             pdf: Whether to export a PDF snapshot alongside structured output.
+                Requires Excel COM and is not supported in `mode="libreoffice"`.
             dpi: DPI to use when rendering images.
             mode: Extraction mode; defaults to the engine's StructOptions.mode.
             pretty: Whether to pretty-print JSON output.
@@ -579,17 +846,46 @@ class ExStructEngine:
             sheets_dir: Directory for per-sheet structured outputs (str or Path).
             print_areas_dir: Directory for per-print-area structured outputs (str or Path).
             auto_page_breaks_dir: Directory for auto page-break outputs (str or Path).
+                Requires Excel COM and is not supported in `mode="libreoffice"`.
             stream: Stream override when writing to stdout.
+
+        Raises:
+            ConfigError: If `mode="libreoffice"` is combined with PDF/PNG rendering
+                or auto page-break export.
         """
-        normalized_file_path = self._ensure_path(file_path)
+        chosen_mode = mode or self.options.mode
         normalized_output_path = self._ensure_optional_path(output_path)
         normalized_sheets_dir = self._ensure_optional_path(sheets_dir)
         normalized_print_areas_dir = self._ensure_optional_path(print_areas_dir)
         normalized_auto_page_breaks_dir = self._ensure_optional_path(
             auto_page_breaks_dir
         )
+        effective_auto_page_breaks_dir = self._resolve_auto_page_breaks_dir(
+            auto_page_breaks_dir=(
+                normalized_auto_page_breaks_dir
+                if normalized_auto_page_breaks_dir is not None
+                else self._AUTO_PAGE_BREAKS_DIR_UNSET
+            )
+        )
+        include_auto_page_breaks = self._resolve_include_auto_page_breaks(
+            auto_page_breaks_dir=effective_auto_page_breaks_dir
+        )
+        normalized_file_path = validate_libreoffice_process_request(
+            file_path,
+            mode=chosen_mode,
+            include_auto_page_breaks=include_auto_page_breaks,
+            pdf=pdf,
+            image=image,
+        )
 
-        wb = self.extract(normalized_file_path, mode=mode)
+        if normalized_auto_page_breaks_dir is None:
+            wb = self.extract(normalized_file_path, mode=chosen_mode)
+        else:
+            wb = self.extract(
+                normalized_file_path,
+                mode=chosen_mode,
+                _auto_page_breaks_dir_override=effective_auto_page_breaks_dir,
+            )
         chosen_fmt = out_fmt or self.output.format.fmt
         self.export(
             wb,
@@ -599,7 +895,7 @@ class ExStructEngine:
             indent=indent,
             sheets_dir=normalized_sheets_dir,
             print_areas_dir=normalized_print_areas_dir,
-            auto_page_breaks_dir=normalized_auto_page_breaks_dir,
+            auto_page_breaks_dir=effective_auto_page_breaks_dir,
             stream=stream,
         )
 

@@ -3,9 +3,23 @@
 This guide explains how to run ExStruct as an MCP (Model Context Protocol) server
 so AI agents can call it safely as a tool.
 
+## Positioning
+
+MCP is the host-managed integration / compatibility layer around ExStruct's
+public extraction and editing APIs.
+
+- Use `openpyxl` / `xlwings` for ordinary direct Python workbook editing, and
+  use `exstruct.edit` only when you specifically need ExStruct's patch
+  contract inside Python.
+- Use the editing CLI (`exstruct patch`, `make`, `ops`, `validate`) when you
+  need the canonical local operational / agent interface.
+- Use MCP when you need host-owned `PathPolicy`, transport mapping, artifact
+  mirroring, or approval-aware execution around the same core behavior.
+
 ## What it provides
 
 - Convert Excel into structured JSON (file output)
+- Export worksheet images as PNG (COM-only, optional sheet/range target)
 - Create a new workbook and apply initial ops in one call
 - Edit Excel by applying patch operations (cell/sheet updates)
 - Read large JSON outputs in chunks
@@ -61,6 +75,7 @@ exstruct-mcp --root C:\\data --log-file C:\\logs\\exstruct-mcp.log --on-conflict
 ## Tools
 
 - `exstruct_extract`
+- `exstruct_capture_sheet_images`
 - `exstruct_make`
 - `exstruct_patch`
 - `exstruct_list_ops`
@@ -72,19 +87,72 @@ exstruct-mcp --root C:\\data --log-file C:\\logs\\exstruct-mcp.log --on-conflict
 - `exstruct_validate_input`
 - `exstruct_get_runtime_info`
 
+### `exstruct_capture_sheet_images` (COM only, Experimental)
+
+- Purpose: export worksheet images as PNG through the existing PDF -> PNG pipeline.
+- Input:
+  - `xlsx_path` (required)
+  - `out_dir` (optional)
+  - `dpi` (default `144`, must be `>= 1`)
+  - `sheet` (optional; required when `range` is provided)
+  - `range` (optional; `A1:B2`, `Sheet1!A1:B2`, `'Sheet 1'!A1:B2`)
+- Output:
+  - `out_dir` (always returned, resolved path)
+  - `image_paths`
+  - `warnings`
+- Notes:
+  - If `out_dir` is omitted, a unique `<workbook_stem>_images` directory is created under MCP `--root`.
+  - COM/Excel desktop is required.
+  - This tool is currently shipped as `experimental` in MCP deployments.
+  - MCP server runtime defaults `EXSTRUCT_RENDER_SUBPROCESS=1` via `setdefault` (subprocess PDF->PNG). If you prefer in-process rendering, set `EXSTRUCT_RENDER_SUBPROCESS=0` explicitly before starting the server.
+  - Timeout tuning:
+    - `EXSTRUCT_MCP_CAPTURE_SHEET_IMAGES_TIMEOUT_SEC` (default `120`)
+    - `EXSTRUCT_RENDER_SUBPROCESS_STARTUP_TIMEOUT_SEC` (default `5`)
+    - `EXSTRUCT_RENDER_SUBPROCESS_JOIN_TIMEOUT_SEC` (default `120`)
+    - `EXSTRUCT_RENDER_SUBPROCESS_RESULT_TIMEOUT_SEC` (default `5`)
+  - Stage-aware errors are returned from render subprocess mode:
+    - `stage=startup`: worker bootstrap/import/startup failed.
+    - `stage=join`: timed out while worker remained alive.
+    - `stage=result`: worker exited but result payload was missing/invalid.
+    - `stage=worker`: worker returned an explicit rendering failure.
+  - Trade-offs:
+    - `EXSTRUCT_RENDER_SUBPROCESS=0`: lower crash isolation and potentially higher long-running process memory pressure.
+    - `EXSTRUCT_RENDER_SUBPROCESS=1`: requires `sys.executable` + `exstruct` module resolution in the worker process.
+
+Example:
+
+```json
+{
+  "tool": "exstruct_capture_sheet_images",
+  "xlsx_path": "C:\\data\\book.xlsx",
+  "sheet": "Sheet 1",
+  "range": "'Sheet 1'!A1:F20",
+  "dpi": 144
+}
+```
+
 ### `exstruct_extract` defaults and mode guide
 
 - `options.alpha_col` defaults to `true` in MCP (column keys become `A`, `B`, ...).
 - Set `options.alpha_col=false` if you need legacy 0-based numeric string keys.
+- `options.include_backend_metadata` defaults to `false` to keep shape/chart output compact.
+- Set `options.include_backend_metadata=true` when you need `provenance`, `approximation_level`, and `confidence`.
 - `mode` is an extraction detail level (not sheet scope):
 
 | Mode | When to use | Main output characteristics |
 |---|---|---|
 | `light` | Fast, structure-first extraction | cells + table candidates + print areas |
-| `standard` | Default for most agent flows | balanced detail and size |
-| `verbose` | Need the richest metadata | adds links/maps and richer metadata |
+| `libreoffice` | Best-effort rich extraction without Excel COM | `light` + merged cells + shapes + connectors + charts |
+| `standard` | Default for Windows + Excel agent flows | balanced COM-backed detail and size |
+| `verbose` | Need the richest COM metadata | adds links/maps and richer metadata |
 
-## Quick start for agents (recommended)
+Notes:
+
+- `libreoffice` is available for `.xlsx/.xlsm` only.
+- `libreoffice` is best-effort and not a strict subset of COM output.
+- `libreoffice` does not render PDFs/PNGs and does not compute auto page-break areas in v1.
+
+## Quick start for extraction agents (recommended)
 
 1. Validate file readability with `exstruct_validate_input`
 2. Run `exstruct_extract` with `mode="standard"`
@@ -240,24 +308,38 @@ Example:
 }
 ```
 
-### Internal implementation note
+### Implementation note
 
-The patch implementation is layered to keep compatibility while enabling refactoring:
+Workbook editing also has a public Python import path under `exstruct.edit`.
+MCP remains the host/integration layer and keeps `PathPolicy`, transport, and
+tool payload concerns outside that public API.
 
-- `exstruct.mcp.patch_runner`: compatibility facade (existing import path)
-- `exstruct.mcp.patch.service`: patch/make orchestration
-- `exstruct.mcp.patch.engine.*`: backend execution boundaries (openpyxl/com)
-- `exstruct.mcp.patch.runtime`: runtime utilities (path/backend selection)
-- `exstruct.mcp.patch.ops.*`: backend-specific op application entrypoints
+For MCP users, the stable surfaces are:
 
-This keeps MCP tool I/O stable while allowing internal module separation.
+- `exstruct.edit`: shared-contract Python editing API
+- `exstruct.mcp.patch_runner`: compatibility facade for existing import paths
+- MCP server / tool entrypoints: host-owned path policy, transport, and artifact behavior
+
+Internal module layering is documented in
+`dev-docs/architecture/overview.md` and `dev-docs/specs/editing-api.md`.
+
+### Migration note
+
+If you currently use `exstruct_patch` / `exstruct_make` only because editing
+used to be MCP-first, prefer the editing CLI for new local workflows. Keep MCP
+when you specifically need host-level path restrictions, transport, or artifact
+policy, and use `exstruct.edit` only when you need the same patch contract
+inside Python.
 
 ## Edit flow (patch)
 
 1. Inspect workbook structure with `exstruct_extract` (and `exstruct_read_json_chunk` if needed)
 2. Build patch operations (`ops`) for target cells/sheets
-3. Call `exstruct_patch` to apply edits
-4. Re-run `exstruct_extract` to verify results if needed
+3. Call `exstruct_patch` with `dry_run=true` and inspect `PatchResult`, warnings, and diff
+4. If you want dry-run and apply to exercise the same engine, pin `backend="openpyxl"`
+5. If you keep `backend="auto"`, inspect `PatchResult.engine`; on Windows/Excel hosts the real apply may switch from openpyxl to COM
+6. Re-run without `dry_run` only after the reviewed result is acceptable
+7. Re-run `exstruct_extract` to verify results if needed
 
 ### `exstruct_patch` highlights
 

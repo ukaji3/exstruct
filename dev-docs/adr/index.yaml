@@ -1,0 +1,138 @@
+adrs:
+  - id: ADR-0001
+    title: Extraction Mode Responsibility Boundaries
+    status: accepted
+    path: dev-docs/adr/ADR-0001-extraction-mode-boundaries.md
+    primary_domain: extraction
+    domains:
+      - extraction
+      - mode
+    supersedes: []
+    superseded_by: []
+    related_specs:
+      - docs/api.md
+      - docs/cli.md
+      - dev-docs/specs/excel-extraction.md
+  - id: ADR-0002
+    title: Rich Backend Fallback Policy
+    status: accepted
+    path: dev-docs/adr/ADR-0002-rich-backend-fallback-policy.md
+    primary_domain: backend
+    domains:
+      - backend
+      - fallback
+      - extraction
+    supersedes: []
+    superseded_by: []
+    related_specs:
+      - dev-docs/specs/excel-extraction.md
+      - docs/concept.md
+  - id: ADR-0003
+    title: Output Serialization Omission Policy
+    status: accepted
+    path: dev-docs/adr/ADR-0003-output-serialization-omission-policy.md
+    primary_domain: schema
+    domains:
+      - schema
+      - serialization
+      - compatibility
+    supersedes: []
+    superseded_by: []
+    related_specs:
+      - docs/api.md
+      - docs/cli.md
+  - id: ADR-0004
+    title: Patch Backend Selection Policy
+    status: accepted
+    path: dev-docs/adr/ADR-0004-patch-backend-selection-policy.md
+    primary_domain: mcp
+    domains:
+      - mcp
+      - backend
+      - compatibility
+    supersedes: []
+    superseded_by: []
+    related_specs:
+      - docs/mcp.md
+      - dev-docs/specs/patch/legacy-dependency-inventory.md
+  - id: ADR-0005
+    title: PathPolicy Safety Boundary
+    status: accepted
+    path: dev-docs/adr/ADR-0005-path-policy-safety-boundary.md
+    primary_domain: safety
+    domains:
+      - safety
+      - mcp
+    supersedes: []
+    superseded_by: []
+    related_specs:
+      - docs/mcp.md
+  - id: ADR-0006
+    title: Public Edit API and Host-Owned Safety Boundary
+    status: accepted
+    path: dev-docs/adr/ADR-0006-public-edit-api-and-host-boundary.md
+    primary_domain: editing
+    domains:
+      - editing
+      - api
+      - mcp
+      - safety
+    supersedes: []
+    superseded_by: []
+    related_specs:
+      - dev-docs/specs/editing-api.md
+      - dev-docs/specs/data-model.md
+      - docs/api.md
+      - docs/mcp.md
+  - id: ADR-0007
+    title: Editing CLI as Public Operational Interface
+    status: accepted
+    path: dev-docs/adr/ADR-0007-editing-cli-as-public-operational-interface.md
+    primary_domain: editing
+    domains:
+      - editing
+      - cli
+      - compatibility
+    supersedes: []
+    superseded_by: []
+    related_specs:
+      - dev-docs/specs/editing-api.md
+      - dev-docs/specs/editing-cli.md
+      - docs/cli.md
+      - docs/api.md
+      - README.md
+      - README.ja.md
+  - id: ADR-0008
+    title: Extraction CLI Runtime Capability Validation
+    status: accepted
+    path: dev-docs/adr/ADR-0008-extraction-cli-runtime-capability-validation.md
+    primary_domain: cli
+    domains:
+      - cli
+      - extraction
+      - compatibility
+    supersedes: []
+    superseded_by: []
+    related_specs:
+      - docs/cli.md
+      - README.md
+      - README.ja.md
+      - dev-docs/specs/excel-extraction.md
+  - id: ADR-0009
+    title: Single CLI Skill for Agent Workflows
+    status: proposed
+    path: dev-docs/adr/ADR-0009-single-cli-skill-for-agent-workflows.md
+    primary_domain: agents
+    domains:
+      - agents
+      - cli
+      - editing
+    supersedes: []
+    superseded_by: []
+    related_specs:
+      - dev-docs/specs/editing-cli.md
+      - dev-docs/specs/exstruct-cli-skill.md
+      - docs/cli.md
+      - docs/mcp.md
+      - README.md
+      - README.ja.md

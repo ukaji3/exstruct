@@ -1,165 +1,182 @@
 # ExStruct AI Agents Guide
 
-ExStruct プロジェクトでは、AIを開発プロセスに組み込み、  
-高い品質を維持しつつ迅速に機能実装・改善を行うことを目的としています。
+## 0. Overview
 
-本ドキュメントは、AI エージェントが ExStruct を開発する際に守るべき  
-**役割・責務・行動規範・コード品質基準・成果物仕様** を定義します。
+This repository is organized around the following top-level directories:
 
-AIは以下の項目を必ず遵守してください。
+```text
+exstruct/
+|- src/           # Main library and implementation code
+|- tests/         # Automated tests
+|- sample/        # Sample workbooks and example inputs
+|- schemas/       # JSON schemas and validation-related assets
+|- scripts/       # Utility and maintenance scripts
+|- benchmark/     # Benchmark code and performance measurements
+|- docs/          # User-facing documentation
+|- dev-docs/      # All developer-facing documentation
+|- tasks/         # Temporary task notes and working files
+|- drafts/        # Draft documents and work-in-progress materials
+|- dist/          # Build artifacts and packaged outputs
+`- site/          # Generated documentation site output
+```
 
----
+For internal development guidance, architecture notes, ADRs, specifications, and testing references, use `dev-docs/` as the canonical location. Developer-facing documentation should be written there rather than scattered across the repository.
 
-## 1. ワークフロー設計
+## 1. Workflow Design
 
-### 1. Planモードを基本とする
+### 1. Use Plan mode by default
 
-- 3ステップ以上 or アーキテクチャに関わるタスクは必ずPlanモードで開始する
-- 途中でうまくいかなくなったら、無理に進めずすぐに立ち止まって再計画する
-- 構築だけでなく、検証ステップにもPlanモードを使う
-- 曖昧さを減らすため、実装前に詳細な仕様を書く
+- Always start tasks with 3 or more steps, or tasks that affect architecture, in Plan mode
+- If things stop going well partway through, do not force it; stop immediately and replan
+- Use Plan mode not only for implementation, but also for verification steps
+- Write detailed specifications before implementation to reduce ambiguity
 
-### 2. Multi Agents戦略
+### 2. Multi-Agent Strategy
 
-- メインのコンテキストウィンドウをクリーンに保つためにサブエージェントを積極的に活用する
-- リサーチ・調査・並列分析はサブエージェントに任せる
-- 複雑な問題には、サブエージェントを使ってより多くの計算リソースを投入する
-- 集中して実行するために、サブエージェント1つにつき1タスクを割り当てる
-- 読み取り中心のコードベース探索の場合は explorer を使う
-- 実装や修正を行う場合は worker を使う
-- レビューを行う場合は reviewer を使う
+- Actively use sub-agents to keep the main context window clean
+- Delegate research, investigation, and parallel analysis to sub-agents
+- For complex problems, use sub-agents to apply more compute resources
+- To keep execution focused, assign one task per sub-agent
+- Use explorer for read-heavy codebase exploration
+- Use worker for implementation and fixes
+- Use reviewer for reviews
 
-### 3. 自己改善ループ
+### 3. Self-Improvement Loop
 
-- ユーザーから修正を受けたら必ず `tasks/lessons.md` にそのパターンを記録する
-- 同じミスを繰り返さないように、自分へのルールを書く
-- ミス率が下がるまで、ルールを徹底的に改善し続ける
-- セッション開始時に、そのプロジェクトに関連するlessonsをレビューする
+- Whenever you receive a correction from the user, record that pattern in `tasks/lessons.md`
+- Write rules for yourself so you do not repeat the same mistake
+- Keep improving those rules thoroughly until the error rate goes down
+- At the start of each session, review the lessons relevant to the project
 
-### 4. 完了前に必ず検証する
+### 4. Always verify before completion
 
-- 動作を証明できるまで、タスクを完了とマークしない
-- 必要に応じてmainブランチと自分の変更の差分を確認する
-- 「スタッフエンジニアはこれを承認するか？」と自問する
-- テストを実行し、ログを確認し、正しく動作することを示す
+- Do not mark a task as complete until you can prove that it works
+- Compare the main branch and your changes when necessary
+- Ask yourself, "Would a staff engineer approve this?"
+- Run tests, review logs, and show that it works correctly
 
-### 5. エレガントさを追求する（バランスよく）
+### 5. Pursue elegance (with balance)
 
-- 重要な変更をする前に「もっとエレガントな方法はないか？」と一度立ち止まる
-- ハック的な修正に感じたら「今知っていることをすべて踏まえて、エレガントな解決策を実装する」
-- シンプルで明白な修正にはこのプロセスをスキップする（過剰設計しない）
-- 提示する前に自分の作業に自問自答する
+- Before making an important change, pause and ask, "Is there a more elegant way to do this?"
+- If a fix feels hacky, think, "Based on everything I know now, implement an elegant solution"
+- Skip this process for simple and obvious fixes (do not over-engineer)
+- Question your own work before presenting it
 
-### 6. 自律的なバグ修正
+### 6. Autonomous bug fixing
 
-- バグレポートを受けたら、手取り足取り教えてもらわずにそのまま修正する
-- ログ・エラー・失敗しているテストを見て、自分で解決する
-- ユーザーのコンテキスト切り替えをゼロにする
-- 言われなくても、失敗しているCIテストを修正しに行く
-
----
-
-## 2. AI の遵守すべきコーディング基準
-
-AI は必ず次のルールに従ってコードを生成してください。
-
-### 2.1 型ヒント必須（mypy strict 準拠）
-
-- 全関数・メソッドに引数・戻り値の型を必ず付与する
-- `Any` は外部ライブラリ境界のみで使用可（xlwings, pandas 等）
-
-### 2.2 Pydantic BaseModel を返すこと
-
-- 辞書やタプルを返さない
-- すべての「構造化データ」は Pydantic モデルによって表現する
-
-### 2.3 1 関数 = 1 責務
-
-- 複雑度（C90）は 12 を超えない
-- 必要なら AI が自動的に関数分割して良い
-
-### 2.4 import の順序
-
-1. 標準ライブラリ
-2. サードパーティ
-3. exstruct 内のモジュール
-
-### 2.5 Docstring（Google スタイル）
-
-関数・クラスには必ず Docstring を付ける。
-
-### 2.6 外部ライブラリの内部構造に依存しない
-
-- xlwings / pandas / numpy などは型を推測しない
-- エンティティは境界層で Any として受け取り、内部で Pydantic に正規化する
+- When you receive a bug report, fix it directly without needing step-by-step guidance
+- Use logs, errors, and failing tests to solve it yourself
+- Eliminate context switching for the user
+- Even without being asked, go fix failing CI tests
 
 ---
 
-## 3. AI が書いてはいけないコード（禁止事項）
+## 2. Areas Outside the AI's Responsibility (Handled by Humans)
 
-AI は以下のコードを書いてはいけません。
+The AI does not own the following areas. Humans make these decisions.
 
-### ❌ 大規模・単一関数（God Function）
+- Specification decisions (the direction of ExStruct's evolution)
+- Public API design (deciding whether something is a breaking change)
+- Large-scale reorganization of the directory structure
+- Security and licensing decisions
 
-### ❌ 神クラス（God Object）
-
-### ❌ 無駄なネスト・深い条件分岐
-
-### ❌ 辞書返却・タプル返却（Pydantic モデル必須）
-
-### ❌ xlwings や pandas の内部型に依存するコード
-
-### ❌ import が未整理のコード
-
-### ❌ テスト不能な副作用だらけの関数
-
-AI は必要であれば **禁止事項を回避するためにリファクタリングしてもよい**。
+However, the AI **may make proposals**.
 
 ---
 
-## 4. AI の責務外（人間が担当する領域）
+## 3. Required Work Procedure
 
-AI は以下の領域は担当しません。人間が判断します。
+The AI must always follow the steps below before generating code.
 
-- 仕様決定（ExStruct の拡張方向）
-- 公開 API 設計（break change の判断）
-- ディレクトリ構造の大規模再編
-- セキュリティ・ライセンス判断
-
-ただし、AI は**提案はしてよい**。
-
----
-
-## 5. 遵守すべき作業手順
-
-AI はコード生成前に以下の手順を必ず踏んでください。
-
-1. **要件の理解**：仕様書や設計資料を読み込み、要件を完全に理解する
-2. **設計の検討**：必要に応じて関数分割やモデル設計を検討する。
-3. **仕様の定義**: 要件に基づいて、関数の引数・戻り値の型を `tasks/feature_spec.md` に定義する。
-4. **タスクの割り当て**: 各タスクを明確に定義し、実装順序を決定する。
-5. **コード実装**: 上記の基準を守りながらコードを実装する。
-6. **コードレビュー**: 自動生成されたコードを自己レビューし、品質基準を満たしているか確認する。
-7. **テストコードの生成**: 必要に応じて、テストコードも生成する。
-8. **テストの実行**: 生成されたテストコードを実行し、期待通りの動作を確認する。
-9. **静的解析**: `uv run task precommit-run` を実行し、mypy / Ruff エラーがないことを確認する。
-10. **ドキュメントの更新**: 変更があれば、関連するドキュメントも更新する。
+1. **Understand requirements**: Read specifications and design materials, and fully understand the requirements
+2. **Consider the design**: Consider function decomposition and model design as needed.
+3. **Define the specification**: Based on the requirements, define function argument and return types in `tasks/feature_spec.md`.
+4. **Assign tasks**: Clearly define each task and determine the implementation order.
+5. **Implement code**: Implement the code while following the standards above.
+6. **Review code**: Self-review generated code and confirm that it meets the quality standards.
+7. **Generate tests**: Generate test code as needed.
+8. **Run tests**: Run the generated test code and confirm that it behaves as expected.
+9. **Static analysis**: Run `uv run task precommit-run` and confirm that there are no mypy / Ruff errors.
+10. **Update documentation**: If there are changes, update the related documentation as well.
 
 ---
 
-## タスク管理
+## 4. Task Management
 
-1. **まず計画を立てる**：チェック可能な項目として `tasks/todo.md` に計画を書く
-2. **計画を確認する**：実装を開始する前に確認する
-3. **進捗を記録する**：完了した項目を随時マークしていく
-4. **変更を説明する**：各ステップで高レベルのサマリーを提供する
-5. **結果をドキュメント化する**：`tasks/todo.md` にレビューセクションを追加する
-6. **学びを記録する**：修正を受けた後に `tasks/lessons.md` を更新する
+1. **Plan first**: Write the plan in `tasks/todo.md` as checkable items
+2. **Review the plan**: Review it before starting implementation
+3. **Track progress**: Mark completed items as you go
+4. **Explain changes**: Provide a high-level summary at each step
+5. **Document results**: Add a Review section to `tasks/todo.md`
+6. **Record lessons**: Update `tasks/lessons.md` after receiving corrections
 
 ---
 
-## コア原則
+## 5. Documentation Retention Policy
 
-- **シンプル第一**：すべての変更をできる限りシンプルにする。影響するコードを最小限にする。
-- **手を抜かない**：根本原因を見つける。一時的な修正は避ける。シニアエンジニアの水準を保つ。
-- **影響を最小化する**：変更は必要な箇所のみにとどめる。バグを新たに引き込まない。
+### Separation of Roles
+
+- `tasks/todo.md` may temporarily hold not only session-specific progress tracking, but also verification results, unresolved items, and summaries of decision rationale.
+- `tasks/feature_spec.md` may be used as a pre-implementation working spec draft, but do not treat it as disposable if it contains specifications, constraints, or validation conditions that will be referenced in the future.
+- `tasks/lessons.md` is where recurrence-prevention rules are stored, and should not be used to store design decisions or the specification itself.
+- Permanent internal documentation belongs under `dev-docs/`.
+- Move design decisions and trade-offs to `dev-docs/adr/`, current internal specifications and constraints to `dev-docs/specs/`, and implementation structure and extension guidance to `dev-docs/architecture/`.
+- Only user-facing contracts such as public API, CLI, and MCP should be reflected in the corresponding documents under `docs/`.
+
+### Using skills
+
+- If you are unsure where to store a document, where to move it, or how to verify it, prefer using available skills over relying on manual judgment alone.
+- Use `adr-suggester` to determine whether an ADR is needed, `adr-drafter` for ADR drafts or update proposals, `adr-linter` to lint drafts, `adr-reviewer` for design review, `adr-reconciler` for drift audits, and `adr-indexer` for index synchronization.
+- Do not leave skill results trapped in temporary notes under `tasks/`; reflect them in the appropriate `dev-docs/` or `docs/` location as needed.
+
+### Information to Keep
+
+- Decision rationale that future implementers may encounter again on the same issue
+- Chosen policies adopted after comparing multiple options
+- Permanent rules established through review, CI, Codacy, or incident response
+- Contracts related to public API, CLI, MCP, output formats, validation, and compatibility
+- Specification context behind added regression tests where forgetting the reason could cause the issue to recur
+
+### Information You May Discard
+
+- One-off notes about work order
+- Rejected hypotheses or interim notes that ended midway
+- Progress logs with no reference value after completion
+- Simple lists of steps with no decision rationale
+
+### Required Steps at Completion
+
+- At task completion, review the relevant sections of `tasks/feature_spec.md` and `tasks/todo.md`, and classify each item as either "temporary notes that can be discarded", "content that should remain in a permanent spec", or "content that should remain as an ADR".
+- The AI must not blank out all of `tasks/feature_spec.md` or `tasks/todo.md` based on its own judgment. Cleanup must be limited to the relevant sections of the completed task.
+- If there is content that will be referenced in the future, move it into permanent documentation before deleting anything.
+- Do not discard decision rationale, specifications, or validation conditions before migration is complete.
+- Only sections confirmed to contain no permanent information may be summarized, deleted, or archived.
+- If ADR creation, spec creation, index synchronization, or design review is involved, and a corresponding skill exists, run it first and use its verdict and findings to decide the permanent document destination and what to reflect there.
+- Choose the destination according to the role split defined in `dev-docs/README.md`.
+- Prefer `dev-docs/adr/` for "why", `dev-docs/specs/` for "what is guaranteed", and `dev-docs/architecture/` for "how the structure works".
+- Only when the change affects a public contract should you update the corresponding page under `docs/` in addition to moving the information into internal documentation.
+
+### When to Create an ADR
+
+- If you are unsure whether an ADR is needed, first use `adr-suggester` to determine `required` / `recommended` / `not-needed` and record the rationale.
+- If any of the following apply, the AI must record the decision under `dev-docs/adr/`:
+  - There are trade-offs or a comparison between multiple options.
+  - The same question may recur in the future.
+  - The design intent cannot be understood from the implementation diff alone.
+  - A permanent policy was established through review, CI, Codacy, or incident investigation.
+  - It is highly likely to be referenced by later implementation or review.
+
+### End-of-Session Checklist
+
+- Confirm that conclusions in the Review section of `tasks/todo.md` have been moved, as needed, into `dev-docs/adr/`, `dev-docs/specs/`, `dev-docs/architecture/`, or `docs/`.
+- Confirm that contracts, constraints, and validation conditions in `tasks/feature_spec.md` have been reflected, as needed, in permanent documents under `dev-docs/`.
+- If an ADR was added / updated / superseded, confirm as needed that the results of `adr-linter`, `adr-reviewer`, `adr-reconciler`, and `adr-indexer` do not conflict with the permanent documents.
+- Only after the information has been moved into permanent documentation may the relevant sections be shortened.
+
+---
+
+## 6. Core Principles
+
+- **Simplicity first**: Keep every change as simple as possible. Minimize the code affected.
+- **No cutting corners**: Find the root cause. Avoid temporary fixes. Maintain senior engineer standards.
+- **Minimize impact**: Limit changes to only what is necessary. Do not introduce new bugs.
