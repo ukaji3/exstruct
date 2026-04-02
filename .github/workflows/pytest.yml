@@ -45,7 +45,7 @@ jobs:
         with:
           files: coverage.xml
           flags: unit
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
   libreoffice-linux-smoke:
     runs-on: ubuntu-24.04

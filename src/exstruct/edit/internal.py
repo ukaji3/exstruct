@@ -6,8 +6,8 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from copy import copy
 from dataclasses import dataclass
-from pathlib import Path
 import os
+from pathlib import Path
 import re
 from typing import Any, Protocol, cast, runtime_checkable
 from uuid import uuid4
@@ -1859,8 +1859,6 @@ def _select_patch_engine(
 ) -> PatchEngine:
     """Select concrete patch engine based on request and environment."""
     extension = input_path.suffix.lower()
-    has_create_chart = _contains_create_chart_op(request.ops)
-    has_apply_table_style = _contains_apply_table_style_op(request.ops)
     if request.backend == "openpyxl":
         if extension == ".xls":
             raise ValueError("backend='openpyxl' cannot edit .xls files.")
@@ -2863,44 +2861,14 @@ def _apply_openpyxl_create_chart(
     if op.height is not None:
         chart.height = op.height / 72 * 2.54
 
-    def _resolve_ws(sheet_name: str | None) -> object:
-        if sheet_name is None:
-            return sheet
-        try:
-            return workbook[sheet_name]  # type: ignore[index]
-        except KeyError:
-            raise ValueError(f"Sheet not found for chart range: {sheet_name}")
-
     def _make_ref(range_ref: str) -> Reference:
         ref_sheet_name, local_range = _split_chart_range_reference(range_ref)
-        ws = _resolve_ws(ref_sheet_name)
+        ws = sheet if ref_sheet_name is None else _resolve_chart_ws(workbook, ref_sheet_name)
         min_col, min_row, max_col, max_row = range_boundaries(local_range)
         return Reference(ws, min_col=min_col, min_row=min_row, max_col=max_col, max_row=max_row)
 
-    normalized_data_ranges = _normalize_chart_data_ranges(op.data_range)
-    titles_from_data = op.titles_from_data if op.titles_from_data is not None else True
-
-    if len(normalized_data_ranges) == 1:
-        chart.add_data(_make_ref(normalized_data_ranges[0]), titles_from_data=titles_from_data)
-    else:
-        category_range = op.category_range
-        if category_range is None:
-            category_range = normalized_data_ranges[0]
-            value_ranges = normalized_data_ranges[1:]
-        else:
-            value_ranges = normalized_data_ranges
-        for vr in value_ranges:
-            chart.add_data(_make_ref(vr), titles_from_data=titles_from_data)
-
-    if op.category_range is not None:
-        chart.set_categories(_make_ref(op.category_range))
-    if op.chart_title is not None:
-        chart.title = op.chart_title
-    if op.x_axis_title is not None and hasattr(chart, "x_axis"):
-        chart.x_axis.title = op.x_axis_title
-    if op.y_axis_title is not None and hasattr(chart, "y_axis"):
-        chart.y_axis.title = op.y_axis_title
-
+    _populate_chart_data(chart, op, _make_ref)
+    _apply_chart_labels(chart, op)
     sheet.add_chart(chart, op.anchor_cell)  # type: ignore[arg-type]
 
     data_summary = ",".join(op.data_range) if isinstance(op.data_range, list) else op.data_range
@@ -2909,6 +2877,45 @@ def _apply_openpyxl_create_chart(
         op_index=index, op=op.op, sheet=op.sheet, cell=op.anchor_cell,
         before=None, after=PatchValue(kind="chart", value=chart_summary),
     ), None
+
+
+def _resolve_chart_ws(
+    workbook: OpenpyxlWorkbookProtocol, sheet_name: str
+) -> object:
+    """Resolve worksheet by name for chart range references."""
+    try:
+        return workbook[sheet_name]  # type: ignore[index]
+    except KeyError:
+        raise ValueError(f"Sheet not found for chart range: {sheet_name}") from None
+
+
+def _populate_chart_data(chart: object, op: PatchOp, make_ref: Callable[..., object]) -> None:
+    """Add data series and categories to a chart."""
+    normalized_data_ranges = _normalize_chart_data_ranges(op.data_range)
+    titles_from_data = op.titles_from_data if op.titles_from_data is not None else True
+    if len(normalized_data_ranges) == 1:
+        chart.add_data(make_ref(normalized_data_ranges[0]), titles_from_data=titles_from_data)  # type: ignore[union-attr]
+    else:
+        category_range = op.category_range
+        if category_range is None:
+            category_range = normalized_data_ranges[0]
+            value_ranges = normalized_data_ranges[1:]
+        else:
+            value_ranges = normalized_data_ranges
+        for vr in value_ranges:
+            chart.add_data(make_ref(vr), titles_from_data=titles_from_data)  # type: ignore[union-attr]
+    if op.category_range is not None:
+        chart.set_categories(make_ref(op.category_range))  # type: ignore[union-attr]
+
+
+def _apply_chart_labels(chart: object, op: PatchOp) -> None:
+    """Apply title and axis labels to a chart."""
+    if op.chart_title is not None:
+        chart.title = op.chart_title  # type: ignore[union-attr]
+    if op.x_axis_title is not None and hasattr(chart, "x_axis"):
+        chart.x_axis.title = op.x_axis_title  # type: ignore[union-attr]
+    if op.y_axis_title is not None and hasattr(chart, "y_axis"):
+        chart.y_axis.title = op.y_axis_title  # type: ignore[union-attr]
 
 
 def _apply_openpyxl_cell_op(
@@ -5103,7 +5110,6 @@ def _inject_shapes_into_xlsx(xlsx_path: Path, shapes: list[_ShapeSpec]) -> None:
     import shutil
     import tempfile
     import zipfile
-    from xml.etree import ElementTree as ET
 
     if not shapes:
         return
@@ -5120,87 +5126,16 @@ def _inject_shapes_into_xlsx(xlsx_path: Path, shapes: list[_ShapeSpec]) -> None:
         with zipfile.ZipFile(xlsx_path, "r") as zin, zipfile.ZipFile(
             tmp_path, "w", zipfile.ZIP_DEFLATED
         ) as zout:
-            wb_xml = ET.fromstring(zin.read("xl/workbook.xml"))
-            ns_wb = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
-            sheet_name_to_idx: dict[str, int] = {}
-            for i, el in enumerate(wb_xml.findall(f".//{{{ns_wb}}}sheet"), start=1):
-                sheet_name_to_idx[el.get("name", "")] = i
-
+            sheet_name_to_idx = _read_sheet_index_map(zin)
             modified_files: set[str] = set()
 
             for sheet_name, sheet_shapes in shapes_by_sheet.items():
                 sheet_idx = sheet_name_to_idx.get(sheet_name)
                 if sheet_idx is None:
                     raise ValueError(f"Sheet not found: {sheet_name}")
-
-                sheet_path = f"xl/worksheets/sheet{sheet_idx}.xml"
-                rels_path = f"xl/worksheets/_rels/sheet{sheet_idx}.xml.rels"
-                drawing_path = f"xl/drawings/drawing{sheet_idx}.xml"
-                existing_drawing = drawing_path in zin.namelist()
-                has_rels = rels_path in zin.namelist()
-                next_id = 100
-
-                shape_xmls = [_build_shape_xml(s, next_id + i) for i, s in enumerate(sheet_shapes)]
-
-                if existing_drawing:
-                    content = zin.read(drawing_path).decode("utf-8")
-                    # Detect prefix: openpyxl uses default ns (no prefix), manual uses xdr:
-                    use_prefix = "xdr:" if "<xdr:" in content else ""
-                    if not use_prefix:
-                        # Ensure xdr namespace is declared for unprefixed elements
-                        # and add a: namespace if missing
-                        if 'xmlns:a="' not in content:
-                            content = content.replace(
-                                f'xmlns="{_XDR_NS}"',
-                                f'xmlns="{_XDR_NS}" xmlns:a="{_A_NS}"',
-                                1,
-                            )
-                    shape_xmls = [_build_shape_xml(s, next_id + i, xdr_prefix=use_prefix) for i, s in enumerate(sheet_shapes)]
-                    for tag in ["</wsDr>", "</xdr:wsDr>"]:
-                        pos = content.rfind(tag)
-                        if pos >= 0:
-                            content = content[:pos] + "".join(shape_xmls) + content[pos:]
-                            break
-                    zout.writestr(drawing_path, content)
-                    modified_files.add(drawing_path)
-                else:
-                    new_drawing = (
-                        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                        f'<xdr:wsDr xmlns:xdr="{_XDR_NS}" xmlns:a="{_A_NS}">'
-                        + "".join(shape_xmls) + "</xdr:wsDr>"
-                    )
-                    zout.writestr(drawing_path, new_drawing)
-                    modified_files.add(drawing_path)
-
-                    if has_rels:
-                        rc = zin.read(rels_path).decode("utf-8")
-                        ids = re.findall(r'Id="rId(\d+)"', rc)
-                        nrid = max((int(x) for x in ids), default=0) + 1
-                        p = rc.rfind("</Relationships>")
-                        rc = rc[:p] + f'<Relationship Id="rId{nrid}" Type="{_DRAWING_REL_TYPE}" Target="/xl/drawings/drawing{sheet_idx}.xml"/>' + rc[p:]
-                    else:
-                        nrid = 1
-                        rc = f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="{_RELS_NS}"><Relationship Id="rId1" Type="{_DRAWING_REL_TYPE}" Target="/xl/drawings/drawing{sheet_idx}.xml"/></Relationships>'
-                    zout.writestr(rels_path, rc)
-                    modified_files.add(rels_path)
-
-                    sc = zin.read(sheet_path).decode("utf-8")
-                    rid = f"rId{nrid}"
-                    if f'xmlns:r="{_R_NS}"' not in sc:
-                        sc = sc.replace("<worksheet", f'<worksheet xmlns:r="{_R_NS}"', 1)
-                    p = sc.rfind("</worksheet>")
-                    if p >= 0:
-                        sc = sc[:p] + f'<drawing r:id="{rid}"/>' + sc[p:]
-                    zout.writestr(sheet_path, sc)
-                    modified_files.add(sheet_path)
-
-                    ct = zin.read("[Content_Types].xml").decode("utf-8")
-                    dct = f'<Override PartName="/xl/drawings/drawing{sheet_idx}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
-                    if dct not in ct:
-                        p = ct.rfind("</Types>")
-                        ct = ct[:p] + dct + ct[p:]
-                        zout.writestr("[Content_Types].xml", ct)
-                        modified_files.add("[Content_Types].xml")
+                _inject_shapes_for_sheet(
+                    zin, zout, sheet_idx, sheet_shapes, modified_files,
+                )
 
             for item in zin.namelist():
                 if item not in modified_files:
@@ -5213,13 +5148,106 @@ def _inject_shapes_into_xlsx(xlsx_path: Path, shapes: list[_ShapeSpec]) -> None:
         raise
 
 
+def _read_sheet_index_map(zin: object) -> dict[str, int]:
+    """Read workbook.xml and return sheet name -> 1-based index mapping."""
+    from xml.etree import ElementTree as ET
+
+    ns_wb = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    wb_xml = ET.fromstring(zin.read("xl/workbook.xml"))  # type: ignore[union-attr]
+    result: dict[str, int] = {}
+    for i, el in enumerate(wb_xml.findall(f".//{{{ns_wb}}}sheet"), start=1):
+        result[el.get("name", "")] = i
+    return result
+
+
+def _inject_shapes_for_sheet(
+    zin: object, zout: object, sheet_idx: int,
+    sheet_shapes: list[_ShapeSpec], modified_files: set[str],
+) -> None:
+    """Inject shapes into a single sheet's drawing XML."""
+
+    drawing_path = f"xl/drawings/drawing{sheet_idx}.xml"
+    existing_drawing = drawing_path in zin.namelist()  # type: ignore[union-attr]
+    next_id = 100
+
+    if existing_drawing:
+        content = zin.read(drawing_path).decode("utf-8")  # type: ignore[union-attr]
+        use_prefix = "xdr:" if "<xdr:" in content else ""
+        if not use_prefix and 'xmlns:a="' not in content:
+            content = content.replace(
+                f'xmlns="{_XDR_NS}"',
+                f'xmlns="{_XDR_NS}" xmlns:a="{_A_NS}"',
+                1,
+            )
+        shape_xmls = [_build_shape_xml(s, next_id + i, xdr_prefix=use_prefix) for i, s in enumerate(sheet_shapes)]
+        for tag in ["</wsDr>", "</xdr:wsDr>"]:
+            pos = content.rfind(tag)
+            if pos >= 0:
+                content = content[:pos] + "".join(shape_xmls) + content[pos:]
+                break
+        zout.writestr(drawing_path, content)  # type: ignore[union-attr]
+        modified_files.add(drawing_path)
+    else:
+        shape_xmls = [_build_shape_xml(s, next_id + i) for i, s in enumerate(sheet_shapes)]
+        new_drawing = (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            f'<xdr:wsDr xmlns:xdr="{_XDR_NS}" xmlns:a="{_A_NS}">'
+            + "".join(shape_xmls) + "</xdr:wsDr>"
+        )
+        zout.writestr(drawing_path, new_drawing)  # type: ignore[union-attr]
+        modified_files.add(drawing_path)
+        _create_drawing_relationships(
+            zin, zout, sheet_idx, modified_files,  # type: ignore[arg-type]
+        )
+
+
+def _create_drawing_relationships(
+    zin: object, zout: object, sheet_idx: int, modified_files: set[str],
+) -> None:
+    """Create sheet rels, sheet XML drawing ref, and content type for a new drawing."""
+
+    sheet_path = f"xl/worksheets/sheet{sheet_idx}.xml"
+    rels_path = f"xl/worksheets/_rels/sheet{sheet_idx}.xml.rels"
+    drawing_path = f"xl/drawings/drawing{sheet_idx}.xml"
+    has_rels = rels_path in zin.namelist()  # type: ignore[union-attr]
+
+    if has_rels:
+        rc = zin.read(rels_path).decode("utf-8")  # type: ignore[union-attr]
+        ids = re.findall(r'Id="rId(\d+)"', rc)
+        nrid = max((int(x) for x in ids), default=0) + 1
+        p = rc.rfind("</Relationships>")
+        rc = rc[:p] + f'<Relationship Id="rId{nrid}" Type="{_DRAWING_REL_TYPE}" Target="/xl/drawings/{drawing_path.split("/")[-1]}"/>' + rc[p:]
+    else:
+        nrid = 1
+        rc = f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="{_RELS_NS}"><Relationship Id="rId1" Type="{_DRAWING_REL_TYPE}" Target="/xl/drawings/drawing{sheet_idx}.xml"/></Relationships>'
+    zout.writestr(rels_path, rc)  # type: ignore[union-attr]
+    modified_files.add(rels_path)
+
+    sc = zin.read(sheet_path).decode("utf-8")  # type: ignore[union-attr]
+    rid = f"rId{nrid}"
+    if f'xmlns:r="{_R_NS}"' not in sc:
+        sc = sc.replace("<worksheet", f'<worksheet xmlns:r="{_R_NS}"', 1)
+    p = sc.rfind("</worksheet>")
+    if p >= 0:
+        sc = sc[:p] + f'<drawing r:id="{rid}"/>' + sc[p:]
+    zout.writestr(sheet_path, sc)  # type: ignore[union-attr]
+    modified_files.add(sheet_path)
+
+    ct = zin.read("[Content_Types].xml").decode("utf-8")  # type: ignore[union-attr]
+    dct = f'<Override PartName="/xl/drawings/drawing{sheet_idx}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
+    if dct not in ct:
+        p = ct.rfind("</Types>")
+        ct = ct[:p] + dct + ct[p:]
+        zout.writestr("[Content_Types].xml", ct)  # type: ignore[union-attr]
+        modified_files.add("[Content_Types].xml")
+
+
 def _apply_openpyxl_create_shape(
     op: PatchOp,
     index: int,
     pending_shapes: list[_ShapeSpec],
 ) -> tuple[PatchDiffItem, PatchOp | None]:
     """Record a create_shape op for post-save OOXML injection."""
-    from .models import SUPPORTED_SHAPE_TYPES
 
     if op.shape_type is None or op.anchor_cell is None:
         raise ValueError("create_shape requires shape_type and anchor_cell.")
