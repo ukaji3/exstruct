@@ -5070,7 +5070,8 @@ def _parse_anchor_cell(anchor_cell: str) -> tuple[int, int]:
     return col - 1, int(row_str) - 1
 
 
-def _build_shape_xml(spec: _ShapeSpec, shape_id: int) -> str:
+def _build_shape_xml(spec: _ShapeSpec, shape_id: int, *, xdr_prefix: str = "xdr:") -> str:
+    x = xdr_prefix
     fill_xml = (
         f'<a:solidFill><a:srgbClr val="{spec.fill_color.lstrip("#")}"/></a:solidFill>'
         if spec.fill_color
@@ -5080,21 +5081,21 @@ def _build_shape_xml(spec: _ShapeSpec, shape_id: int) -> str:
     if spec.text:
         escaped = spec.text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         text_xml = (
-            f'<xdr:txBody><a:bodyPr vertOverflow="clip" wrap="square" rtlCol="0" anchor="ctr"/>'
+            f'<{x}txBody><a:bodyPr vertOverflow="clip" wrap="square" rtlCol="0" anchor="ctr"/>'
             f'<a:lstStyle/><a:p><a:pPr algn="ctr"/><a:r><a:rPr lang="en-US" sz="1100"/>'
-            f"<a:t>{escaped}</a:t></a:r></a:p></xdr:txBody>"
+            f"<a:t>{escaped}</a:t></a:r></a:p></{x}txBody>"
         )
     return (
-        f"<xdr:oneCellAnchor><xdr:from>"
-        f"<xdr:col>{spec.anchor_col}</xdr:col><xdr:colOff>0</xdr:colOff>"
-        f"<xdr:row>{spec.anchor_row}</xdr:row><xdr:rowOff>0</xdr:rowOff>"
-        f'</xdr:from><xdr:ext cx="{spec.width_emu}" cy="{spec.height_emu}"/>'
-        f'<xdr:sp><xdr:nvSpPr><xdr:cNvPr id="{shape_id}" name="Shape {shape_id}"/>'
-        f"<xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr>"
+        f"<{x}oneCellAnchor><{x}from>"
+        f"<{x}col>{spec.anchor_col}</{x}col><{x}colOff>0</{x}colOff>"
+        f"<{x}row>{spec.anchor_row}</{x}row><{x}rowOff>0</{x}rowOff>"
+        f"</{x}from><{x}ext cx=\"{spec.width_emu}\" cy=\"{spec.height_emu}\"/>"
+        f"<{x}sp><{x}nvSpPr><{x}cNvPr id=\"{shape_id}\" name=\"Shape {shape_id}\"/>"
+        f"<{x}cNvSpPr/></{x}nvSpPr><{x}spPr>"
         f'<a:xfrm><a:off x="0" y="0"/><a:ext cx="{spec.width_emu}" cy="{spec.height_emu}"/></a:xfrm>'
         f'<a:prstGeom prst="{spec.shape_type}"><a:avLst/></a:prstGeom>'
         f'{fill_xml}<a:ln><a:solidFill><a:schemeClr val="tx1"/></a:solidFill></a:ln>'
-        f"</xdr:spPr>{text_xml}</xdr:sp><xdr:clientData/></xdr:oneCellAnchor>"
+        f"</{x}spPr>{text_xml}</{x}sp><{x}clientData/></{x}oneCellAnchor>"
     )
 
 
@@ -5143,6 +5144,18 @@ def _inject_shapes_into_xlsx(xlsx_path: Path, shapes: list[_ShapeSpec]) -> None:
 
                 if existing_drawing:
                     content = zin.read(drawing_path).decode("utf-8")
+                    # Detect prefix: openpyxl uses default ns (no prefix), manual uses xdr:
+                    use_prefix = "xdr:" if "<xdr:" in content else ""
+                    if not use_prefix:
+                        # Ensure xdr namespace is declared for unprefixed elements
+                        # and add a: namespace if missing
+                        if 'xmlns:a="' not in content:
+                            content = content.replace(
+                                f'xmlns="{_XDR_NS}"',
+                                f'xmlns="{_XDR_NS}" xmlns:a="{_A_NS}"',
+                                1,
+                            )
+                    shape_xmls = [_build_shape_xml(s, next_id + i, xdr_prefix=use_prefix) for i, s in enumerate(sheet_shapes)]
                     for tag in ["</wsDr>", "</xdr:wsDr>"]:
                         pos = content.rfind(tag)
                         if pos >= 0:

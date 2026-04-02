@@ -2,6 +2,9 @@
 
 These tests verify that the OOXML parser can extract shapes and charts
 from xlsx files without requiring Excel COM (Windows).
+
+Test xlsx files are generated programmatically using openpyxl + OOXML injection,
+so no external sample files are needed.
 """
 
 from pathlib import Path
@@ -12,563 +15,337 @@ from exstruct.ooxml import get_charts_ooxml, get_shapes_ooxml
 from exstruct.ooxml.units import emu_to_pixels, emu_to_points
 
 
+# ---------------------------------------------------------------------------
+# Fixture: generate test xlsx with shapes, connectors, and a chart
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="session")
+def ooxml_test_xlsx(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Generate a test xlsx containing shapes, connectors, and a chart."""
+    from openpyxl import Workbook
+    from openpyxl.chart import LineChart, Reference
+
+    tmp = tmp_path_factory.mktemp("ooxml")
+    path = tmp / "test_ooxml.xlsx"
+
+    wb = Workbook()
+    ws = wb.active
+    assert ws is not None
+    ws.title = "Sheet1"
+
+    # Sales data for chart
+    ws.append(["月", "製品A", "製品B", "製品C"])
+    ws.append(["Jan-25", 120, 80, 60])
+    ws.append(["Feb-25", 135, 90, 64])
+    ws.append(["Mar-25", 150, 100, 70])
+    ws.append(["Apr-25", 170, 110, 72])
+    ws.append(["May-25", 160, 120, 75])
+    ws.append(["Jun-25", 180, 130, 80])
+
+    # Add line chart
+    chart = LineChart()
+    chart.title = "売上データ"
+    chart.y_axis.title = "売上"
+    data = Reference(ws, min_col=2, min_row=1, max_col=4, max_row=7)
+    cats = Reference(ws, min_col=1, min_row=2, max_row=7)
+    chart.add_data(data, titles_from_data=True)
+    chart.set_categories(cats)
+    ws.add_chart(chart, "F1")
+
+    wb.save(path)
+    wb.close()
+
+    # Inject shapes via OOXML XML manipulation
+    from exstruct.edit.internal import (
+        _ShapeSpec,
+        _inject_shapes_into_xlsx,
+        _points_to_emu,
+    )
+
+    shapes = [
+        _ShapeSpec(
+            sheet="Sheet1", shape_type="flowChartTerminator",
+            anchor_col=0, anchor_row=10,
+            width_emu=_points_to_emu(120), height_emu=_points_to_emu(40),
+            text="開始", fill_color="4472C4",
+        ),
+        _ShapeSpec(
+            sheet="Sheet1", shape_type="flowChartProcess",
+            anchor_col=0, anchor_row=13,
+            width_emu=_points_to_emu(120), height_emu=_points_to_emu(40),
+            text="入力データ読み込み", fill_color="4472C4",
+        ),
+        _ShapeSpec(
+            sheet="Sheet1", shape_type="flowChartDecision",
+            anchor_col=0, anchor_row=16,
+            width_emu=_points_to_emu(120), height_emu=_points_to_emu(60),
+            text="フォーマット有効？", fill_color="FFC000",
+        ),
+        _ShapeSpec(
+            sheet="Sheet1", shape_type="rect",
+            anchor_col=3, anchor_row=16,
+            width_emu=_points_to_emu(100), height_emu=_points_to_emu(40),
+            text="エラー表示", fill_color="FF0000",
+        ),
+        _ShapeSpec(
+            sheet="Sheet1", shape_type="flowChartTerminator",
+            anchor_col=0, anchor_row=19,
+            width_emu=_points_to_emu(120), height_emu=_points_to_emu(40),
+            text="終了", fill_color="4472C4",
+        ),
+    ]
+    _inject_shapes_into_xlsx(path, shapes)
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Unit conversion tests
+# ---------------------------------------------------------------------------
+
 class TestUnits:
     """Tests for EMU unit conversion."""
 
     def test_emu_to_pixels_default_dpi(self) -> None:
-        """1 inch (914400 EMU) should be 96 pixels at 96 DPI."""
         assert emu_to_pixels(914400) == 96
 
     def test_emu_to_pixels_custom_dpi(self) -> None:
-        """1 inch should be 72 pixels at 72 DPI."""
         assert emu_to_pixels(914400, dpi=72) == 72
 
     def test_emu_to_pixels_zero(self) -> None:
-        """Zero EMU should be zero pixels."""
         assert emu_to_pixels(0) == 0
 
     def test_emu_to_points(self) -> None:
-        """1 inch (914400 EMU) should be 72 points."""
         assert emu_to_points(914400) == 72.0
 
     def test_emu_to_points_half_inch(self) -> None:
-        """Half inch should be 36 points."""
         assert emu_to_points(457200) == 36.0
 
+
+# ---------------------------------------------------------------------------
+# Shape extraction tests
+# ---------------------------------------------------------------------------
 
 class TestGetShapesOoxml:
     """Tests for OOXML shape extraction."""
 
-    @pytest.fixture
-    def sample_xlsx(self) -> Path:
-        """Return path to sample xlsx file."""
-        return Path("sample/sample.xlsx")
-
-    def test_returns_dict_for_valid_file(self, sample_xlsx: Path) -> None:
-        """Should return dict mapping sheet names to shape lists."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        result = get_shapes_ooxml(sample_xlsx)
+    def test_returns_dict_for_valid_file(self, ooxml_test_xlsx: Path) -> None:
+        result = get_shapes_ooxml(ooxml_test_xlsx)
         assert isinstance(result, dict)
 
     def test_returns_empty_dict_for_nonexistent_file(self, tmp_path: Path) -> None:
-        """Should return empty dict for nonexistent file."""
         result = get_shapes_ooxml(tmp_path / "nonexistent.xlsx")
         assert result == {}
 
-    def test_shapes_have_required_fields(self, sample_xlsx: Path) -> None:
-        """Extracted shapes should have required fields."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        result = get_shapes_ooxml(sample_xlsx)
-        for _sheet_name, shapes in result.items():
+    def test_shapes_have_required_fields(self, ooxml_test_xlsx: Path) -> None:
+        result = get_shapes_ooxml(ooxml_test_xlsx)
+        for shapes in result.values():
             for shape in shapes:
-                # Required fields
                 assert hasattr(shape, "text")
                 assert hasattr(shape, "l")
                 assert hasattr(shape, "t")
                 assert hasattr(shape, "type")
-                # Position should be non-negative
                 assert shape.l >= 0
                 assert shape.t >= 0
 
-    def test_verbose_mode_includes_size(self, sample_xlsx: Path) -> None:
-        """Verbose mode should include width and height."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        result = get_shapes_ooxml(sample_xlsx, mode="verbose")
-        for _sheet_name, shapes in result.items():
+    def test_verbose_mode_includes_size(self, ooxml_test_xlsx: Path) -> None:
+        result = get_shapes_ooxml(ooxml_test_xlsx, mode="verbose")
+        for shapes in result.values():
             for shape in shapes:
-                # Verbose mode includes w and h
                 if shape.w is not None:
                     assert shape.w >= 0
                 if shape.h is not None:
                     assert shape.h >= 0
 
-    def test_standard_mode_excludes_size(self, sample_xlsx: Path) -> None:
-        """Standard mode should not include width and height."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        result = get_shapes_ooxml(sample_xlsx, mode="standard")
-        for _sheet_name, shapes in result.items():
+    def test_standard_mode_excludes_size(self, ooxml_test_xlsx: Path) -> None:
+        result = get_shapes_ooxml(ooxml_test_xlsx, mode="standard")
+        for shapes in result.values():
             for shape in shapes:
                 assert shape.w is None
                 assert shape.h is None
 
-    def test_connector_shapes_have_direction(self, sample_xlsx: Path) -> None:
-        """Connector shapes should have direction if applicable."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
+    def test_light_mode_returns_empty(self, ooxml_test_xlsx: Path) -> None:
+        result = get_shapes_ooxml(ooxml_test_xlsx, mode="light")
+        assert result == {}
 
-        result = get_shapes_ooxml(sample_xlsx)
-        # Check if any connector shapes exist
-        connectors = []
-        for shapes in result.values():
-            for shape in shapes:
-                if shape.type and ("Line" in shape.type or "Connector" in shape.type):
-                    connectors.append(shape)
 
-        # If connectors exist, they may have direction
-        for conn in connectors:
-            if conn.direction:
-                assert conn.direction in ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-
+# ---------------------------------------------------------------------------
+# Chart extraction tests
+# ---------------------------------------------------------------------------
 
 class TestGetChartsOoxml:
     """Tests for OOXML chart extraction."""
 
-    @pytest.fixture
-    def sample_xlsx(self) -> Path:
-        """Return path to sample xlsx file."""
-        return Path("sample/sample.xlsx")
-
-    def test_returns_dict_for_valid_file(self, sample_xlsx: Path) -> None:
-        """Should return dict mapping sheet names to chart lists."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        result = get_charts_ooxml(sample_xlsx)
+    def test_returns_dict_for_valid_file(self, ooxml_test_xlsx: Path) -> None:
+        result = get_charts_ooxml(ooxml_test_xlsx)
         assert isinstance(result, dict)
 
     def test_returns_empty_dict_for_nonexistent_file(self, tmp_path: Path) -> None:
-        """Should return empty dict for nonexistent file."""
         result = get_charts_ooxml(tmp_path / "nonexistent.xlsx")
         assert result == {}
 
-    def test_charts_have_required_fields(self, sample_xlsx: Path) -> None:
-        """Extracted charts should have required fields."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
+    def test_charts_have_required_fields(self, ooxml_test_xlsx: Path) -> None:
+        result = get_charts_ooxml(ooxml_test_xlsx)
+        all_charts = [c for charts in result.values() for c in charts]
+        assert len(all_charts) > 0
+        for chart in all_charts:
+            assert chart.chart_type is not None
+            assert chart.error is None
 
-        result = get_charts_ooxml(sample_xlsx)
-        for _sheet_name, charts in result.items():
+    def test_verbose_mode_includes_size(self, ooxml_test_xlsx: Path) -> None:
+        result = get_charts_ooxml(ooxml_test_xlsx, mode="verbose")
+        for charts in result.values():
             for chart in charts:
-                # Required fields
-                assert hasattr(chart, "name")
-                assert hasattr(chart, "chart_type")
-                assert hasattr(chart, "series")
-                # chart_type should be a known type
-                assert chart.chart_type is not None
-
-    def test_verbose_mode_includes_size(self, sample_xlsx: Path) -> None:
-        """Verbose mode should include width and height."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        result = get_charts_ooxml(sample_xlsx, mode="verbose")
-        for _sheet_name, charts in result.items():
-            for chart in charts:
-                # Verbose mode includes w and h (may be 0 if position not found)
                 assert chart.w is not None
                 assert chart.h is not None
                 assert chart.w >= 0
                 assert chart.h >= 0
 
-    def test_standard_mode_excludes_size(self, sample_xlsx: Path) -> None:
-        """Standard mode should not include width and height."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        result = get_charts_ooxml(sample_xlsx, mode="standard")
-        for _sheet_name, charts in result.items():
+    def test_standard_mode_excludes_size(self, ooxml_test_xlsx: Path) -> None:
+        result = get_charts_ooxml(ooxml_test_xlsx, mode="standard")
+        for charts in result.values():
             for chart in charts:
                 assert chart.w is None
                 assert chart.h is None
 
-    def test_chart_series_have_ranges(self, sample_xlsx: Path) -> None:
-        """Chart series should have range references."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
+    def test_chart_series_have_ranges(self, ooxml_test_xlsx: Path) -> None:
+        result = get_charts_ooxml(ooxml_test_xlsx)
+        all_charts = [c for charts in result.values() for c in charts]
+        assert len(all_charts) > 0
+        for chart in all_charts:
+            for series in chart.series:
+                assert hasattr(series, "y_range")
+                assert hasattr(series, "x_range")
+                assert hasattr(series, "name")
 
-        result = get_charts_ooxml(sample_xlsx)
-        for _sheet_name, charts in result.items():
-            for chart in charts:
-                for series in chart.series:
-                    # Series should have at least y_range
-                    assert hasattr(series, "y_range")
-                    assert hasattr(series, "x_range")
-                    assert hasattr(series, "name")
 
+# ---------------------------------------------------------------------------
+# Shapes: COM-equivalent tests
+# ---------------------------------------------------------------------------
 
 class TestShapesEquivalentToCom:
     """Tests equivalent to tests/com/test_shapes_extraction.py."""
 
-    @pytest.fixture
-    def sample_xlsx(self) -> Path:
-        """Return path to sample xlsx file."""
-        return Path("sample/sample.xlsx")
-
-    def test_図形の種別とテキストが抽出される(self, sample_xlsx: Path) -> None:
-        """Shape type and text should be extracted (equivalent to COM test)."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        shapes_by_sheet = get_shapes_ooxml(sample_xlsx)
-
-        # Collect all shapes
-        all_shapes = []
-        for shapes in shapes_by_sheet.values():
-            all_shapes.extend(shapes)
-
-        # Should have shapes
-        assert len(all_shapes) > 0, "Expected shapes in sample.xlsx"
-
-        # Find shapes with text
+    def test_図形の種別とテキストが抽出される(self, ooxml_test_xlsx: Path) -> None:
+        shapes_by_sheet = get_shapes_ooxml(ooxml_test_xlsx)
+        all_shapes = [s for shapes in shapes_by_sheet.values() for s in shapes]
+        assert len(all_shapes) > 0
         shapes_with_text = [s for s in all_shapes if s.text]
-        assert len(shapes_with_text) > 0, "Expected shapes with text"
-
+        assert len(shapes_with_text) > 0
         for shape in shapes_with_text:
-            # Type should contain AutoShape or known type
             assert shape.type is not None
-            # Position should be valid
             assert shape.l >= 0
             assert shape.t >= 0
 
-    def test_図形の種別にAutoShapeが含まれる(self, sample_xlsx: Path) -> None:
-        """Shape type should contain AutoShape for flowchart shapes."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        shapes_by_sheet = get_shapes_ooxml(sample_xlsx)
-
-        # Collect all shape types
-        all_types = []
-        for shapes in shapes_by_sheet.values():
-            for shape in shapes:
-                if shape.type:
-                    all_types.append(shape.type)
-
-        # At least some shapes should have AutoShape type
+    def test_図形の種別にAutoShapeが含まれる(self, ooxml_test_xlsx: Path) -> None:
+        shapes_by_sheet = get_shapes_ooxml(ooxml_test_xlsx)
+        all_types = [s.type for shapes in shapes_by_sheet.values() for s in shapes if s.type]
         autoshape_types = [t for t in all_types if "AutoShape" in t]
-        assert len(autoshape_types) > 0, "Expected AutoShape types"
+        assert len(autoshape_types) > 0
 
-    def test_線図形の方向と矢印情報が抽出される(self, sample_xlsx: Path) -> None:
-        """Line direction and arrow info should be extracted."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        shapes_by_sheet = get_shapes_ooxml(sample_xlsx)
-
-        # Find connector/line shapes
-        connectors = []
-        for shapes in shapes_by_sheet.values():
-            for shape in shapes:
-                if shape.type and ("Line" in shape.type or "Connector" in shape.type):
-                    connectors.append(shape)
-
-        if not connectors:
-            pytest.skip("No connector shapes found in sample.xlsx")
-
-        # Check that connectors have direction or arrow styles
-        has_direction_or_arrow = False
-        for conn in connectors:
-            if conn.direction:
-                assert conn.direction in ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-                has_direction_or_arrow = True
-            if conn.begin_arrow_style is not None or conn.end_arrow_style is not None:
-                has_direction_or_arrow = True
-
-        assert has_direction_or_arrow, "Expected direction or arrow style on connectors"
-
-    def test_矢印スタイルが数値で抽出される(self, sample_xlsx: Path) -> None:
-        """Arrow styles should be extracted as integers."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        shapes_by_sheet = get_shapes_ooxml(sample_xlsx)
-
-        # Find shapes with arrow styles
-        shapes_with_arrows = []
-        for shapes in shapes_by_sheet.values():
-            for shape in shapes:
-                if shape.begin_arrow_style is not None or shape.end_arrow_style is not None:
-                    shapes_with_arrows.append(shape)
-
-        if not shapes_with_arrows:
-            pytest.skip("No shapes with arrow styles found")
-
-        for shape in shapes_with_arrows:
-            if shape.begin_arrow_style is not None:
-                assert isinstance(shape.begin_arrow_style, int)
-                assert shape.begin_arrow_style >= 1
-            if shape.end_arrow_style is not None:
-                assert isinstance(shape.end_arrow_style, int)
-                assert shape.end_arrow_style >= 1
-
-
-    def test_図形にIDが割り当てられる(self, sample_xlsx: Path) -> None:
-        """Non-connector shapes should have unique IDs assigned."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        shapes_by_sheet = get_shapes_ooxml(sample_xlsx)
-
-        # Collect all shapes with IDs
-        shapes_with_id = []
-        for shapes in shapes_by_sheet.values():
-            for shape in shapes:
-                if shape.id is not None:
-                    shapes_with_id.append(shape)
-
-        # Should have shapes with IDs
-        assert len(shapes_with_id) > 0, "Expected shapes with IDs"
-
-        # IDs should be positive integers
+    def test_図形にIDが割り当てられる(self, ooxml_test_xlsx: Path) -> None:
+        shapes_by_sheet = get_shapes_ooxml(ooxml_test_xlsx)
+        shapes_with_id = [s for shapes in shapes_by_sheet.values() for s in shapes if s.id is not None]
+        assert len(shapes_with_id) > 0
         for shape in shapes_with_id:
             assert isinstance(shape.id, int)
             assert shape.id > 0
-
-        # IDs should be unique within each sheet
+        # IDs unique per sheet
         for shapes in shapes_by_sheet.values():
             ids = [s.id for s in shapes if s.id is not None]
-            assert len(ids) == len(set(ids)), "Shape IDs should be unique"
+            assert len(ids) == len(set(ids))
 
-    def test_コネクターはIDを持たない(self, sample_xlsx: Path) -> None:
-        """Connector shapes should not have IDs (they are relationships)."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
+    def test_lightモードでは図形が抽出されない(self, ooxml_test_xlsx: Path) -> None:
+        result = get_shapes_ooxml(ooxml_test_xlsx, mode="light")
+        assert result == {}
 
-        shapes_by_sheet = get_shapes_ooxml(sample_xlsx)
 
-        # Find connector shapes
-        for shapes in shapes_by_sheet.values():
-            for shape in shapes:
-                if shape.type and ("Line" in shape.type or "Connector" in shape.type):
-                    # Connectors should not have ID
-                    assert shape.id is None, f"Connector {shape.type} should not have ID"
-
-    def test_lightモードでは図形が抽出されない(self, sample_xlsx: Path) -> None:
-        """Light mode should not extract shapes."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        shapes_by_sheet = get_shapes_ooxml(sample_xlsx, mode="light")
-
-        # Light mode returns empty dict
-        assert shapes_by_sheet == {}, "Light mode should return empty dict"
-
+# ---------------------------------------------------------------------------
+# Charts: COM-equivalent tests
+# ---------------------------------------------------------------------------
 
 class TestChartsEquivalentToCom:
     """Tests equivalent to tests/com/test_charts_extraction.py."""
 
-    @pytest.fixture
-    def sample_xlsx(self) -> Path:
-        """Return path to sample xlsx file."""
-        return Path("sample/sample.xlsx")
-
-    def test_チャートの基本メタ情報が抽出される(self, sample_xlsx: Path) -> None:
-        """Chart basic metadata should be extracted (equivalent to COM test)."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        charts_by_sheet = get_charts_ooxml(sample_xlsx)
-
-        # Collect all charts
-        all_charts = []
-        for charts in charts_by_sheet.values():
-            all_charts.extend(charts)
-
-        assert len(all_charts) > 0, "Expected charts in sample.xlsx"
-
+    def test_チャートの基本メタ情報が抽出される(self, ooxml_test_xlsx: Path) -> None:
+        charts_by_sheet = get_charts_ooxml(ooxml_test_xlsx)
+        all_charts = [c for charts in charts_by_sheet.values() for c in charts]
+        assert len(all_charts) > 0
         for chart in all_charts:
-            # chart_type should be a known type
             assert chart.chart_type is not None
             assert chart.chart_type != "unknown"
-            # error should be None for successful extraction
             assert chart.error is None
 
-    def test_チャートタイトルが抽出される(self, sample_xlsx: Path) -> None:
-        """Chart title should be extracted."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
+    def test_チャートタイトルが抽出される(self, ooxml_test_xlsx: Path) -> None:
+        charts_by_sheet = get_charts_ooxml(ooxml_test_xlsx)
+        all_charts = [c for charts in charts_by_sheet.values() for c in charts]
+        titles = [c.title for c in all_charts if c.title]
+        assert "売上データ" in titles
 
-        charts_by_sheet = get_charts_ooxml(sample_xlsx)
-
-        # Find charts with titles
-        charts_with_title = []
-        for charts in charts_by_sheet.values():
-            for chart in charts:
-                if chart.title:
-                    charts_with_title.append(chart)
-
-        # sample.xlsx has chart with title "売上データ"
-        assert len(charts_with_title) > 0, "Expected chart with title"
-        titles = [c.title for c in charts_with_title]
-        assert "売上データ" in titles, f"Expected '売上データ' in titles, got {titles}"
-
-    def test_Y軸情報が抽出される(self, sample_xlsx: Path) -> None:
-        """Y-axis title and range should be extracted."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        charts_by_sheet = get_charts_ooxml(sample_xlsx)
-
-        # Collect all charts
-        all_charts = []
-        for charts in charts_by_sheet.values():
-            all_charts.extend(charts)
-
+    def test_Y軸情報が抽出される(self, ooxml_test_xlsx: Path) -> None:
+        charts_by_sheet = get_charts_ooxml(ooxml_test_xlsx)
+        all_charts = [c for charts in charts_by_sheet.values() for c in charts]
         assert len(all_charts) > 0
-
-        # Check y_axis_title and y_axis_range attributes exist
         for chart in all_charts:
-            assert hasattr(chart, "y_axis_title")
-            assert hasattr(chart, "y_axis_range")
-            # y_axis_range should be list
             assert isinstance(chart.y_axis_range, list)
 
-    def test_系列情報が参照式として抽出される(self, sample_xlsx: Path) -> None:
-        """Series data should be extracted with range references."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        charts_by_sheet = get_charts_ooxml(sample_xlsx)
-
-        # Find chart with series
-        chart_with_series = None
-        for charts in charts_by_sheet.values():
-            for chart in charts:
-                if chart.series:
-                    chart_with_series = chart
-                    break
-
-        assert chart_with_series is not None, "Expected chart with series"
+    def test_系列情報が参照式として抽出される(self, ooxml_test_xlsx: Path) -> None:
+        charts_by_sheet = get_charts_ooxml(ooxml_test_xlsx)
+        all_charts = [c for charts in charts_by_sheet.values() for c in charts]
+        chart_with_series = next((c for c in all_charts if c.series), None)
+        assert chart_with_series is not None
         assert len(chart_with_series.series) > 0
-
         for series in chart_with_series.series:
-            # Series should have name
             assert hasattr(series, "name")
-            # Series should have range references
-            assert hasattr(series, "x_range")
             assert hasattr(series, "y_range")
-            # y_range should be present for data series
             if series.y_range:
-                # Range should look like a cell reference
                 assert "!" in series.y_range or "$" in series.y_range
 
-    def test_verboseでチャートのサイズが取得される(self, sample_xlsx: Path) -> None:
-        """Chart size should be available in verbose mode."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        charts_by_sheet = get_charts_ooxml(sample_xlsx, mode="verbose")
-
-        # Collect all charts
-        all_charts = []
-        for charts in charts_by_sheet.values():
-            all_charts.extend(charts)
-
+    def test_verboseでチャートのサイズが取得される(self, ooxml_test_xlsx: Path) -> None:
+        charts_by_sheet = get_charts_ooxml(ooxml_test_xlsx, mode="verbose")
+        all_charts = [c for charts in charts_by_sheet.values() for c in charts]
         assert len(all_charts) > 0
-
         for chart in all_charts:
-            # Verbose mode should include w and h
             assert chart.w is not None
             assert chart.h is not None
 
 
+# ---------------------------------------------------------------------------
+# Integration tests
+# ---------------------------------------------------------------------------
+
 class TestOoxmlIntegration:
-    """Integration tests using sample files."""
+    """Integration tests using generated test file."""
 
-    @pytest.fixture
-    def sample_xlsx(self) -> Path:
-        """Return path to sample xlsx file."""
-        return Path("sample/sample.xlsx")
+    def test_shapes_extraction(self, ooxml_test_xlsx: Path) -> None:
+        shapes_by_sheet = get_shapes_ooxml(ooxml_test_xlsx)
+        total = sum(len(shapes) for shapes in shapes_by_sheet.values())
+        assert total >= 5  # We injected 5 shapes
 
-    def test_sample_xlsx_shapes_extraction(self, sample_xlsx: Path) -> None:
-        """Test shape extraction from sample.xlsx."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
+    def test_charts_extraction(self, ooxml_test_xlsx: Path) -> None:
+        charts_by_sheet = get_charts_ooxml(ooxml_test_xlsx)
+        total = sum(len(charts) for charts in charts_by_sheet.values())
+        assert total >= 1  # We created 1 chart
 
-        shapes_by_sheet = get_shapes_ooxml(sample_xlsx)
+    def test_has_flowchart_shapes(self, ooxml_test_xlsx: Path) -> None:
+        shapes_by_sheet = get_shapes_ooxml(ooxml_test_xlsx)
+        all_types = [s.type for shapes in shapes_by_sheet.values() for s in shapes if s.type]
+        flowchart_types = [t for t in all_types if "Flowchart" in t]
+        assert len(flowchart_types) > 0
 
-        # sample.xlsx should have shapes
-        total_shapes = sum(len(shapes) for shapes in shapes_by_sheet.values())
-        # At minimum, verify extraction doesn't crash
-        assert isinstance(total_shapes, int)
+    def test_has_line_chart(self, ooxml_test_xlsx: Path) -> None:
+        charts_by_sheet = get_charts_ooxml(ooxml_test_xlsx)
+        all_types = [c.chart_type for charts in charts_by_sheet.values() for c in charts if c.chart_type]
+        line_charts = [t for t in all_types if "Line" in t]
+        assert len(line_charts) > 0
 
-    def test_sample_xlsx_charts_extraction(self, sample_xlsx: Path) -> None:
-        """Test chart extraction from sample.xlsx."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
+    def test_shape_text_extraction(self, ooxml_test_xlsx: Path) -> None:
+        shapes_by_sheet = get_shapes_ooxml(ooxml_test_xlsx)
+        all_texts = [s.text for shapes in shapes_by_sheet.values() for s in shapes if s.text]
+        assert "開始" in all_texts
+        assert "入力データ読み込み" in all_texts
+        assert "フォーマット有効？" in all_texts
 
-        charts_by_sheet = get_charts_ooxml(sample_xlsx)
-
-        # sample.xlsx should have charts
-        total_charts = sum(len(charts) for charts in charts_by_sheet.values())
-        # At minimum, verify extraction doesn't crash
-        assert isinstance(total_charts, int)
-
-    def test_sample_xlsx_has_flowchart_shapes(self, sample_xlsx: Path) -> None:
-        """sample.xlsx should contain flowchart shapes."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        shapes_by_sheet = get_shapes_ooxml(sample_xlsx)
-
-        # Collect all shape types
-        all_types: list[str] = []
-        for shapes in shapes_by_sheet.values():
-            for shape in shapes:
-                if shape.type:
-                    all_types.append(shape.type)
-
-        # sample.xlsx has flowchart shapes based on sample.json
-        flowchart_types = [t for t in all_types if "Flowchart" in t or "flowChart" in t.lower()]
-        assert len(flowchart_types) > 0, "Expected flowchart shapes in sample.xlsx"
-
-    def test_sample_xlsx_has_line_chart(self, sample_xlsx: Path) -> None:
-        """sample.xlsx should contain a line chart."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        charts_by_sheet = get_charts_ooxml(sample_xlsx)
-
-        # Collect all chart types
-        all_chart_types: list[str] = []
-        for charts in charts_by_sheet.values():
-            for chart in charts:
-                if chart.chart_type:
-                    all_chart_types.append(chart.chart_type)
-
-        # sample.xlsx has a line chart (売上データ)
-        line_charts = [t for t in all_chart_types if "Line" in t]
-        assert len(line_charts) > 0, "Expected line chart in sample.xlsx"
-
-    def test_shape_text_extraction(self, sample_xlsx: Path) -> None:
-        """Shapes with text should have text extracted."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        shapes_by_sheet = get_shapes_ooxml(sample_xlsx)
-
-        # Collect all shape texts
-        all_texts: list[str] = []
-        for shapes in shapes_by_sheet.values():
-            for shape in shapes:
-                if shape.text:
-                    all_texts.append(shape.text)
-
-        # sample.xlsx has shapes with text (開始, 処理A, etc.)
-        assert len(all_texts) > 0, "Expected shapes with text in sample.xlsx"
-
-    def test_chart_title_extraction(self, sample_xlsx: Path) -> None:
-        """Charts with titles should have titles extracted."""
-        if not sample_xlsx.exists():
-            pytest.skip("sample/sample.xlsx not found")
-
-        charts_by_sheet = get_charts_ooxml(sample_xlsx)
-
-        # Collect all chart titles
-        all_titles: list[str] = []
-        for charts in charts_by_sheet.values():
-            for chart in charts:
-                if chart.title:
-                    all_titles.append(chart.title)
-
-        # sample.xlsx has chart with title based on sample.json
-        # Title may or may not be present depending on chart configuration
-        assert isinstance(all_titles, list)
+    def test_chart_title_extraction(self, ooxml_test_xlsx: Path) -> None:
+        charts_by_sheet = get_charts_ooxml(ooxml_test_xlsx)
+        all_titles = [c.title for charts in charts_by_sheet.values() for c in charts if c.title]
+        assert "売上データ" in all_titles

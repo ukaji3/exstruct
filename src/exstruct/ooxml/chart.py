@@ -37,7 +37,7 @@ def _resolve_relative_path(target: str, base_dir: str) -> str:
             clean = clean[3:]
         return f"xl/{clean}"
     if target.startswith("/"):
-        return f"{base_dir}{target}"
+        return target.lstrip("/")
     return f"{base_dir}/{target}"
 
 
@@ -335,35 +335,41 @@ def _get_chart_positions_from_drawing(
     except (KeyError, ET.ParseError):
         return result
 
-    # Find all graphicFrame elements (charts are embedded in these)
-    for anchor in root.findall(".//xdr:twoCellAnchor", NS):
-        graphic_frame = anchor.find("xdr:graphicFrame", NS)
+    # Support both prefixed (xdr:) and default namespace anchors
+    xdr_ns = "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"
+    c_ns = "http://schemas.openxmlformats.org/drawingml/2006/chart"
+    r_ns = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+
+    # Find all anchor elements (twoCellAnchor and oneCellAnchor)
+    anchors = (
+        root.findall(f".//{{{xdr_ns}}}twoCellAnchor")
+        + root.findall(f".//{{{xdr_ns}}}oneCellAnchor")
+    )
+
+    for anchor in anchors:
+        graphic_frame = anchor.find(f"{{{xdr_ns}}}graphicFrame")
         if graphic_frame is None:
             continue
 
         # Get chart reference
-        chart_ref = graphic_frame.find(
-            ".//c:chart",
-            {"c": "http://schemas.openxmlformats.org/drawingml/2006/chart"},
-        )
+        chart_ref = graphic_frame.find(f".//{{{c_ns}}}chart")
         if chart_ref is None:
             continue
 
-        r_id = chart_ref.get(
-            "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"
-        )
+        r_id = chart_ref.get(f"{{{r_ns}}}id")
         if not r_id:
             continue
 
         # Get chart name
-        cnv_pr = graphic_frame.find(".//xdr:cNvPr", NS)
+        cnv_pr = graphic_frame.find(f".//{{{xdr_ns}}}cNvPr")
         chart_name = cnv_pr.get("name", f"Chart_{r_id}") if cnv_pr is not None else f"Chart_{r_id}"
 
         # Get position from xfrm
-        xfrm = graphic_frame.find("xdr:xfrm", NS)
+        xfrm = graphic_frame.find(f"{{{xdr_ns}}}xfrm")
         if xfrm is not None:
-            off = xfrm.find("a:off", NS)
-            ext = xfrm.find("a:ext", NS)
+            a_ns = "http://schemas.openxmlformats.org/drawingml/2006/main"
+            off = xfrm.find(f"{{{a_ns}}}off")
+            ext = xfrm.find(f"{{{a_ns}}}ext")
             if off is not None and ext is not None:
                 try:
                     x = int(off.get("x", "0"))
@@ -380,6 +386,17 @@ def _get_chart_positions_from_drawing(
                     continue
                 except ValueError:
                     pass
+
+        # Try ext on anchor itself (oneCellAnchor)
+        anchor_ext = anchor.find(f"{{{xdr_ns}}}ext")
+        if anchor_ext is not None:
+            try:
+                cx = int(anchor_ext.get("cx", "0"))
+                cy = int(anchor_ext.get("cy", "0"))
+                result[r_id] = (chart_name, 0, 0, emu_to_pixels(cx), emu_to_pixels(cy))
+                continue
+            except ValueError:
+                pass
 
         # Fallback: estimate from anchor cells (simplified)
         result[r_id] = (chart_name, 0, 0, 400, 300)
