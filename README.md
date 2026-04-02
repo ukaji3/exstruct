@@ -26,6 +26,8 @@
 
 # ExStruct — Excel Structured Extraction Engine
 
+> **This is a fork of [harumiWeb/exstruct](https://github.com/harumiWeb/exstruct)** with cross-platform enhancements. See [What's New in This Fork](#whats-new-in-this-fork) below.
+
 ExStruct reads Excel workbooks into structured data and applies patch-based
 editing workflows through a shared core. It provides extraction APIs, a
 JSON-first editing CLI, and an MCP server for host-managed integrations, with
@@ -34,8 +36,9 @@ automation.
 
 - In COM/Excel environments (Windows), it performs rich extraction.
 - In non-COM environments (Linux/macOS):
-  - if the LibreOffice runtime is available, it performs best-effort extraction for cells, table candidates, shapes, connectors, and charts
-  - otherwise, it safely falls back to cells + table candidates + print areas
+  - shapes, connectors, and charts are extracted via the **built-in OOXML parser** (no external dependencies)
+  - if the LibreOffice runtime is also available, coordinate precision can be improved further
+  - cells + table candidates + print areas are always available
 
 Detection heuristics, editing workflows, and output modes are adjustable for
 LLM/RAG pipelines and local automation.
@@ -703,6 +706,32 @@ See: [dev-docs/architecture/contributor-guide.md](dev-docs/architecture/contribu
 ## Coverage Note
 
 The cell-structure inference logic (`cells.py`) depends on heuristic rules and Excel-specific behavior. Full coverage is intentionally not pursued, because exhaustive tests would not reflect real-world reliability.
+
+## What's New in This Fork
+
+This fork adds cross-platform capabilities that the upstream repository does not provide:
+
+### Built-in OOXML Parser (no external dependencies)
+
+A pure-Python OOXML parser (`src/exstruct/ooxml/`) that extracts shapes, connectors, and charts directly from `.xlsx` XML — **without requiring Excel COM or LibreOffice**.
+
+- Shapes: text, coordinates, preset geometry type, group shapes
+- Connectors (arrows): begin/end IDs, direction, arrow styles
+- Charts: type, title, series data, axis ranges, positions
+
+This means `mode="standard"` on Linux/macOS returns rich extraction results automatically, whereas upstream returns empty shapes/charts without COM or LibreOffice.
+
+### Cross-platform `create_chart` (openpyxl)
+
+The `create_chart` patch operation works on all platforms via `openpyxl.chart`, supporting all 8 chart types: line, column, bar, area, pie, doughnut, scatter, radar. Upstream requires Windows Excel COM for chart creation.
+
+### `create_shape` Patch Operation (OOXML injection)
+
+A new `create_shape` operation that injects shapes directly into the xlsx XML, supporting 13 preset geometry types including rectangles, ovals, arrows, and flowchart elements. This is a fork-only feature not available upstream.
+
+### Comparison with LibreOffice Mode
+
+The OOXML parser and LibreOffice mode extract the same types of information. LibreOffice provides slightly better coordinate precision by using its rendering engine, but the OOXML parser is faster, lighter, and requires no installation. On systems with LibreOffice installed, `mode="libreoffice"` is still available for cases where coordinate precision matters.
 
 ## License
 

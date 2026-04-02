@@ -16,6 +16,8 @@
 
 # ExStruct — Excel 構造化抽出エンジン
 
+> **これは [harumiWeb/exstruct](https://github.com/harumiWeb/exstruct) のフォーク**です。クロスプラットフォーム拡張を追加しています。詳細は[このフォークの新機能](#このフォークの新機能)を参照してください。
+
 ExStruct は Excel ワークブックを構造化データへ抽出し、shared core を通じて
 patch-based な編集フローも扱えます。抽出 API、JSON-first editing CLI、
 host-managed integration 向けの MCP サーバーを提供し、LLM/RAG 向け前処理、
@@ -23,8 +25,9 @@ host-managed integration 向けの MCP サーバーを提供し、LLM/RAG 向け
 
 - COM/Excel 環境 (Windows) ではリッチ抽出
 - 非 COM 環境 (Linux/macOS) では
-  - LibreOffice runtime があればセル・テーブル候補・図形・グラフ（best-effort）
-  - それ以外の環境ではセル＋テーブル候補＋印刷範囲へのフォールバックで安全に動作します。
+  - **内蔵 OOXML パーサー**により、外部依存なしで図形・コネクタ・チャートを抽出
+  - LibreOffice runtime があれば座標精度をさらに向上可能
+  - セル＋テーブル候補＋印刷範囲は常に利用可能
 
 LLM/RAG 向けに検出ヒューリスティックや出力モードを調整でき、編集ワーク
 フローも同じ責務分離で扱えます。
@@ -760,6 +763,32 @@ ExStruct の内部実装を拡張する場合は、
 
 セル構造推論ロジック（cells.py）は、ヒューリスティックルールと
 Excel 固有の動作に依存しています。網羅的なテストは現実世界の信頼性を反映できないため、完全なカバレッジは意図的に追求されていません。
+
+## このフォークの新機能
+
+このフォークは、upstream にはないクロスプラットフォーム機能を追加しています。
+
+### 内蔵 OOXML パーサー（外部依存なし）
+
+純 Python の OOXML パーサー（`src/exstruct/ooxml/`）が `.xlsx` の XML から図形・コネクタ・チャートを直接抽出します。**Excel COM も LibreOffice も不要**です。
+
+- 図形: テキスト、座標、プリセットジオメトリ、グループ図形
+- コネクタ（矢印）: 始点/終点 ID、方向、矢印スタイル
+- チャート: タイプ、タイトル、系列データ、軸範囲、位置
+
+Linux/macOS で `mode="standard"` を使うと、upstream では shapes/charts が空になりますが、このフォークでは OOXML パーサーにより自動的にリッチな抽出結果が返されます。
+
+### クロスプラットフォーム `create_chart`（openpyxl）
+
+`create_chart` パッチ操作が `openpyxl.chart` 経由で全プラットフォームで動作します。対応チャートタイプ: line, column, bar, area, pie, doughnut, scatter, radar。upstream では Windows Excel COM が必要です。
+
+### `create_shape` パッチ操作（OOXML インジェクション）
+
+xlsx の XML に図形を直接注入する `create_shape` 操作を追加。矩形、楕円、矢印、フローチャート要素など 13 種類のプリセットジオメトリに対応。このフォーク独自の機能です。
+
+### LibreOffice モードとの比較
+
+OOXML パーサーと LibreOffice モードは同じ種類の情報を抽出します。LibreOffice はレンダリングエンジンを使うため座標精度がやや高くなりますが、OOXML パーサーの方が高速・軽量で、インストール不要です。LibreOffice がインストールされている環境では、座標精度が重要な場合に `mode="libreoffice"` も引き続き利用可能です。
 
 ## License
 
