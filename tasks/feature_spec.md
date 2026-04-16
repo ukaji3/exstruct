@@ -168,3 +168,43 @@
 
 - `recommended`
 - rationale: the change turns AI-agent operational workflow into a durable repository rule and resolves recurring tradeoffs around single-skill packaging, repo source of truth, and the CLI-versus-MCP boundary.
+
+## 2026-04-16 SECURITY.md policy
+
+### Goal
+
+- Add a root-level `SECURITY.md` that GitHub can recognize as the repository security policy.
+- Direct security reports to `harumiweb.security@gmail.com` and keep sensitive disclosures out of public issue threads when they are not already public.
+- Keep the change documentation-only with no code, package, CLI, MCP, or MkDocs navigation impact.
+
+### Public contract summary
+
+- The repository gains one new public policy document: `SECURITY.md`.
+- Supported versions are defined as the latest release only.
+- Security vulnerabilities should be reported by email first.
+- Public GitHub issues remain appropriate for non-security problems and already-public, non-sensitive discussion.
+
+### Permanent destinations
+
+- `SECURITY.md`
+  - Canonical public security policy document for responsible disclosure and supported-version guidance.
+- `tasks/feature_spec.md` and `tasks/todo.md`
+  - Retain only this compact implementation record and verification evidence for the session.
+
+### Constraints
+
+- `SECURITY.md` is English-only for this change.
+- `README.md`, `README.ja.md`, `docs/`, and `mkdocs.yml` remain unchanged.
+- The supported-version policy must avoid hard-coding a specific release number and instead describe support as "latest release".
+
+### Verification
+
+- `rg -n "Security Policy|harumiweb.security@gmail.com|Latest release|GitHub Issues" SECURITY.md`
+- `git diff --check -- SECURITY.md tasks/feature_spec.md tasks/todo.md`
+- `uv run task precommit-run`
+- `uv run pytest -q`
+
+### ADR verdict
+
+- `not-needed`
+- rationale: this adds a single public repository policy document without changing architecture, public API design, or long-lived internal tradeoff policy.
