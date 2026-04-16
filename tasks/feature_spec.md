@@ -220,8 +220,9 @@
 ### Contract summary
 
 - `LibreOfficeSession.load_workbook()` returns a frozen typed handle that stores the resolved workbook path and the owning session identity.
-- `LibreOfficeSession.close_workbook()` validates that the handle belongs to the current session, becomes idempotent for repeated close attempts, and clears any session-local bridge cache entries for that workbook.
+- `LibreOfficeSession.close_workbook()` validates that the handle belongs to the current session, rejects rehydrated handles whose `file_path` no longer matches the registered workbook id, becomes idempotent for repeated close attempts, and clears any session-local bridge cache entries for that workbook.
 - `LibreOfficeSession.extract_draw_page_shapes()` and `extract_chart_geometries()` continue to support path-based extraction, but may also consume the typed workbook handle so callers can follow a typed lifecycle.
+- `LibreOfficeRichBackend.session_factory` accepts the structural rich-extraction session contract, including legacy path-only sessions and lifecycle-aware sessions, rather than only the concrete built-in `LibreOfficeSession`.
 - No public CLI, MCP, extraction-mode, fallback, or serialization contracts change in this issue.
 
 ### Permanent destinations

@@ -107,10 +107,10 @@ class _DummySession:
         return {}
 
 
-def _dummy_session_factory() -> LibreOfficeSession:
+def _dummy_session_factory() -> _DummySession:
     """Return a dummy LibreOffice session test double."""
 
-    return cast(LibreOfficeSession, _DummySession())
+    return _DummySession()
 
 
 class _ChartGeometrySession(_DummySession):
@@ -136,10 +136,10 @@ class _ChartGeometrySession(_DummySession):
         }
 
 
-def _chart_geometry_session_factory() -> LibreOfficeSession:
+def _chart_geometry_session_factory() -> _ChartGeometrySession:
     """Return a LibreOffice session double with chart geometries."""
 
-    return cast(LibreOfficeSession, _ChartGeometrySession())
+    return _ChartGeometrySession()
 
 
 class _DrawPageSession(_DummySession):
@@ -308,7 +308,7 @@ def test_libreoffice_backend_avoids_probe_only_startup(
     )
     backend = LibreOfficeRichBackend(
         Path("sample/basic/sample.xlsx"),
-        session_factory=lambda: cast(LibreOfficeSession, _TrackingSession()),
+        session_factory=lambda: _TrackingSession(),
     )
 
     backend.extract_shapes(mode="libreoffice")
@@ -357,7 +357,7 @@ def test_libreoffice_backend_supports_legacy_path_only_session_factory(
     )
     backend = LibreOfficeRichBackend(
         Path("sample/basic/sample.xlsx"),
-        session_factory=lambda: cast(LibreOfficeSession, _LegacySession()),
+        session_factory=lambda: _LegacySession(),
     )
 
     backend.extract_shapes(mode="libreoffice")
@@ -411,7 +411,7 @@ def test_libreoffice_backend_uses_draw_page_shapes_without_ooxml(
     )
     backend = LibreOfficeRichBackend(
         Path("sample/flowchart/sample-shape-connector.xlsx"),
-        session_factory=lambda: cast(LibreOfficeSession, _DrawPageSession(payload)),
+        session_factory=lambda: _DrawPageSession(payload),
     )
 
     shape_data = backend.extract_shapes(mode="libreoffice")
@@ -517,7 +517,7 @@ def test_libreoffice_backend_prefers_ooxml_refs_over_uno_direct_refs(
     )
     backend = LibreOfficeRichBackend(
         Path("sample/flowchart/sample-shape-connector.xlsx"),
-        session_factory=lambda: cast(LibreOfficeSession, _DrawPageSession(payload)),
+        session_factory=lambda: _DrawPageSession(payload),
     )
 
     shape_data = backend.extract_shapes(mode="libreoffice")
@@ -604,7 +604,7 @@ def test_libreoffice_backend_ignores_unmatched_ooxml_when_draw_page_exists(
     )
     backend = LibreOfficeRichBackend(
         Path("sample/flowchart/sample-shape-connector.xlsx"),
-        session_factory=lambda: cast(LibreOfficeSession, _DrawPageSession(payload)),
+        session_factory=lambda: _DrawPageSession(payload),
     )
 
     items = backend.extract_shapes(mode="libreoffice")["Sheet1"]
@@ -686,7 +686,7 @@ def test_libreoffice_backend_logs_unmatched_ooxml_when_draw_page_exists(
     )
     backend = LibreOfficeRichBackend(
         Path("sample/flowchart/sample-shape-connector.xlsx"),
-        session_factory=lambda: cast(LibreOfficeSession, _DrawPageSession(payload)),
+        session_factory=lambda: _DrawPageSession(payload),
     )
 
     with caplog.at_level("DEBUG", logger="exstruct.core.backends.libreoffice_backend"):
@@ -861,7 +861,7 @@ def test_libreoffice_backend_combines_ooxml_and_uno_connector_endpoints(
     )
     backend = LibreOfficeRichBackend(
         Path("sample/flowchart/sample-shape-connector.xlsx"),
-        session_factory=lambda: cast(LibreOfficeSession, _DrawPageSession(payload)),
+        session_factory=lambda: _DrawPageSession(payload),
     )
 
     connector = next(
@@ -984,7 +984,7 @@ def test_libreoffice_backend_rotates_ooxml_connector_delta_for_heuristic_matchin
     )
     backend = LibreOfficeRichBackend(
         Path("sample/flowchart/sample-shape-connector.xlsx"),
-        session_factory=lambda: cast(LibreOfficeSession, _DrawPageSession(payload)),
+        session_factory=lambda: _DrawPageSession(payload),
     )
 
     connector = next(
@@ -2614,6 +2614,43 @@ def test_libreoffice_session_close_workbook_rejects_foreign_handle(
 
     with pytest.raises(ValueError, match="different LibreOfficeSession"):
         foreign.close_workbook(workbook)
+
+
+def test_libreoffice_session_close_workbook_rejects_path_mismatched_handle(
+    tmp_path: Path, monkeypatch: MonkeyPatch
+) -> None:
+    """Verify forged handles cannot reuse a workbook id for another path."""
+
+    soffice_path = tmp_path / "soffice.exe"
+    python_path = tmp_path / "python.exe"
+    workbook_path = tmp_path / "book.xlsx"
+    other_workbook_path = tmp_path / "other.xlsx"
+    for path in (soffice_path, python_path, workbook_path, other_workbook_path):
+        path.write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "exstruct.core.libreoffice._resolve_python_path",
+        lambda _path: python_path,
+    )
+
+    session = LibreOfficeSession(
+        LibreOfficeSessionConfig(
+            soffice_path=soffice_path,
+            startup_timeout_sec=1.0,
+            exec_timeout_sec=2.0,
+            profile_root=None,
+        )
+    )
+
+    workbook = session.load_workbook(workbook_path)
+    forged = LibreOfficeWorkbookHandle(
+        file_path=other_workbook_path.resolve(),
+        owner_session_id=workbook.owner_session_id,
+        workbook_id=workbook.workbook_id,
+    )
+
+    with pytest.raises(ValueError, match="does not match the registered workbook"):
+        session.close_workbook(forged)
 
 
 def test_libreoffice_session_close_workbook_is_idempotent(

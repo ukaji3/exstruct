@@ -307,6 +307,11 @@ class LibreOfficeSession:
         file_path = self._open_workbooks.get(workbook.workbook_id)
         if file_path is None and not allow_closed:
             raise RuntimeError("LibreOffice workbook handle is closed.")
+        if file_path is not None and file_path != workbook.file_path.resolve():
+            raise ValueError(
+                "LibreOffice workbook handle does not match the registered "
+                "workbook path."
+            )
         return file_path
 
     def _clear_workbook_cache(self, file_path: Path) -> None:

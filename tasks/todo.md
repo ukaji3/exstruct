@@ -125,6 +125,8 @@
 - `LibreOfficeSession.extract_draw_page_shapes()` and `extract_chart_geometries()` now accept either a direct `Path` or a typed workbook handle, preserving the existing path-based call pattern while enabling the typed lifecycle.
 - `src/exstruct/core/backends/libreoffice_backend.py` now prefers `load_workbook() -> extract_*() -> close_workbook()` when the session implements that lifecycle, while preserving the legacy path-only `session_factory` extension point as a runtime fallback.
 - `tests/core/test_libreoffice_backend.py` now covers typed handle creation, backend lifecycle usage, legacy path-only session compatibility, foreign-session rejection, repeated close idempotence, closed-handle extraction failure, and cache invalidation after close.
+- Review follow-up: `session_factory` is now typed as a structural path-or-lifecycle protocol instead of the concrete built-in session, so legacy custom sessions and test doubles no longer need `cast(LibreOfficeSession, ...)` to type-check.
+- Review follow-up: workbook-handle validation now rejects rehydrated handles whose `file_path` disagrees with the registered workbook id, preventing forged handles from reusing another workbook's cache/close path.
 - No new `dev-docs/specs/`, `dev-docs/architecture/`, `dev-docs/adr/`, or public `docs/` updates were required; this issue only hardened the existing internal LibreOffice session contract.
 - Verification:
   - `uv run pytest tests/core/test_libreoffice_backend.py -q`
