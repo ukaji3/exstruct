@@ -14,7 +14,7 @@ import subprocess  # nosec B404 - required for validated local runtime/process m
 import sys
 from tempfile import NamedTemporaryFile, mkdtemp
 import time
-from typing import Literal, TextIO, cast
+from typing import Literal, TextIO, cast, overload
 
 _DEFAULT_STARTUP_TIMEOUT_SEC = 15.0
 _DEFAULT_EXEC_TIMEOUT_SEC = 30.0
@@ -281,11 +281,24 @@ class LibreOfficeSession:
         """Resolve either a direct path or a typed handle into a workbook path."""
 
         if isinstance(workbook, LibreOfficeWorkbookHandle):
-            file_path = self._require_handle_path(workbook)
-            if file_path is None:
-                raise RuntimeError("LibreOffice workbook handle is closed.")
-            return file_path
+            return self._require_handle_path(workbook)
         return workbook.resolve()
+
+    @overload
+    def _require_handle_path(
+        self,
+        workbook: LibreOfficeWorkbookHandle,
+        *,
+        allow_closed: Literal[False] = False,
+    ) -> Path: ...
+
+    @overload
+    def _require_handle_path(
+        self,
+        workbook: LibreOfficeWorkbookHandle,
+        *,
+        allow_closed: Literal[True],
+    ) -> Path | None: ...
 
     def _require_handle_path(
         self,
