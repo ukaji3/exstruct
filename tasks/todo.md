@@ -83,3 +83,25 @@
   - `rg -n "^## |Tests:|Code:|Related specs:" dev-docs/adr/ADR-0009-single-cli-skill-for-agent-workflows.md`
   - `uv run task precommit-run`
   - `git diff --check`
+
+## 2026-04-16 SECURITY.md policy
+
+### Planning
+
+- [x] Confirm whether `SECURITY.md` already exists and review the current public-document tone in `README.md` and `CONTRIBUTING.md`.
+- [x] Define the minimal public policy: latest-release-only support and email-first disclosure to `harumiweb.security@gmail.com`.
+- [x] Add a root-level `SECURITY.md` with supported versions, reporting instructions, and expectations for response/disclosure.
+- [x] Record the durable destination and ADR verdict in `tasks/feature_spec.md`.
+- [x] Run the planned verification commands and record the results.
+
+### Review
+
+- Added the root-level `SECURITY.md` as the durable public security policy document with latest-release-only support guidance and email-first reporting to `harumiweb.security@gmail.com`.
+- Kept the change documentation-only; `README.md`, `README.ja.md`, `docs/`, `mkdocs.yml`, code, and public runtime interfaces were unchanged.
+- `tasks/feature_spec.md` now records the compact spec, permanent destination, verification commands, and `not-needed` ADR verdict for this session.
+- Verification:
+  - `rg -n "Security Policy|harumiweb.security@gmail.com|Latest release|GitHub Issues" SECURITY.md`
+  - `git diff --check -- SECURITY.md tasks/feature_spec.md tasks/todo.md`
+  - `uv run task precommit-run`
+  - `uv run pytest -q`
+  - Result summary: `pre-commit` passed (`ruff`, `ruff-format`, `mypy`), and `pytest` completed with `913 passed, 4 skipped`.
