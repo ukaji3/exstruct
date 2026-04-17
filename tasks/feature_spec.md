@@ -168,3 +168,86 @@
 
 - `recommended`
 - rationale: the change turns AI-agent operational workflow into a durable repository rule and resolves recurring tradeoffs around single-skill packaging, repo source of truth, and the CLI-versus-MCP boundary.
+
+## 2026-04-16 SECURITY.md policy
+
+### Goal
+
+- Add a root-level `SECURITY.md` that GitHub can recognize as the repository security policy.
+- Direct security reports to `harumiweb.security@gmail.com` and keep sensitive disclosures out of public issue threads when they are not already public.
+- Keep the change documentation-only with no code, package, CLI, MCP, or MkDocs navigation impact.
+
+### Public contract summary
+
+- The repository gains one new public policy document: `SECURITY.md`.
+- Supported versions are defined as the latest release only.
+- Security vulnerabilities should be reported by email first.
+- Public GitHub issues remain appropriate for non-security problems and already-public, non-sensitive discussion.
+
+### Permanent destinations
+
+- `SECURITY.md`
+  - Canonical public security policy document for responsible disclosure and supported-version guidance.
+- `tasks/feature_spec.md` and `tasks/todo.md`
+  - Retain only this compact implementation record and verification evidence for the session.
+
+### Constraints
+
+- `SECURITY.md` is English-only for this change.
+- `README.md`, `README.ja.md`, `docs/`, and `mkdocs.yml` remain unchanged.
+- The supported-version policy must avoid hard-coding a specific release number and instead describe support as "latest release".
+
+### Verification
+
+- `rg -n "Security Policy|harumiweb.security@gmail.com|Latest release|GitHub Issues" SECURITY.md`
+- `git diff --check -- SECURITY.md tasks/feature_spec.md tasks/todo.md`
+- `uv run task precommit-run`
+- `uv run pytest -q`
+
+### ADR verdict
+
+- `not-needed`
+- rationale: this adds a single public repository policy document without changing architecture, public API design, or long-lived internal tradeoff policy.
+
+## 2026-04-16 issue #77 LibreOffice typed workbook handle
+
+### Goal
+
+- Replace the raw `dict` token returned by `LibreOfficeSession.load_workbook()` with a typed workbook handle.
+- Give `LibreOfficeSession.close_workbook()` meaningful session-local cleanup instead of a no-op.
+- Keep the current LibreOffice extraction mode, fallback behavior, and bridge subprocess lifecycle unchanged.
+
+### Contract summary
+
+- `LibreOfficeSession.load_workbook()` returns a frozen typed handle that stores the resolved workbook path and the owning session identity.
+- `LibreOfficeSession.close_workbook()` validates that the handle belongs to the current session, rejects rehydrated handles whose `file_path` no longer matches the registered workbook id, becomes idempotent for repeated close attempts, and clears any session-local bridge cache entries for that workbook.
+- `LibreOfficeSession.extract_draw_page_shapes()` and `extract_chart_geometries()` continue to support path-based extraction, but may also consume the typed workbook handle so callers can follow a typed lifecycle.
+- `LibreOfficeRichBackend.session_factory` accepts the structural rich-extraction session contract, including legacy path-only sessions and lifecycle-aware sessions, rather than only the concrete built-in `LibreOfficeSession`.
+- No public CLI, MCP, extraction-mode, fallback, or serialization contracts change in this issue.
+
+### Permanent destinations
+
+- `src/exstruct/core/libreoffice.py`
+  - Canonical implementation for the typed LibreOffice workbook handle and close semantics.
+- `src/exstruct/core/backends/libreoffice_backend.py`
+  - Updated to consume the typed session lifecycle without changing backend policy.
+- `tests/core/test_libreoffice_backend.py`
+  - Regression coverage for typed handle behavior, ownership checks, idempotent close, and cache invalidation.
+- `tasks/feature_spec.md` and `tasks/todo.md`
+  - Retain the compact planning and verification record for this issue.
+
+### Constraints
+
+- Do not change the bridge subprocess contract in `src/exstruct/core/_libreoffice_bridge.py`; workbook documents are still opened and closed per bridge invocation.
+- Do not change backend fallback policy or session startup/shutdown behavior.
+- Keep backward compatibility for current path-based extraction helpers while introducing the typed handle.
+
+### Verification
+
+- `uv run pytest tests/core/test_libreoffice_backend.py -q`
+- `uv run task precommit-run`
+
+### ADR verdict
+
+- `not-needed`
+- rationale: this is an internal contract hardening change that preserves existing extraction policy and runtime behavior; the durable rationale can stay in the task record.

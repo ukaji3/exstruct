@@ -83,3 +83,52 @@
   - `rg -n "^## |Tests:|Code:|Related specs:" dev-docs/adr/ADR-0009-single-cli-skill-for-agent-workflows.md`
   - `uv run task precommit-run`
   - `git diff --check`
+
+## 2026-04-16 SECURITY.md policy
+
+### Planning
+
+- [x] Confirm whether `SECURITY.md` already exists and review the current public-document tone in `README.md` and `CONTRIBUTING.md`.
+- [x] Define the minimal public policy: latest-release-only support and email-first disclosure to `harumiweb.security@gmail.com`.
+- [x] Add a root-level `SECURITY.md` with supported versions, reporting instructions, and expectations for response/disclosure.
+- [x] Record the durable destination and ADR verdict in `tasks/feature_spec.md`.
+- [x] Run the planned verification commands and record the results.
+
+### Review
+
+- Added the root-level `SECURITY.md` as the durable public security policy document with latest-release-only support guidance and email-first reporting to `harumiweb.security@gmail.com`.
+- Kept the change documentation-only; `README.md`, `README.ja.md`, `docs/`, `mkdocs.yml`, code, and public runtime interfaces were unchanged.
+- `tasks/feature_spec.md` now records the compact spec, permanent destination, verification commands, and `not-needed` ADR verdict for this session.
+- Verification:
+  - `rg -n "Security Policy|harumiweb.security@gmail.com|Latest release|GitHub Issues" SECURITY.md`
+  - `git diff --check -- SECURITY.md tasks/feature_spec.md tasks/todo.md`
+  - `uv run task precommit-run`
+  - `uv run pytest -q`
+  - Result summary: `pre-commit` passed (`ruff`, `ruff-format`, `mypy`), and `pytest` completed with `913 passed, 4 skipped`.
+
+## 2026-04-16 issue #77 LibreOffice typed workbook handle
+
+### Planning
+
+- [x] Confirm the issue scope, related PR review comment, and ADR verdict for the typed handle change.
+- [x] Record the compact spec and implementation constraints in `tasks/feature_spec.md`.
+- [x] Replace the raw workbook token in `src/exstruct/core/libreoffice.py` with a typed handle and meaningful `close_workbook()` cleanup.
+- [x] Update `src/exstruct/core/backends/libreoffice_backend.py` and test doubles to use the typed workbook lifecycle.
+- [x] Add regression tests for typed handle ownership, idempotent close, and cache invalidation.
+- [x] Run the targeted LibreOffice backend tests and `uv run task precommit-run`.
+- [x] Fill the Review section with verification evidence and permanent-destination notes.
+
+### Review
+
+- Added `LibreOfficeWorkbookHandle` in `src/exstruct/core/libreoffice.py` and replaced the raw `dict` workbook token with a typed, session-owned handle.
+- `LibreOfficeSession.close_workbook()` now validates session ownership, is idempotent for repeated close calls, and clears session-local bridge cache entries when the last handle for a workbook is released.
+- `LibreOfficeSession.extract_draw_page_shapes()` and `extract_chart_geometries()` now accept either a direct `Path` or a typed workbook handle, preserving the existing path-based call pattern while enabling the typed lifecycle.
+- `src/exstruct/core/backends/libreoffice_backend.py` now prefers `load_workbook() -> extract_*() -> close_workbook()` when the session implements that lifecycle, while preserving the legacy path-only `session_factory` extension point as a runtime fallback.
+- `tests/core/test_libreoffice_backend.py` now covers typed handle creation, backend lifecycle usage, legacy path-only session compatibility, foreign-session rejection, repeated close idempotence, closed-handle extraction failure, and cache invalidation after close.
+- Review follow-up: `session_factory` is now typed as a structural path-or-lifecycle protocol instead of the concrete built-in session, so legacy custom sessions and test doubles no longer need `cast(LibreOfficeSession, ...)` to type-check.
+- Review follow-up: workbook-handle validation now rejects rehydrated handles whose `file_path` disagrees with the registered workbook id, preventing forged handles from reusing another workbook's cache/close path.
+- Review follow-up: `_resolve_workbook_path()` now directly returns `_require_handle_path()` for typed handles, removing an unreachable `None` branch so the control flow matches the actual closed-handle behavior.
+- No new `dev-docs/specs/`, `dev-docs/architecture/`, `dev-docs/adr/`, or public `docs/` updates were required; this issue only hardened the existing internal LibreOffice session contract.
+- Verification:
+  - `uv run pytest tests/core/test_libreoffice_backend.py -q`
+  - `uv run task precommit-run`
